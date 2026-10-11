@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
@@ -23,10 +23,12 @@ const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Groups', icon: '◉', hint: 'Your people, your conversations' },
   { name: 'Messages', icon: '↗', hint: 'Requests and private chats' },
   { name: 'Wallet', icon: '◈', hint: 'Your Panda Coins and activity' },
+  { name: 'Admin', icon: '⚙', hint: 'Manage rewards and economy rules' },
 ];
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [section, setSection] = useState<Section>('Home');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
@@ -54,6 +56,14 @@ export default function App() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!supabase || !session) { setIsAdmin(false); return; }
+    let alive = true;
+    supabase.from('user_roles').select('role').eq('user_id',session.user.id).eq('role','admin').maybeSingle()
+      .then(({data}) => { if (alive) setIsAdmin(Boolean(data)); });
+    return () => { alive = false; };
+  }, [session]);
 
   useEffect(() => {
     if (!supabase || !session || (section !== 'Home' && section !== 'Confessions')) {
@@ -215,7 +225,7 @@ export default function App() {
     <aside className="sidebar">
       <button className="brand" onClick={() => setSection('Home')}><span className="brand-icon">🐼</span><span>circle<span className="brand-green">panda</span><small>YOUR CIRCLE, YOUR WAY</small></span></button>
       <div className="nav-caption">YOUR SPACE</div>
-      <nav>{sections.map(item => <button key={item.name} className={section === item.name ? 'nav-item active' : 'nav-item'} onClick={() => { setSection(item.name); setNotice(''); }}><span className="nav-icon">{item.icon}</span><span>{item.name}</span>{item.name === 'Messages' && <i className="nav-dot" />}</button>)}</nav>
+      <nav>{sections.filter(item => item.name !== 'Admin' || isAdmin).map(item => <button key={item.name} className={section === item.name ? 'nav-item active' : 'nav-item'} onClick={() => { setSection(item.name); setNotice(''); }}><span className="nav-icon">{item.icon}</span><span>{item.name}</span>{item.name === 'Messages' && <i className="nav-dot" />}</button>)}</nav>
       <div className="sidebar-bottom"><div className="online-mark" /> <span>Connected to your circle</span><button onClick={signOut} className="signout">Sign out ↗</button></div>
     </aside>
     <main className="main-area">
@@ -244,7 +254,8 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
-  const content: Record<Exclude<Section, 'Home' | 'Confessions'>, { icon: string; title: string; body: string; next: string[] }> = {
+  if (section === 'Admin') return <AdminFeature />;
+  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'Admin'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
     'Events': { icon: '▦', title: 'Make plans worth showing up for', body: 'Discover events around you or publish one of your own. Event cards will connect directly to the creator.', next: ['Create and publish events', 'Attendance and attendee counts', 'Creator messaging and event boosts'] },
@@ -252,7 +263,7 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
     'Messages': { icon: '↗', title: 'Every connection leads to a conversation', body: 'Message requests from dating, events, groups and the feed will live alongside your accepted chats.', next: ['Incoming and sent requests', 'Accept or decline requests', 'Private chats and unread indicators'] },
     'Wallet': { icon: '◈', title: 'Your Panda wallet', body: 'Your wallet and activity rewards will be managed by server-side rules, with balances that do not expire.', next: ['BC balance and transaction history', 'Activity XP and levels', 'VIP and reward controls'] },
   };
-  const item = content[section as Exclude<Section, 'Home' | 'Confessions'>];
+  const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'Admin'>];
   return <section className="feature-panel"><div className="feature-icon">{item.icon}</div><p className="eyebrow">THE CIRCLE PANDA EXPERIENCE</p><h2>{item.title}</h2><p className="feature-copy">{item.body}</p><div className="feature-list">{item.next.map((next, i) => <div key={next}><span>{String(i + 1).padStart(2, '0')}</span>{next}<b>↗</b></div>)}</div><div className="feature-note"><span className="pulse" /> This section is being connected to the new backend in stages.</div></section>;
 }
 
@@ -736,4 +747,42 @@ function GroupsFeature({ userId }: { userId: string }) {
     </section>
     {openGroup && openConversationId && <section className="group-chat-panel"><header className="chat-header"><div className="request-avatar">◉</div><div><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · group messages stay in the group</p></div><button className="text-action" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);}}>Close ×</button></header><div className="chat-history">{chatMessages.map(m=><div key={m.id} className={m.sender_id===userId?'chat-bubble mine':'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!chatMessages.length&&<div className="empty-state compact"><p>Welcome to the group. Say hello.</p></div>}</div><form className="chat-compose" onSubmit={sendGroupMessage}><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder="Message the group…" /><button className="primary-button" disabled={busy||!chatDraft.trim()}>{busy?'Sending…':'Send ↗'}</button></form></section>}
   </div>;
+}
+
+
+type EconomySettingRow = { setting_key: string; numeric_value: number; updated_at: string; };
+function AdminFeature() {
+  const [settings, setSettings] = useState<EconomySettingRow[]>([]);
+  const [drafts, setDrafts] = useState<Record<string,string>>({});
+  const [busyKey, setBusyKey] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState('');
+
+  async function load() {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('economy_settings')
+      .select('setting_key,numeric_value,updated_at').order('setting_key');
+    if (error) setNotice(error.message);
+    const rows = (data ?? []) as EconomySettingRow[];
+    setSettings(rows);
+    setDrafts(Object.fromEntries(rows.map(row => [row.setting_key,String(row.numeric_value)])));
+    setLoading(false);
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function save(key: string) {
+    if (!supabase) return;
+    const value = Number(drafts[key]);
+    if (!Number.isSafeInteger(value) || value < 0) { setNotice('Enter a whole number greater than or equal to zero.'); return; }
+    setBusyKey(key);setNotice('');
+    const { error } = await supabase.rpc('set_economy_setting',{p_setting_key:key,p_numeric_value:value});
+    if (error) setNotice(error.message);
+    else { setNotice(`Saved ${key.replaceAll('_',' ')}.`);await load(); }
+    setBusyKey('');
+  }
+
+  return <section className="feature-panel admin-panel"><div className="feature-icon">⚙</div><p className="eyebrow">CIRCLE PANDA CONTROL ROOM</p><h2>Economy settings</h2><p className="feature-copy">Reward amounts and message costs are stored in the database, not hard-coded into the interface. Changes here require an administrator role.</p>
+    {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
+    {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div> : <div className="empty-state"><p>No economy settings were found.</p></div>}
+  </section>;
 }
