@@ -5,6 +5,8 @@ import { supabase, supabaseConfigured } from './lib/supabase';
 
 type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; created_at: string };
+type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
+type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
@@ -36,6 +38,13 @@ export default function App() {
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
   const [loadingFeed, setLoadingFeed] = useState(false);
+  const [commentsByPost, setCommentsByPost] = useState<Record<string,FeedComment[]>>({});
+  const [reactionsByPost, setReactionsByPost] = useState<Record<string,FeedReaction[]>>({});
+  const [myReactions, setMyReactions] = useState<Record<string,string>>({});
+  const [commentNames, setCommentNames] = useState<Record<string,string>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string,boolean>>({});
+  const [reactionPickerPost, setReactionPickerPost] = useState<string|null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string,string>>({});
 
   useEffect(() => {
     if (!supabase) return;
@@ -47,17 +56,51 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !session) { setPosts([]); return; }
+    if (!supabase || !session || (section !== 'Home' && section !== 'Confessions')) {
+      if (!session) setPosts([]);
+      return;
+    }
     let alive = true;
-    setLoadingFeed(true);
-    supabase.from('feed_posts_public').select('id,body,post_type,is_anonymous,created_at')
-      .order('created_at', { ascending: false }).limit(30)
-      .then(({ data, error }) => {
+    async function loadFeed() {
+      setLoadingFeed(true);
+      const { data, error } = await supabase!.from('feed_posts_public')
+        .select('id,body,post_type,is_anonymous,created_at')
+        .order('created_at', { ascending: false }).limit(30);
+      if (!alive) return;
+      if (error) { setNotice(error.message); setLoadingFeed(false); return; }
+      const rows = (data ?? []) as FeedPost[];
+      setPosts(rows);
+      const ids = rows.map(p => p.id);
+      if (ids.length) {
+        const [commentResult, reactionResult] = await Promise.all([
+          supabase!.from('post_comments').select('id,post_id,author_id,body,created_at').in('post_id', ids).order('created_at', {ascending:true}),
+          supabase!.from('post_reactions').select('id,post_id,user_id,reaction').in('post_id', ids),
+        ]);
         if (!alive) return;
-        if (error) setNotice(error.message);
-        else setPosts((data ?? []) as FeedPost[]);
-        setLoadingFeed(false);
-      });
+        const commentRows = (commentResult.data ?? []) as FeedComment[];
+        const reactionRows = (reactionResult.data ?? []) as FeedReaction[];
+        const groupedComments: Record<string,FeedComment[]> = {};
+        const groupedReactions: Record<string,FeedReaction[]> = {};
+        commentRows.forEach(row => { (groupedComments[row.post_id] ??= []).push(row); });
+        reactionRows.forEach(row => { (groupedReactions[row.post_id] ??= []).push(row); });
+        setCommentsByPost(groupedComments); setReactionsByPost(groupedReactions);
+        const mine: Record<string,string> = {};
+        reactionRows.filter(row => row.user_id === session.user.id).forEach(row => { mine[row.post_id] = row.reaction; });
+        setMyReactions(mine);
+        const authorIds = [...new Set(commentRows.map(row => row.author_id))];
+        if (authorIds.length) {
+          const { data: profiles } = await supabase!.from('profiles').select('id,display_name,username').in('id', authorIds);
+          if (!alive) return;
+          const map: Record<string,string> = {};
+          (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null}) => { map[p.id] = p.display_name || p.username || 'Panda'; });
+          setCommentNames(map);
+        }
+      } else {
+        setCommentsByPost({}); setReactionsByPost({}); setMyReactions({});
+      }
+      setLoadingFeed(false);
+    }
+    void loadFeed();
     return () => { alive = false; };
   }, [session, section]);
 
@@ -100,6 +143,42 @@ export default function App() {
       setNotice('Posted to your circle.');
     }
     setPosting(false);
+  }
+
+  async function toggleReaction(postId: string, reaction: string) {
+    if (!supabase || !session) return;
+    const existing = myReactions[postId];
+    const result = existing === reaction
+      ? await supabase.from('post_reactions').delete().eq('post_id', postId).eq('user_id', session.user.id)
+      : await supabase.from('post_reactions').upsert({ post_id: postId, user_id: session.user.id, reaction }, { onConflict: 'post_id,user_id' });
+    if (result.error) { setNotice(result.error.message); return; }
+    setReactionPickerPost(null);
+    const { data } = await supabase.from('post_reactions').select('id,post_id,user_id,reaction').eq('post_id', postId);
+    const next = {...reactionsByPost, [postId]: (data ?? []) as FeedReaction[]};
+    setReactionsByPost(next);
+    const selected = {...myReactions};
+    if (existing === reaction) delete selected[postId]; else selected[postId] = reaction;
+    setMyReactions(selected);
+  }
+
+  async function submitComment(event: FormEvent<HTMLFormElement>, postId: string) {
+    event.preventDefault();
+    if (!supabase || !session || !commentDrafts[postId]?.trim()) return;
+    const { error } = await supabase.from('post_comments').insert({
+      post_id: postId, author_id: session.user.id, body: commentDrafts[postId].trim(),
+    });
+    if (error) { setNotice(error.message); return; }
+    setCommentDrafts(prev => ({...prev,[postId]:''}));
+    const { data } = await supabase.from('post_comments').select('id,post_id,author_id,body,created_at').eq('post_id',postId).order('created_at',{ascending:true});
+    setCommentsByPost(prev => ({...prev,[postId]:(data ?? []) as FeedComment[]}));
+  }
+
+  async function messagePostAuthor(postId: string) {
+    if (!supabase) return;
+    const { error } = await supabase.rpc('send_post_message_request', {
+      p_post_id: postId, p_greeting: 'Hi! I saw your post and would like to connect.',
+    });
+    setNotice(error ? error.message : 'Message request sent. The author will see it in their inbox.');
   }
 
   async function signOut() {
@@ -147,7 +226,9 @@ export default function App() {
           <section className="hero-card"><div className="hero-content"><span className="hero-kicker">✦ A LITTLE SPACE TO BE YOU</span><h2>Good things happen<br />when we <em>connect.</em></h2><p>Share a thought, discover a new event, or start a conversation that matters.</p><button className="hero-button" onClick={() => setSection('Dating')}>Explore your circle <span>→</span></button></div><div className="hero-art"><div className="planet planet-back" /><div className="planet planet-front">🐼</div><span className="spark spark-a">✦</span><span className="spark spark-b">✧</span><span className="art-caption">STAY CURIOUS. STAY CONNECTED.</span></div></section>
           <div className="section-title-row"><div><h2>{section === 'Confessions' ? 'Anonymous confessions' : 'From your circle'}</h2><p>Small moments, shared honestly.</p></div><span className="count-pill">{posts.length} POSTS</span></div>
           <section className="feed-composer"><div className="composer-avatar">🐼</div><form onSubmit={publishPost}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder={section === 'Confessions' ? 'Share what is on your mind — anonymously…' : 'What would you like to share with your circle?'} maxLength={5000} required /><div className="composer-footer"><span>{section === 'Confessions' ? '☁ Posted anonymously' : '✦ Be kind, be real'}</span><button className="primary-button" disabled={posting || !draft.trim()}>{posting ? 'Posting…' : 'Share post'} <span>↗</span></button></div></form></section>
-          {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className="post-card" key={post.id}><div className="post-top"><div className="post-avatar">{post.is_anonymous ? '🐼' : '✦'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : 'A panda in your circle'}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><span className="post-menu">•••</span></div><p className="post-body">{post.body}</p><div className="post-actions"><button onClick={() => setNotice('Reactions are next on the build checklist.')}>♡ React</button><button onClick={() => setNotice('Comments are next on the build checklist.')}>▢ Comment</button><button onClick={() => setNotice('Message requests will connect here.')}>↗ Message</button></div></article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
+          {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className="post-card" key={post.id}><div className="post-top"><div className="post-avatar">{post.is_anonymous ? '🐼' : '✦'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : 'A panda in your circle'}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><span className="post-menu">•••</span></div><p className="post-body">{post.body}</p><div className="post-actions"><button className={myReactions[post.id] ? 'react-active' : ''} onClick={() => setReactionPickerPost(reactionPickerPost === post.id ? null : post.id)}>♡ React {reactionsByPost[post.id]?.length ? `(${reactionsByPost[post.id].length})` : ''}</button><button onClick={() => setExpandedComments(prev => ({...prev,[post.id]:!prev[post.id]}))}>▢ Comment {commentsByPost[post.id]?.length ? `(${commentsByPost[post.id].length})` : ''}</button><button onClick={() => void messagePostAuthor(post.id)}>↗ Message</button></div>
+              {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
+              {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className="comment-row" key={comment.id}><span className="comment-avatar">🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
         {section !== 'Home' && section !== 'Confessions' && <FeaturePanel section={section} userId={session.user.id} />}
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
