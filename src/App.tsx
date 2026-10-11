@@ -148,14 +148,14 @@ export default function App() {
           <section className="feed-composer"><div className="composer-avatar">🐼</div><form onSubmit={publishPost}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder={section === 'Confessions' ? 'Share what is on your mind — anonymously…' : 'What would you like to share with your circle?'} maxLength={5000} required /><div className="composer-footer"><span>{section === 'Confessions' ? '☁ Posted anonymously' : '✦ Be kind, be real'}</span><button className="primary-button" disabled={posting || !draft.trim()}>{posting ? 'Posting…' : 'Share post'} <span>↗</span></button></div></form></section>
           {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className="post-card" key={post.id}><div className="post-top"><div className="post-avatar">{post.is_anonymous ? '🐼' : '✦'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : 'A panda in your circle'}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><span className="post-menu">•••</span></div><p className="post-body">{post.body}</p><div className="post-actions"><button onClick={() => setNotice('Reactions are next on the build checklist.')}>♡ React</button><button onClick={() => setNotice('Comments are next on the build checklist.')}>▢ Comment</button><button onClick={() => setNotice('Message requests will connect here.')}>↗ Message</button></div></article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
-        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel section={section} onNavigate={setSection} userId={session.user.id} />}
+        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel section={section} userId={session.user.id} />}
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
   </div>;
 }
 
-function FeaturePanel({ section, onNavigate, userId }: { section: Section; onNavigate: (section: Section) => void; userId: string }) {
+function FeaturePanel({ section, userId }: { section: Section; userId: string }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
   if (section === 'Dating') return <DatingFeature userId={userId} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
