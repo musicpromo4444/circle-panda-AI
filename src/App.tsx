@@ -243,6 +243,7 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
   if (section === 'Dating') return <DatingFeature userId={userId} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
+  if (section === 'Groups') return <GroupsFeature userId={userId} />;
   const content: Record<Exclude<Section, 'Home' | 'Confessions'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
@@ -616,5 +617,123 @@ function WalletFeature({ userId }: { userId: string }) {
       {loading ? <div className="empty-state">Loading wallet…</div> : transactions.length ? transactions.map(t => <article className="transaction-row" key={t.id}><span className={t.amount >= 0 ? 'transaction-icon credit' : 'transaction-icon debit'}>{t.amount >= 0 ? '+' : '−'}</span><div><strong>{formatReason(t.reason)}</strong><small>{new Date(t.created_at).toLocaleString()}</small></div><b className={t.amount >= 0 ? 'amount-credit' : 'amount-debit'}>{t.amount > 0 ? '+' : ''}{t.amount} {t.currency}</b></article>) : <div className="empty-state compact"><p>Your wallet transactions will appear here.</p></div>}
     </section>
     <section className="economy-rules"><div className="section-title-row"><div><h2>Current economy rules</h2><p>Values are loaded from admin-controlled settings.</p></div></div><div className="rules-grid"><div><span>Regular message</span><strong>{settings.chat_message_cost ?? 1} BC</strong></div><div><span>Dating messages after free period</span><strong>{settings.dating_message_cost ?? 1} BC</strong></div><div><span>Dating free period</span><strong>{settings.dating_free_hours ?? 72} hours</strong></div><div><span>Ad reward</span><strong>{settings.ad_reward ?? 30} BC</strong></div><div><span>Ad cooldown</span><strong>{Math.round((settings.ad_reward_cooldown_seconds ?? 300)/60)} min</strong></div><div><span>Extra vote</span><strong>{settings.extra_vote_cost ?? 50} BC</strong></div></div><p className="economy-footnote">Ad rewards remain locked until a trusted ad-completion callback is connected. This prevents reward claims without a verified ad view.</p></section>
+  </div>;
+}
+
+
+type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string };
+function GroupsFeature({ userId }: { userId: string }) {
+  const [groups, setGroups] = useState<GroupRow[]>([]);
+  const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
+  const [myGroups, setMyGroups] = useState<Record<string,boolean>>({});
+  const [myVip, setMyVip] = useState(false);
+  const [myCountry, setMyCountry] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [countryRestriction, setCountryRestriction] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState('');
+  const [openGroupId, setOpenGroupId] = useState<string|null>(null);
+  const [openConversationId, setOpenConversationId] = useState<string|null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+
+  async function load() {
+    if (!supabase) return;
+    const { data: profile } = await supabase.from('profiles').select('is_vip,country').eq('id',userId).maybeSingle();
+    setMyVip(Boolean(profile?.is_vip)); setMyCountry(profile?.country || '');
+    const { data, error } = await supabase.from('chat_groups')
+      .select('id,creator_id,name,description,country_restriction,is_vip,created_at')
+      .order('created_at',{ascending:false}).limit(100);
+    if (error) setNotice(error.message);
+    const rows = (data ?? []) as GroupRow[];
+    setGroups(rows);
+    const ids = rows.map(g => g.id);
+    if (ids.length) {
+      const [membersResult, mineResult] = await Promise.all([
+        supabase.from('group_members').select('group_id,user_id,role').in('group_id',ids),
+        supabase.from('group_members').select('group_id').eq('user_id',userId).in('group_id',ids),
+      ]);
+      const counts: Record<string,number> = {};
+      const mine: Record<string,boolean> = {};
+      (membersResult.data ?? []).forEach((m: {group_id:string;user_id:string;role:string}) => { counts[m.group_id] = (counts[m.group_id] || 0) + 1; });
+      (mineResult.data ?? []).forEach((m: {group_id:string}) => { mine[m.group_id] = true; });
+      setMemberCounts(counts); setMyGroups(mine);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, [userId]);
+
+  async function createGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('create_chat_group',{
+      p_name:name.trim(),p_description:description.trim(),p_country_restriction:countryRestriction.trim() || null,p_is_vip:false,
+    });
+    if (error) setNotice(error.message);
+    else { setName('');setDescription('');setCountryRestriction('');setNotice('Group created. Invite people to join; chat opens at 3 members.');await load(); }
+    setBusy(false);
+  }
+
+  async function joinGroup(group: GroupRow) {
+    if (!supabase) return;
+    setBusy(true);setNotice('');
+    const { error } = await supabase.rpc('join_chat_group',{p_group_id:group.id});
+    if (error) setNotice(error.message);
+    else { setNotice('You joined the group.');await load(); }
+    setBusy(false);
+  }
+
+  async function openChat(group: GroupRow) {
+    if (!supabase) return;
+    const { data, error } = await supabase.rpc('open_group_chat',{p_group_id:group.id});
+    if (error) { setNotice(error.message);return; }
+    setOpenGroupId(group.id);setOpenConversationId(data as string);setNotice('');
+    const { data: rows, error: messagesError } = await supabase.from('messages')
+      .select('id,conversation_id,sender_id,body,created_at').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
+    if (messagesError) setNotice(messagesError.message);
+    else setChatMessages((rows ?? []) as ChatMessage[]);
+  }
+
+  async function sendGroupMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !openConversationId || !chatDraft.trim()) return;
+    setBusy(true);setNotice('');
+    const { error } = await supabase.from('messages').insert({conversation_id:openConversationId,sender_id:userId,body:chatDraft.trim()});
+    if (error) setNotice(error.message);
+    else {
+      setChatDraft('');
+      const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at')
+        .eq('conversation_id',openConversationId).order('created_at',{ascending:true}).limit(200);
+      setChatMessages((data ?? []) as ChatMessage[]);
+    }
+    setBusy(false);
+  }
+
+  const openGroup = groups.find(g => g.id === openGroupId);
+  return <div className="groups-page">
+    <section className="feature-panel group-create-panel"><div className="feature-icon">◉</div><p className="eyebrow">YOUR PEOPLE, YOUR SPACE</p><h2>Create a group</h2><p className="feature-copy">Normal groups stay available without a 24-hour expiry. The group chat unlocks when at least three members have joined.</p>
+      <form className="feature-form" onSubmit={createGroup}>
+        <label>Group name<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} minLength={2} required placeholder="Give your group a name" /></label>
+        <label>About the group<textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} maxLength={2000} placeholder="What brings this group together?" /></label>
+        <label>Country restriction (optional)<input value={countryRestriction} onChange={e=>setCountryRestriction(e.target.value)} placeholder="Only allow members from this country" /></label>
+        <div className="form-submit-row"><span className="draft-state">3 members to open chat</span><button className="primary-button" disabled={busy}>{busy?'Creating…':'Create group ↗'}</button></div>
+      </form>
+      {notice && <div className="notice">{notice}</div>}
+    </section>
+    <section className="group-directory"><div className="section-title-row"><div><h2>Group directory</h2><p>Join a community and help it reach three members.</p></div><span className="count-pill">{groups.length} GROUPS</span></div>
+      <div className="vip-group-banner"><div><span>✦ VIP WORLDWIDE</span><strong>Worldwide VIP Group</strong><small>Always available to VIP members</small></div>{myVip ? <span className="vip-access">VIP access</span> : <button className="vip-locked" onClick={()=>setNotice('VIP membership checkout will be connected to the admin-controlled subscription flow.')}>🔒 Become VIP</button>}</div>
+      {myCountry && <div className="vip-group-banner country-vip"><div><span>✦ VIP COUNTRY</span><strong>{myCountry} VIP Group</strong><small>Country-based VIP community</small></div>{myVip ? <span className="vip-access">VIP access</span> : <button className="vip-locked" onClick={()=>setNotice('Complete VIP membership to unlock the country group.')}>🔒 Become VIP</button>}</div>}
+      {loading ? <div className="empty-state">Loading groups…</div> : groups.length ? <div className="group-cards">{groups.filter(g=>!g.is_vip).map(group => {
+        const count = memberCounts[group.id] || 0;
+        const member = Boolean(myGroups[group.id]);
+        const opened = count >= 3;
+        return <article className="group-card" key={group.id}><div className="group-card-icon">◉</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}</div></div></article>;
+      })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
+    </section>
+    {openGroup && openConversationId && <section className="group-chat-panel"><header className="chat-header"><div className="request-avatar">◉</div><div><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · group messages stay in the group</p></div><button className="text-action" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);}}>Close ×</button></header><div className="chat-history">{chatMessages.map(m=><div key={m.id} className={m.sender_id===userId?'chat-bubble mine':'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!chatMessages.length&&<div className="empty-state compact"><p>Welcome to the group. Say hello.</p></div>}</div><form className="chat-compose" onSubmit={sendGroupMessage}><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder="Message the group…" /><button className="primary-button" disabled={busy||!chatDraft.trim()}>{busy?'Sending…':'Send ↗'}</button></form></section>}
   </div>;
 }
