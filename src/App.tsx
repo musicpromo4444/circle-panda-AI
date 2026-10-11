@@ -44,7 +44,7 @@ export default function App() {
     if (!supabase || !session) { setPosts([]); return; }
     let alive = true;
     setLoadingFeed(true);
-    supabase.from('feed_posts').select('id,body,post_type,is_anonymous,created_at')
+    supabase.from('feed_posts_public').select('id,body,post_type,is_anonymous,created_at')
       .order('created_at', { ascending: false }).limit(30)
       .then(({ data, error }) => {
         if (!alive) return;
@@ -88,7 +88,7 @@ export default function App() {
     if (error) setNotice(error.message);
     else {
       setDraft('');
-      const { data } = await supabase.from('feed_posts').select('id,body,post_type,is_anonymous,created_at')
+      const { data } = await supabase.from('feed_posts_public').select('id,body,post_type,is_anonymous,created_at')
         .order('created_at', { ascending: false }).limit(30);
       setPosts((data ?? []) as FeedPost[]);
       setNotice('Posted to your circle.');
