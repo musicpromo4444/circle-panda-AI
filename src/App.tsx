@@ -61,6 +61,7 @@ export default function App() {
       return;
     }
     let alive = true;
+    const activeUserId = session.user.id;
     async function loadFeed() {
       setLoadingFeed(true);
       const { data, error } = await supabase!.from('feed_posts_public')
@@ -85,7 +86,7 @@ export default function App() {
         reactionRows.forEach(row => { (groupedReactions[row.post_id] ??= []).push(row); });
         setCommentsByPost(groupedComments); setReactionsByPost(groupedReactions);
         const mine: Record<string,string> = {};
-        reactionRows.filter(row => row.user_id === session.user.id).forEach(row => { mine[row.post_id] = row.reaction; });
+        reactionRows.filter(row => row.user_id === activeUserId).forEach(row => { mine[row.post_id] = row.reaction; });
         setMyReactions(mine);
         const authorIds = [...new Set(commentRows.map(row => row.author_id))];
         if (authorIds.length) {
