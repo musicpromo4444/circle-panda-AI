@@ -387,10 +387,12 @@ function DatingFeature({ userId }: { userId: string }) {
 
   async function load() {
     if (!supabase) return;
-    const { data: profile } = await supabase.from('profiles')
-      .select('date_of_birth,country,state,area').eq('id', userId).maybeSingle();
+    const [{ data: profile }, { data: birthDate }] = await Promise.all([
+      supabase.from('profiles').select('country,state,area').eq('id', userId).maybeSingle(),
+      supabase.rpc('get_my_date_of_birth'),
+    ]);
+    setDateOfBirth(typeof birthDate === 'string' ? birthDate : '');
     if (profile) {
-      setDateOfBirth(profile.date_of_birth || '');
       setCountry(profile.country || ''); setStateName(profile.state || ''); setArea(profile.area || '');
     }
     const { data: mine } = await supabase.from('dating_profiles')
