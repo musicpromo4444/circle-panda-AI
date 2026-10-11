@@ -16,4 +16,13 @@ A clean rebuild of Circle Panda using React, TypeScript, Vite, and Supabase.
 
 ## Status
 
-The initial database foundation covers profiles, feed posts/comments/reactions, dating profiles, events/attendance, groups/membership, messaging requests/conversations/messages, wallet records, XP, and notifications. Feature-specific transactional logic, tighter authorization policies, UI, and automated tests remain to be implemented.
+The initial database foundation covers profiles, feed posts/comments/reactions, dating profiles, events/attendance, groups/membership, message requests/conversations/messages, wallet records, XP, and notifications. RLS is enabled. Anonymous feed reads use a view that omits author IDs; VIP status cannot be changed through ordinary profile updates; private conversation membership is protected; message requests use transactional RPCs that prevent self-requests and atomically create chats on acceptance. The initial React UI includes sign-up/sign-in, the feed composer, and a message-request inbox/direct-chat panel. Other feature sections and economy/admin transactional rules are still under construction.
+
+## Local development
+
+1. Copy `.env.example` to `.env.local` and set the Supabase publishable key.
+2. Run `npm install`.
+3. Run `npm run dev`.
+4. Run `npm run build` to type-check and create a production build.
+
+A GitHub Actions workflow runs the production build on pushes and pull requests.
