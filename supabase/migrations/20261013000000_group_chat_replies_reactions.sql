@@ -15,6 +15,8 @@ create table if not exists public.group_message_reactions (
 
 alter table public.group_message_reactions enable row level security;
 
+drop policy if exists "group members can read message reactions" on public.group_message_reactions;
+
 create policy "group members can read message reactions"
 on public.group_message_reactions for select to authenticated
 using (
@@ -26,6 +28,8 @@ using (
       and public.is_conversation_member(m.conversation_id, auth.uid())
   )
 );
+
+drop policy if exists "group members can add their own message reactions" on public.group_message_reactions;
 
 create policy "group members can add their own message reactions"
 on public.group_message_reactions for insert to authenticated
@@ -39,6 +43,8 @@ with check (
   )
 );
 
+drop policy if exists "users can update their own group message reactions" on public.group_message_reactions;
+
 create policy "users can update their own group message reactions"
 on public.group_message_reactions for update to authenticated
 using (auth.uid() = user_id and exists (
@@ -51,6 +57,8 @@ with check (auth.uid() = user_id and exists (
   where m.id=group_message_reactions.message_id and c.conversation_type='group'
     and public.is_conversation_member(m.conversation_id,auth.uid())
 ));
+
+drop policy if exists "users can remove their own group message reactions" on public.group_message_reactions;
 
 create policy "users can remove their own group message reactions"
 on public.group_message_reactions for delete to authenticated
