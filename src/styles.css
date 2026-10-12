@@ -226,3 +226,22 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 
 .auth-form select{width:100%;background:rgba(4,14,17,.78);border:1px solid #294448;border-radius:11px;padding:13px 14px;color:#f3f8f3;outline:none}
 .auth-form select:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(183,255,120,.10),0 0 20px rgba(99,245,173,.07)}
+
+
+.onboarding-backdrop{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:18px;background:rgba(2,9,12,.78);backdrop-filter:blur(12px)}
+.onboarding-modal{width:min(100%,470px);max-height:min(88vh,760px);overflow:auto;padding:30px;border:1px solid rgba(183,255,120,.34);border-radius:22px;background:linear-gradient(145deg,rgba(18,43,39,.99),rgba(7,20,25,.99));box-shadow:0 28px 110px rgba(0,0,0,.58),0 0 55px rgba(99,245,173,.09);text-align:center}
+.onboarding-panda{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 18px;border:1px solid rgba(183,255,120,.3);border-radius:20px;background:linear-gradient(145deg,#28573d,#123139);font-size:32px;box-shadow:0 0 30px rgba(99,245,173,.12)}
+.onboarding-modal .eyebrow{margin-bottom:10px;color:#b7e7a6}
+.onboarding-modal h2{font:800 25px/1.25 Manrope,sans-serif;letter-spacing:-.7px;margin:0 0 12px;color:#f1fbf2}
+.onboarding-modal>p:not(.eyebrow){font-size:12px;line-height:1.8;color:#a9c0b5;margin:0 0 20px}
+.onboarding-bonus{display:grid;justify-items:center;gap:4px;padding:17px;margin:18px 0 20px;border:1px solid rgba(183,255,120,.22);border-radius:13px;background:linear-gradient(110deg,rgba(56,103,54,.24),rgba(21,75,65,.24));color:#d4ffac}
+.onboarding-bonus strong{font:800 30px Manrope,sans-serif}
+.onboarding-bonus span{font-size:8px;letter-spacing:1.5px;color:#9eb7a8}
+.onboarding-modal .primary-button.full{width:100%}
+.onboarding-feature-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0 23px}
+.onboarding-feature-list span{padding:10px 5px;border:1px solid rgba(112,173,151,.2);border-radius:9px;background:rgba(21,45,43,.58);color:#c6e5d0;font-size:10px}
+.onboarding-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px}
+.onboarding-actions .primary-button,.onboarding-actions .secondary-button{padding:12px 14px;font-size:10px}
+.secondary-button{border:1px solid rgba(128,181,161,.28);background:rgba(15,34,37,.8);border-radius:9px;color:#c5d8cd;font-weight:700}
+.secondary-button:hover{border-color:rgba(183,255,120,.42);color:#e2ffcf}
+@media(max-width:520px){.onboarding-modal{padding:25px 18px}.onboarding-modal h2{font-size:22px}.onboarding-feature-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
