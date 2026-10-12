@@ -3,16 +3,17 @@ import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Sponsors' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
-type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string | null; sexual_experience: string | null; looking_for: string | null; is_published: boolean; created_at: string };
+type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string | null; sexual_experience: string | null; looking_for: string | null; photos: string[]; is_published: boolean; created_at: string };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
+type NotificationRow = { id:string; user_id:string; actor_id:string|null; notification_type:string; title:string; body:string; target_type:string|null; target_id:string|null; read_at:string|null; created_at:string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Home', icon: '⌂', hint: 'Your circle at a glance' },
@@ -23,6 +24,7 @@ const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Groups', icon: '◉', hint: 'Your people, your conversations' },
   { name: 'Messages', icon: '↗', hint: 'Requests and private chats' },
   { name: 'Wallet', icon: '◈', hint: 'Your Panda Coins and activity' },
+  { name: 'Sponsors', icon: '✦', hint: 'Direct campaigns and sponsor analytics' },
   { name: 'Admin', icon: '⚙', hint: 'Manage rewards and economy rules' },
 ];
 
@@ -33,9 +35,16 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [signupCountry, setSignupCountry] = useState('Nigeria');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'tour' | null>(null);
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
@@ -58,12 +67,53 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!supabase || !session) { setOnboardingStep(null); return; }
+    let alive = true;
+    supabase.from('profiles').select('welcome_popup_seen_at,app_tour_seen_at').eq('id',session.user.id).maybeSingle()
+      .then(({data,error}) => {
+        if (!alive) return;
+        if (error) { setNotice(error.message); return; }
+        if (!data?.welcome_popup_seen_at) setOnboardingStep('welcome');
+        else if (!data?.app_tour_seen_at) setOnboardingStep('tour');
+        else setOnboardingStep(null);
+      });
+    return () => { alive = false; };
+  }, [session]);
+
+  useEffect(() => {
     if (!supabase || !session) { setIsAdmin(false); return; }
     let alive = true;
     supabase.from('user_roles').select('role').eq('user_id',session.user.id).eq('role','admin').maybeSingle()
       .then(({data}) => { if (alive) setIsAdmin(Boolean(data)); });
     return () => { alive = false; };
   }, [session]);
+
+  async function loadNotifications() {
+    if (!supabase || !session) return;
+    setNotificationsLoading(true);
+    const {data,error} = await supabase.from('notifications')
+      .select('id,user_id,actor_id,notification_type,title,body,target_type,target_id,read_at,created_at')
+      .eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(40);
+    if (error) setNotice(error.message);
+    else setNotifications((data ?? []) as NotificationRow[]);
+    setNotificationsLoading(false);
+  }
+
+  async function openNotification(item: NotificationRow) {
+    if (supabase && session && !item.read_at) {
+      const {error} = await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',session.user.id);
+      if (!error) setNotifications(prev=>prev.map(n=>n.id===item.id?{...n,read_at:new Date().toISOString()}:n));
+    }
+    setNotificationsOpen(false);
+    const target = (item.target_type || '').toLowerCase();
+    const kind = item.notification_type.toLowerCase();
+    if (target==='crush' || kind.startsWith('crush_')) setSection('Crush');
+    else if (target==='event' || kind.includes('event')) setSection('Events');
+    else if (target==='dating' || kind.includes('dating')) setSection('Dating');
+    else if (target==='group' || kind.includes('group')) setSection('Groups');
+    else if (target==='message' || kind.includes('message') || kind.includes('request')) setSection('Messages');
+    else setSection('Home');
+  }
 
   useEffect(() => {
     if (!supabase || !session || (section !== 'Home' && section !== 'Confessions')) {
@@ -118,11 +168,12 @@ export default function App() {
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) return;
+    if (authMode === 'signup' && password !== confirmPassword) { setNotice('Your passwords do not match.'); return; }
     setAuthBusy(true); setNotice('');
     try {
       if (authMode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
-          email, password, options: { data: { display_name: displayName.trim() || undefined } },
+          email, password, options: { data: { display_name: displayName.trim() || undefined, country: signupCountry } },
         });
         if (error) throw error;
         if (data.session) setNotice('Welcome to Circle Panda. Your account is ready.');
@@ -192,6 +243,28 @@ export default function App() {
     setNotice(error ? error.message : 'Message request sent. The author will see it in their inbox.');
   }
 
+  async function sharePost(post: FeedPost) {
+    const shareText = (post.post_type === 'confession' ? 'Anonymous confession on Circle Panda: ' : 'A post on Circle Panda: ') + post.body;
+    try {
+      if (navigator.share) await navigator.share({title:'Circle Panda',text:shareText});
+      else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+        setNotice('Post text copied. Share it with your circle.');
+      } else setNotice(shareText);
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') setNotice('Sharing is not available on this device right now.');
+    }
+  }
+
+  async function finishOnboarding(step: 'welcome' | 'tour') {
+    if (!supabase) return;
+    setOnboardingBusy(true);
+    const { error } = await supabase.rpc('mark_onboarding_seen', { p_step: step });
+    if (error) setNotice(error.message);
+    else setOnboardingStep(step === 'welcome' ? 'tour' : null);
+    setOnboardingBusy(false);
+  }
+
   async function signOut() {
     if (!supabase) return;
     const { error } = await supabase.auth.signOut();
@@ -209,11 +282,13 @@ export default function App() {
         {!supabaseConfigured && <div className="notice warning">Connect this app with <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable account access.</div>}
         <form className="auth-form" onSubmit={handleAuth}>
           {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" /></label>}
+          {authMode === 'signup' && <label>Country<select value={signupCountry} onChange={e => setSignupCountry(e.target.value)} required><option>Nigeria</option><option>Ghana</option><option>South Africa</option><option>Kenya</option><option>Uganda</option><option>Tanzania</option><option>Rwanda</option><option>Cameroon</option><option>United Kingdom</option><option>United States</option><option>Canada</option><option>Other</option></select></label>}
           <label>Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" /></label>
           <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" minLength={8} required autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label>
+          {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
           <button className="primary-button full" type="submit" disabled={!supabaseConfigured || authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <span>→</span></button>
         </form>
-        <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
+        <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setConfirmPassword(''); setNotice(''); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
         {notice && <p className="notice">{notice}</p>}
         <p className="fine-print">A fresh build. A better way to connect.</p>
       </section>
@@ -225,37 +300,41 @@ export default function App() {
     <aside className="sidebar">
       <button className="brand" onClick={() => setSection('Home')}><span className="brand-icon">🐼</span><span>circle<span className="brand-green">panda</span><small>YOUR CIRCLE, YOUR WAY</small></span></button>
       <div className="nav-caption">YOUR SPACE</div>
-      <nav>{sections.filter(item => item.name !== 'Admin' || isAdmin).map(item => <button key={item.name} className={section === item.name ? 'nav-item active' : 'nav-item'} onClick={() => { setSection(item.name); setNotice(''); }}><span className="nav-icon">{item.icon}</span><span>{item.name}</span>{item.name === 'Messages' && <i className="nav-dot" />}</button>)}</nav>
+      <nav>{sections.filter(item => (item.name !== 'Admin' && item.name !== 'Sponsors') || isAdmin).map(item => <button key={item.name} className={section === item.name ? 'nav-item active' : 'nav-item'} onClick={() => { setSection(item.name); setNotice(''); }}><span className="nav-icon">{item.icon}</span><span>{item.name}</span>{item.name === 'Messages' && <i className="nav-dot" />}</button>)}</nav>
       <div className="sidebar-bottom"><div className="online-mark" /> <span>Connected to your circle</span><button onClick={signOut} className="signout">Sign out ↗</button></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="icon-button" title="Notifications" onClick={() => setNotice('You are all caught up.')}>♧</button><button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>
+      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="icon-button notification-trigger" title="Notifications" aria-label="Notifications" onClick={() => {setNotificationsOpen(v=>!v);void loadNotifications();}}>♧{notifications.some(n=>!n.read_at)&&<span className="notification-badge">{notifications.filter(n=>!n.read_at).length>9?'9+':notifications.filter(n=>!n.read_at).length}</span>}</button>{notificationsOpen&&<div className="notification-menu"><div className="notification-menu-header"><div><strong>Notifications</strong><small>{notifications.filter(n=>!n.read_at).length} unread</small></div><button className="text-action" onClick={()=>{void loadNotifications();}}>Refresh</button></div>{notificationsLoading?<div className="notification-empty">Loading…</div>:notifications.length?notifications.map(n=><button className={n.read_at?'notification-item':'notification-item unread'} key={n.id} onClick={()=>void openNotification(n)}><span className="notification-symbol">{n.notification_type.startsWith('crush_')?'♛':n.notification_type.includes('event')?'▦':n.notification_type.includes('group')?'◉':'↗'}</span><span><strong>{n.title}</strong><small>{n.body}</small><time>{new Date(n.created_at).toLocaleString()}</time></span>{!n.read_at&&<i/>}</button>):<div className="notification-empty">You are all caught up.</div>}</div>}<button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>
       <div className="page-wrap">
         <div className="welcome-row"><div><p className="eyebrow">WELCOME BACK TO YOUR WORLD</p><h1>{section === 'Home' ? 'Your circle, in one place.' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{active.hint}</p></div><div className="date-pill"><span className="pulse" /> YOUR SPACE IS LIVE</div></div>
         {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
         {(section === 'Home' || section === 'Confessions') && <>
           <section className="hero-card"><div className="hero-content"><span className="hero-kicker">✦ A LITTLE SPACE TO BE YOU</span><h2>Good things happen<br />when we <em>connect.</em></h2><p>Share a thought, discover a new event, or start a conversation that matters.</p><button className="hero-button" onClick={() => setSection('Dating')}>Explore your circle <span>→</span></button></div><div className="hero-art"><div className="planet planet-back" /><div className="planet planet-front">🐼</div><span className="spark spark-a">✦</span><span className="spark spark-b">✧</span><span className="art-caption">STAY CURIOUS. STAY CONNECTED.</span></div></section>
+          {section === 'Home' && <SponsoredPlacement userId={session.user.id} />}
           <div className="section-title-row"><div><h2>{section === 'Confessions' ? 'Anonymous confessions' : 'From your circle'}</h2><p>Small moments, shared honestly.</p></div><span className="count-pill">{posts.length} POSTS</span></div>
           <section className="feed-composer"><div className="composer-avatar">🐼</div><form onSubmit={publishPost}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder={section === 'Confessions' ? 'Share what is on your mind — anonymously…' : 'What would you like to share with your circle?'} maxLength={5000} required /><div className="composer-footer"><span>{section === 'Confessions' ? '☁ Posted anonymously' : '✦ Be kind, be real'}</span><button className="primary-button" disabled={posting || !draft.trim()}>{posting ? 'Posting…' : 'Share post'} <span>↗</span></button></div></form></section>
-          {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className="post-card" key={post.id}><div className="post-top"><div className="post-avatar">{post.is_anonymous ? '🐼' : '✦'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : (post.author_name || 'Panda')}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><span className="post-menu">•••</span></div><p className="post-body">{post.body}</p><div className="post-actions"><button className={myReactions[post.id] ? 'react-active' : ''} onClick={() => setReactionPickerPost(reactionPickerPost === post.id ? null : post.id)}>♡ React {reactionsByPost[post.id]?.length ? `(${reactionsByPost[post.id].length})` : ''}</button><button onClick={() => setExpandedComments(prev => ({...prev,[post.id]:!prev[post.id]}))}>▢ Comment {commentsByPost[post.id]?.length ? `(${commentsByPost[post.id].length})` : ''}</button><button onClick={() => void messagePostAuthor(post.id)}>↗ Message</button></div>
-              {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
+          {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className="post-card" key={post.id}><div className="post-top"><div className="post-avatar">{post.is_anonymous ? '🐼' : '✦'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : (post.author_name || 'Panda')}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><span className="post-menu">•••</span></div><p className="post-body">{post.body}</p><div className="post-actions"><button className={myReactions[post.id] ? 'react-active' : ''} onClick={() => setReactionPickerPost(reactionPickerPost === post.id ? null : post.id)}>♡ React {reactionsByPost[post.id]?.length ? `(${reactionsByPost[post.id].length})` : ''}</button><button onClick={() => setExpandedComments(prev => ({...prev,[post.id]:!prev[post.id]}))}>▢ Comment {commentsByPost[post.id]?.length ? `(${commentsByPost[post.id].length})` : ''}</button><button onClick={() => void messagePostAuthor(post.id)}>↗ Message</button><button onClick={() => void sharePost(post)}>↗ Share</button></div>
+              {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😡'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
               {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className="comment-row" key={comment.id}><span className="comment-avatar">🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
         {section !== 'Home' && section !== 'Confessions' && <FeaturePanel section={section} userId={session.user.id} />}
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
+    {onboardingStep && <div className="onboarding-backdrop"><section className="onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div className="onboarding-panda">🐼</div>{onboardingStep === 'welcome' ? <><p className="eyebrow">WELCOME TO YOUR CIRCLE</p><h2 id="onboarding-title">Your first 200 BC are ready.</h2><p>Your welcome bonus has already been added to your Panda wallet. It does not expire, and you can check it anytime in Wallet.</p><div className="onboarding-bonus">✦ <strong>200 BC</strong><span>WELCOME BONUS</span></div><button className="primary-button full" disabled={onboardingBusy} onClick={() => void finishOnboarding('welcome')}>{onboardingBusy ? 'One moment…' : 'Continue →'}</button></> : <><p className="eyebrow">A QUICK TOUR</p><h2 id="onboarding-title">One circle, many ways to connect.</h2><p>Share anonymous confessions, discover dating profiles, publish events, join groups, accept message requests and collect activity rewards. Sponsored content is labelled clearly.</p><div className="onboarding-feature-list"><span>☁ Confessions</span><span>♡ Dating</span><span>▦ Events</span><span>◉ Groups</span><span>↗ Messages</span><span>◈ Wallet</span></div><div className="onboarding-actions"><button className="secondary-button" disabled={onboardingBusy} onClick={() => void finishOnboarding('tour')}>Not now</button><button className="primary-button" disabled={onboardingBusy} onClick={() => { void finishOnboarding('tour'); setSection('Home'); }}>Explore Circle Panda ↗</button></div></>}</section></div>}
   </div>;
 }
 
 function FeaturePanel({ section, userId }: { section: Section; userId: string }) {
+  if (section === 'Sponsors') return <SponsorFeature userId={userId} />;
+  if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
   if (section === 'Dating') return <DatingFeature userId={userId} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Admin') return <AdminFeature />;
-  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'Admin'>, { icon: string; title: string; body: string; next: string[] }> = {
+  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'Admin' | 'Sponsors'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
     'Events': { icon: '▦', title: 'Make plans worth showing up for', body: 'Discover events around you or publish one of your own. Event cards will connect directly to the creator.', next: ['Create and publish events', 'Attendance and attendee counts', 'Creator messaging and event boosts'] },
@@ -263,8 +342,204 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
     'Messages': { icon: '↗', title: 'Every connection leads to a conversation', body: 'Message requests from dating, events, groups and the feed will live alongside your accepted chats.', next: ['Incoming and sent requests', 'Accept or decline requests', 'Private chats and unread indicators'] },
     'Wallet': { icon: '◈', title: 'Your Panda wallet', body: 'Your wallet and activity rewards will be managed by server-side rules, with balances that do not expire.', next: ['BC balance and transaction history', 'Activity XP and levels', 'VIP and reward controls'] },
   };
-  const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'Admin'>];
+  const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'Admin' | 'Sponsors'>];
   return <section className="feature-panel"><div className="feature-icon">{item.icon}</div><p className="eyebrow">THE CIRCLE PANDA EXPERIENCE</p><h2>{item.title}</h2><p className="feature-copy">{item.body}</p><div className="feature-list">{item.next.map((next, i) => <div key={next}><span>{String(i + 1).padStart(2, '0')}</span>{next}<b>↗</b></div>)}</div><div className="feature-note"><span className="pulse" /> This section is being connected to the new backend in stages.</div></section>;
+}
+
+
+
+type CrushPostRow = { id: string; user_id: string; crush_type: 'mcm' | 'wcw'; caption: string; image_path: string | null; week_start: string; scheduled_for: string; created_at: string };
+type CrushVoteRow = { id: string; post_id: string; user_id: string; created_at: string };
+type CrushCommentRow = { id: string; post_id: string; user_id: string; body: string; created_at: string };
+type CrushReactionRow = { id: string; post_id: string; user_id: string; reaction: string; created_at: string };
+
+function CrushFeature({ userId }: { userId: string }) {
+  const [kind, setKind] = useState<'mcm' | 'wcw'>('mcm');
+  const [caption, setCaption] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [posts, setPosts] = useState<CrushPostRow[]>([]);
+  const [names, setNames] = useState<Record<string,string>>({});
+  const [avatars, setAvatars] = useState<Record<string,string>>({});
+  const [photoUrls, setPhotoUrls] = useState<Record<string,string>>({});
+  const [votes, setVotes] = useState<CrushVoteRow[]>([]);
+  const [comments, setComments] = useState<CrushCommentRow[]>([]);
+  const [reactions, setReactions] = useState<CrushReactionRow[]>([]);
+  const [commentNames, setCommentNames] = useState<Record<string,string>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string,string>>({});
+  const [reactionPickerPost, setReactionPickerPost] = useState<string|null>(null);
+  const [busy, setBusy] = useState(false);
+  const [busyVote, setBusyVote] = useState('');
+  const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [freeVotesUsed, setFreeVotesUsed] = useState(0);
+
+  async function load() {
+    if (!supabase) return;
+    setLoading(true);
+    const { data, error } = await supabase.from('crush_posts')
+      .select('id,user_id,crush_type,caption,image_path,week_start,scheduled_for,created_at')
+      .order('created_at',{ascending:false}).limit(60);
+    if (error) { setNotice(error.message); setLoading(false); return; }
+    const rows = (data ?? []) as CrushPostRow[];
+    setPosts(rows);
+    const ids = [...new Set(rows.map(p => p.user_id))];
+    if (ids.length) {
+      const { data: profiles } = await supabase.from('profiles')
+        .select('id,display_name,username,avatar_url').in('id',ids);
+      const n: Record<string,string> = {}; const a: Record<string,string> = {};
+      (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;avatar_url:string|null}) => {
+        n[p.id] = p.display_name || p.username || 'Panda';
+        if (p.avatar_url) a[p.id] = p.avatar_url;
+      });
+      setNames(n); setAvatars(a);
+      const paths = await Promise.all(rows.filter(p => p.image_path).map(async p => {
+        const { data: url } = supabase!.storage.from('crush-post-photos').getPublicUrl(p.image_path!);
+        return [p.id,url.publicUrl] as const;
+      }));
+      setPhotoUrls(Object.fromEntries(paths));
+      const [{data:voteRows,error:voteError},{data:commentRows,error:commentError},{data:reactionRows,error:reactionError}] = await Promise.all([
+        supabase.from('crush_votes').select('id,post_id,user_id,created_at').in('post_id',rows.map(p=>p.id)),
+        supabase.from('crush_comments').select('id,post_id,user_id,body,created_at').in('post_id',rows.map(p=>p.id)).order('created_at',{ascending:true}),
+        supabase.from('crush_reactions').select('id,post_id,user_id,reaction,created_at').in('post_id',rows.map(p=>p.id))
+      ]);
+      if (voteError || commentError || reactionError) setNotice(voteError?.message || commentError?.message || reactionError?.message || 'Could not load crush activity.');
+      const mine = (voteRows ?? []) as CrushVoteRow[];
+      const commentList = (commentRows ?? []) as CrushCommentRow[];
+      setVotes(mine); setComments(commentList); setReactions((reactionRows ?? []) as CrushReactionRow[]);
+      const commenterIds = [...new Set(commentList.map(c=>c.user_id).filter(id=>!ids.includes(id)))];
+      if (commenterIds.length) {
+        const {data: commenterProfiles} = await supabase.from('profiles').select('id,display_name,username').in('id',commenterIds);
+        const commentNameMap: Record<string,string> = {};
+        (commenterProfiles ?? []).forEach((p:{id:string;display_name:string|null;username:string|null})=>{commentNameMap[p.id]=p.display_name||p.username||'Panda';});
+        setCommentNames(commentNameMap);
+      } else setCommentNames({});
+      const monday = new Date(); monday.setHours(0,0,0,0);
+      monday.setDate(monday.getDate() - ((monday.getDay()+6)%7));
+      const nextMonday = new Date(monday); nextMonday.setDate(nextMonday.getDate()+7);
+      setFreeVotesUsed(mine.filter(v => v.user_id === userId && new Date(v.created_at) >= monday && new Date(v.created_at) < nextMonday).length);
+    } else { setVotes([]); setComments([]); setReactions([]); setPhotoUrls({}); setNames({}); setAvatars({}); setFreeVotesUsed(0); }
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, [userId]);
+
+  async function publish(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    if (!caption.trim() && !photo) { setNotice('Add a caption or choose a photo for your crush card.'); return; }
+    if (photo && (!['image/jpeg','image/png','image/webp'].includes(photo.type) || photo.size > 5 * 1024 * 1024)) {
+      setNotice('Use a JPG, PNG or WebP photo up to 5 MB.'); return;
+    }
+    setBusy(true); setNotice('');
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const {error:timezoneError} = await supabase.from('profiles').update({timezone}).eq('id',userId);
+    if (timezoneError) { setNotice('Could not save your local timezone for crush scheduling: '+timezoneError.message); setBusy(false); return; }
+    let path: string | null = null;
+    if (photo) {
+      const ext = photo.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'') || 'jpg';
+      path = userId + '/' + crypto.randomUUID() + '.' + ext;
+      const { error: uploadError } = await supabase.storage.from('crush-post-photos').upload(path,photo,{contentType:photo.type,upsert:false});
+      if (uploadError) { setNotice(uploadError.message); setBusy(false); return; }
+    }
+    const { error } = await supabase.from('crush_posts').insert({
+      user_id:userId, crush_type:kind, caption:caption.trim(), image_path:path
+    });
+    if (error) {
+      setNotice(error.message);
+      if (path) await supabase.storage.from('crush-post-photos').remove([path]);
+    } else {
+      setCaption(''); setPhoto(null);
+      const input = document.getElementById('crush-photo-input') as HTMLInputElement | null;
+      if (input) input.value = '';
+      setNotice(kind === 'mcm' ? 'Your MCM card is scheduled for Monday at 10:00 AM in your local timezone.' : 'Your WCW card is scheduled for Wednesday at 10:00 AM in your local timezone.');
+      await load();
+    }
+    setBusy(false);
+  }
+
+  async function vote(post: CrushPostRow) {
+    if (!supabase || post.user_id === userId) return;
+    setBusyVote(post.id); setNotice('');
+    const { data, error } = await supabase.rpc('cast_crush_vote',{p_post_id:post.id});
+    if (error) setNotice(error.message);
+    else {
+      if (data && typeof data === 'object' && 'free_votes_used' in data) setFreeVotesUsed(Number((data as {free_votes_used:number}).free_votes_used) || 0);
+      await load();
+    }
+    setBusyVote('');
+  }
+
+
+  async function react(post: CrushPostRow, reaction: string) {
+    if (!supabase || post.user_id===userId) return;
+    const existing = reactions.find(r=>r.post_id===post.id && r.user_id===userId);
+    const {error} = existing
+      ? existing.reaction===reaction
+        ? await supabase.from('crush_reactions').delete().eq('id',existing.id)
+        : await supabase.from('crush_reactions').update({reaction,created_at:new Date().toISOString()}).eq('id',existing.id)
+      : await supabase.from('crush_reactions').insert({post_id:post.id,user_id:userId,reaction});
+    if (error) setNotice(error.message);
+    else { setReactionPickerPost(null); await load(); }
+  }
+
+  async function comment(event: FormEvent<HTMLFormElement>, post: CrushPostRow) {
+    event.preventDefault();
+    const body = (commentDrafts[post.id] || '').trim();
+    if (!supabase || !body || post.user_id===userId) return;
+    const {error} = await supabase.from('crush_comments').insert({post_id:post.id,user_id:userId,body});
+    if (error) setNotice(error.message);
+    else { setCommentDrafts(prev=>({...prev,[post.id]:''})); await load(); }
+  }
+
+  async function messageCreator(post: CrushPostRow) {
+    if (!supabase || post.user_id === userId) return;
+    const { error } = await supabase.rpc('send_message_request',{
+      p_recipient_id:post.user_id,p_source_type:post.crush_type,p_source_id:post.id,
+      p_greeting:'Hi! I saw your ' + (post.crush_type === 'mcm' ? 'MCM' : 'WCW') + ' card and would like to connect.'
+    });
+    setNotice(error ? error.message : 'Message request sent. You can track it in Messages.');
+  }
+
+  const countFor = (postId:string) => votes.filter(v=>v.post_id===postId).length;
+  const voted = (postId:string) => votes.some(v=>v.post_id===postId && v.user_id===userId);
+  const monday = new Date(); monday.setHours(0,0,0,0); monday.setDate(monday.getDate()-((monday.getDay()+6)%7));
+  const weekKey = monday.getFullYear()+'-'+String(monday.getMonth()+1).padStart(2,'0')+'-'+String(monday.getDate()).padStart(2,'0');
+  const currentPosts = posts.filter(p=>p.week_start===weekKey && new Date(p.scheduled_for)<=new Date());
+  const filtered = currentPosts.filter(p=>p.crush_type===kind);
+
+  return <div className="crush-page">
+    <section className="feature-panel crush-intro">
+      <div className="feature-icon">♛</div><p className="eyebrow">THE WEEKLY CRUSH SPOTLIGHT</p>
+      <h2>Celebrate your crush. Let your circle vote.</h2>
+      <p className="feature-copy">MCM is for Monday. WCW is for Wednesday. Every card has its own vote count, and card creators cannot vote for themselves.</p>
+      <div className="crush-summary"><div><strong>{currentPosts.filter(p=>p.crush_type==='mcm').length}</strong><span>MCM CARDS</span></div><div><strong>{currentPosts.filter(p=>p.crush_type==='wcw').length}</strong><span>WCW CARDS</span></div><div><strong>{freeVotesUsed}/3</strong><span>FREE WEEKLY VOTES USED</span></div></div>
+    </section>
+    <section className="feature-panel crush-compose-panel">
+      <div className="section-title-row"><div><p className="eyebrow">ADD TO THE SPOTLIGHT</p><h2>Create a crush card</h2></div></div>
+      <form className="feature-form" onSubmit={publish}>
+        <label>Spotlight day<select value={kind} onChange={e=>setKind(e.target.value as 'mcm'|'wcw')}><option value="mcm">Monday Crush (MCM)</option><option value="wcw">Wednesday Crush (WCW)</option></select></label>
+        <label>Photo (optional, JPG/PNG/WebP up to 5 MB)<input id="crush-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setPhoto(e.target.files?.[0] ?? null)} />{photo && <small className="selected-file">Selected: {photo.name}</small>}</label>
+        <label>Caption<textarea value={caption} onChange={e=>setCaption(e.target.value)} maxLength={1200} rows={3} placeholder="Tell your circle what makes this crush special…" /></label>
+        <button className="primary-button" disabled={busy}>{busy ? 'Publishing…' : 'Publish crush card ↗'}</button>
+      </form>
+    </section>
+    {posts.some(p=>p.user_id===userId && new Date(p.scheduled_for)>new Date()) && <section className="feature-panel crush-scheduled-panel"><div className="section-title-row"><div><p className="eyebrow">COMING UP</p><h2>Your scheduled cards</h2></div></div>{posts.filter(p=>p.user_id===userId && new Date(p.scheduled_for)>new Date()).map(p=><div className="crush-scheduled-row" key={p.id}><span>{p.crush_type==='mcm'?'♛ MCM':'♡ WCW'}</span><p>{p.caption || 'Photo crush card'}</p><time>{new Date(p.scheduled_for).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</time></div>)}</section>}
+    <section className="crush-feed-section">
+      <div className="crush-tabs"><button className={kind==='mcm'?'active':''} onClick={()=>setKind('mcm')}>♛ Monday Crush (MCM)</button><button className={kind==='wcw'?'active':''} onClick={()=>setKind('wcw')}>♡ Wednesday Crush (WCW)</button></div>
+      {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
+      {loading ? <div className="empty-state">Loading this week's crush cards…</div> : filtered.length ? <div className="crush-card-grid">{filtered.map(post => <article className="crush-card" key={post.id}>
+        {photoUrls[post.id] ? <img className="crush-card-photo" src={photoUrls[post.id]} alt="Crush card" /> : <div className="crush-card-art">🐼<span>✦</span></div>}
+        <div className="crush-card-body"><div className="crush-card-author"><span className="crush-author-avatar">{avatars[post.user_id] ? <img src={avatars[post.user_id]} alt="" /> : '🐼'}</span><div><strong>{names[post.user_id] || 'Panda'}</strong><small>{post.crush_type==='mcm'?'MONDAY CRUSH · MCM':'WEDNESDAY CRUSH · WCW'}</small></div><span className="crush-crown">♛</span></div>
+        {post.caption && <p className="crush-caption">{post.caption}</p>}
+        <div className="crush-card-stats"><span>♛ {countFor(post.id)} votes</span><span>{new Date(post.created_at).toLocaleDateString()}</span></div>
+        {post.user_id!==userId && <div className="crush-reaction-area"><button className="crush-react-trigger" onClick={()=>setReactionPickerPost(reactionPickerPost===post.id?null:post.id)}>☺ React</button>{reactionPickerPost===post.id && <div className="crush-reaction-picker">{['❤️','😂','😮','😡','🐼'].map(emoji=><button key={emoji} aria-label={'React '+emoji} onClick={()=>void react(post,emoji)}>{emoji}</button>)}</div>}<div className="crush-reaction-summary">{['❤️','😂','😮','😡','🐼'].map(emoji=>{const count=reactions.filter(r=>r.post_id===post.id&&r.reaction===emoji).length;return count>0?<span key={emoji}>{emoji} {count}</span>:null})}{reactions.some(r=>r.post_id===post.id&&r.user_id===userId)&&<small>Your reaction: {reactions.find(r=>r.post_id===post.id&&r.user_id===userId)?.reaction}</small>}</div></div>}
+        {post.user_id!==userId && <div className="crush-comments"><strong>{comments.filter(c=>c.post_id===post.id).length} comments</strong>{comments.filter(c=>c.post_id===post.id).slice(-3).map(c=><p className="crush-comment" key={c.id}><b>{commentNames[c.user_id] || names[c.user_id] || (c.user_id===userId?'You':'Panda')}</b> {c.body}</p>)}<form onSubmit={e=>void comment(e,post)}><input value={commentDrafts[post.id]||''} onChange={e=>setCommentDrafts(prev=>({...prev,[post.id]:e.target.value}))} maxLength={800} placeholder="Write a kind comment…" required/><button className="text-action" type="submit">Send</button></form></div>}
+        <div className="crush-card-actions">{post.user_id===userId ? <span className="own-card-note">Your card · voting disabled</span> : <><button className={voted(post.id)?'secondary-button':'primary-button'} disabled={busyVote===post.id || voted(post.id) || freeVotesUsed>=3} onClick={()=>void vote(post)}>{busyVote===post.id?'Working…':voted(post.id)?'Voted ✓':'Vote ♛'}</button><button className="decline-button" onClick={()=>void messageCreator(post)}>Message</button></>}</div>
+        </div>
+      </article>)}</div> : <div className="empty-state crush-empty"><span>{kind==='mcm'?'♛':'♡'}</span><h3>No {kind==='mcm'?'MCM':'WCW'} cards this week yet</h3><p>Be the first to share a crush card with your circle.</p></div>}
+      <p className="crush-footnote">Free voting is limited to 3 votes per week. Paid BC voting and extra votes earned from verified ad views are not connected yet.</p>
+    </section>
+  </div>;
 }
 
 
@@ -377,6 +652,9 @@ function DatingFeature({ userId }: { userId: string }) {
   const [personality, setPersonality] = useState('');
   const [sexualExperience, setSexualExperience] = useState('');
   const [lookingFor, setLookingFor] = useState('Relationship');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [existingPhotoPath, setExistingPhotoPath] = useState('');
+  const [photoUrls, setPhotoUrls] = useState<Record<string,string>>({});
   const [published, setPublished] = useState(false);
   const [directory, setDirectory] = useState<DatingProfileRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
@@ -396,19 +674,24 @@ function DatingFeature({ userId }: { userId: string }) {
       setCountry(profile.country || ''); setStateName(profile.state || ''); setArea(profile.area || '');
     }
     const { data: mine } = await supabase.from('dating_profiles')
-      .select('headline,about,personality,sexual_experience,looking_for,is_published')
+      .select('headline,about,personality,sexual_experience,looking_for,photos,is_published')
       .eq('user_id', userId).maybeSingle();
     if (mine) {
       setHeadline(mine.headline || ''); setAbout(mine.about || '');
       setPersonality(mine.personality || ''); setSexualExperience(mine.sexual_experience || '');
-      setLookingFor(mine.looking_for || 'Relationship'); setPublished(Boolean(mine.is_published));
+      setLookingFor(mine.looking_for || 'Relationship'); setExistingPhotoPath(Array.isArray(mine.photos) ? (mine.photos[0] || '') : ''); setPublished(Boolean(mine.is_published));
     }
     const { data, error } = await supabase.from('dating_profiles')
-      .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at')
+      .select('id,user_id,headline,about,personality,sexual_experience,looking_for,photos,is_published,created_at')
       .eq('is_published', true).neq('user_id', userId).order('created_at', { ascending: false }).limit(60);
     if (error) setNotice(error.message);
     const rows = (data ?? []) as DatingProfileRow[];
     setDirectory(rows);
+    const photoEntries = await Promise.all(rows.filter(row => row.photos?.length).map(async row => {
+      const { data: signed } = await supabase!.storage.from('dating-profile-photos').createSignedUrl(row.photos[0],3600);
+      return signed?.signedUrl ? [row.id,signed.signedUrl] as const : null;
+    }));
+    setPhotoUrls(Object.fromEntries(photoEntries.filter((entry): entry is readonly [string,string] => Boolean(entry))));
     const ids = rows.map(row => row.user_id);
     if (ids.length) {
       const { data: publicProfiles } = await supabase.from('profiles')
@@ -430,19 +713,35 @@ function DatingFeature({ userId }: { userId: string }) {
     event.preventDefault();
     if (!supabase) return;
     if (publishNow && !dateOfBirth) { setNotice('Add your date of birth first. Dating is for adults aged 18 and over.'); return; }
+    if (photoFile && (!['image/jpeg','image/png','image/webp'].includes(photoFile.type) || photoFile.size > 5 * 1024 * 1024)) { setNotice('Use a JPG, PNG or WebP photo up to 5 MB.'); return; }
     setBusy(true); setNotice('');
+    let photoPath: string | null = existingPhotoPath || null;
+    let uploadedPhotoPath: string | null = null;
+    if (photoFile) {
+      const extension = photoFile.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'') || 'jpg';
+      uploadedPhotoPath = `${userId}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('dating-profile-photos').upload(uploadedPhotoPath,photoFile,{contentType:photoFile.type,upsert:false});
+      if (uploadError) { setNotice(uploadError.message); setBusy(false); return; }
+      photoPath = uploadedPhotoPath;
+    }
     const { error: profileError } = await supabase.from('profiles').update({
       date_of_birth: dateOfBirth || null, country: country.trim() || null,
       state: stateName.trim() || null, area: area.trim() || null,
     }).eq('id', userId);
-    if (profileError) { setNotice(profileError.message); setBusy(false); return; }
+    if (profileError) { setNotice(profileError.message); if (uploadedPhotoPath) await supabase.storage.from('dating-profile-photos').remove([uploadedPhotoPath]); setBusy(false); return; }
     const { error } = await supabase.from('dating_profiles').upsert({
       user_id: userId, headline: headline.trim(), about: about.trim(),
       personality: personality.trim() || null, sexual_experience: sexualExperience || null,
-      looking_for: lookingFor, is_published: publishNow,
+      looking_for: lookingFor, photos: photoPath ? [photoPath] : [], is_published: publishNow,
     }, { onConflict: 'user_id' });
-    if (error) setNotice(error.message);
-    else { setPublished(publishNow); setNotice(publishNow ? 'Your dating profile is published.' : 'Your dating profile draft is saved.'); await load(); }
+    if (error) {
+      setNotice(error.message);
+      if (uploadedPhotoPath) await supabase.storage.from('dating-profile-photos').remove([uploadedPhotoPath]);
+    } else {
+      if (existingPhotoPath && existingPhotoPath !== photoPath) await supabase.storage.from('dating-profile-photos').remove([existingPhotoPath]);
+      setExistingPhotoPath(photoPath || ''); setPhotoFile(null); setPublished(publishNow);
+      setNotice(publishNow ? 'Your dating profile is published.' : 'Your dating profile draft is saved.'); await load();
+    }
     setBusy(false);
   }
 
@@ -461,6 +760,7 @@ function DatingFeature({ userId }: { userId: string }) {
         <label>Date of birth<input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} required /></label>
         <div className="form-grid-three"><label>Country<input value={country} onChange={e => setCountry(e.target.value)} placeholder="Country" /></label><label>State<input value={stateName} onChange={e => setStateName(e.target.value)} placeholder="State" /></label><label>Area<input value={area} onChange={e => setArea(e.target.value)} placeholder="City / area" /></label></div>
         <label>Profile headline<input value={headline} onChange={e => setHeadline(e.target.value)} maxLength={120} placeholder="A little about the kind of person you are…" required /></label>
+        <label>Profile photo (optional, JPG/PNG/WebP up to 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setPhotoFile(e.target.files?.[0] ?? null)} />{photoFile && <small className="selected-file">Selected: {photoFile.name}</small>}{existingPhotoPath && !photoFile && <small className="selected-file">A profile photo is saved.</small>}</label>
         <label>About me<textarea value={about} onChange={e => setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
         <label>Personality<textarea value={personality} onChange={e => setPersonality(e.target.value)} maxLength={1200} rows={2} placeholder="Your personality and lifestyle" /></label>
         <div className="form-grid-two"><label>Sexual Experience<select value={sexualExperience} onChange={e => setSexualExperience(e.target.value)}><option value="">Prefer not to say</option><option>Inexperienced</option><option>Some experience</option><option>Experienced</option></select></label><label>Looking for<select value={lookingFor} onChange={e => setLookingFor(e.target.value)}><option>Relationship</option><option>Dating</option><option>Friendship</option><option>Open to possibilities</option></select></label></div>
@@ -469,7 +769,7 @@ function DatingFeature({ userId }: { userId: string }) {
       {notice && <div className="notice">{notice}</div>}
     </section>
     <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Published profiles from adults in the community.</p></div><span className="count-pill">{directory.length} PROFILES</span></div>
-      {loading ? <div className="empty-state">Loading dating profiles…</div> : directory.length ? <div className="dating-directory">{directory.map(profile => <article className="dating-card" key={profile.id}><div className="dating-card-top"><div className="dating-avatar">🐼</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div><span className="heart-mark">♡</span></div><h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>{profile.personality && <div className="personality-tag">{profile.personality}</div>}<div className="dating-card-bottom"><span>Looking for: {profile.looking_for || 'Connection'}</span><button className="primary-button" onClick={() => void requestChat(profile)}>Message request ↗</button></div></article>)}</div> : <div className="empty-state"><span>♡</span><h3>Your next connection starts here.</h3><p>When adult members publish dating profiles, they will appear here.</p></div>}
+      {loading ? <div className="empty-state">Loading dating profiles…</div> : directory.length ? <div className="dating-directory">{directory.map(profile => <article className="dating-card" key={profile.id}><div className="dating-card-top"><div className="dating-avatar">{photoUrls[profile.id] ? <img className="dating-photo-image" src={photoUrls[profile.id]} alt={names[profile.user_id] || 'Panda'} loading="lazy" /> : '🐼'}</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div><span className="heart-mark">♡</span></div><h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>{profile.personality && <div className="personality-tag">{profile.personality}</div>}<div className="dating-card-bottom"><span>Looking for: {profile.looking_for || 'Connection'}</span><button className="primary-button" onClick={() => void requestChat(profile)}>Message request ↗</button></div></article>)}</div> : <div className="empty-state"><span>♡</span><h3>Your next connection starts here.</h3><p>When adult members publish dating profiles, they will appear here.</p></div>}
     </section>
   </div>;
 }
@@ -485,6 +785,7 @@ function EventsFeature({ userId }: { userId: string }) {
   const [country, setCountry] = useState('');
   const [stateName, setStateName] = useState('');
   const [startsAt, setStartsAt] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
@@ -524,15 +825,29 @@ function EventsFeature({ userId }: { userId: string }) {
     event.preventDefault();
     if (!supabase) return;
     if (!startsAt || new Date(startsAt).getTime() <= Date.now()) { setNotice('Choose a future event date and time.'); return; }
+    if (coverFile && (!['image/jpeg','image/png','image/webp'].includes(coverFile.type) || coverFile.size > 5 * 1024 * 1024)) {
+      setNotice('Use a JPG, PNG or WebP image up to 5 MB.'); return;
+    }
     setBusy(true); setNotice('');
+    let coverUrl: string | null = null;
+    let uploadedPath: string | null = null;
+    if (coverFile) {
+      const extension = coverFile.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'') || 'jpg';
+      uploadedPath = `${userId}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('event-covers').upload(uploadedPath,coverFile,{contentType:coverFile.type,upsert:false});
+      if (uploadError) { setNotice(uploadError.message); setBusy(false); return; }
+      coverUrl = supabase.storage.from('event-covers').getPublicUrl(uploadedPath).data.publicUrl;
+    }
     const { error } = await supabase.from('events').insert({
       creator_id: userId, title: title.trim(), description: description.trim(),
       venue: venue.trim() || null, country: country.trim() || null,
-      state: stateName.trim() || null, starts_at: new Date(startsAt).toISOString(), is_published: true,
+      state: stateName.trim() || null, starts_at: new Date(startsAt).toISOString(), cover_url: coverUrl, is_published: true,
     });
-    if (error) setNotice(error.message);
-    else {
-      setTitle(''); setDescription(''); setVenue(''); setCountry(''); setStateName(''); setStartsAt('');
+    if (error) {
+      setNotice(error.message);
+      if (uploadedPath) await supabase.storage.from('event-covers').remove([uploadedPath]);
+    } else {
+      setTitle(''); setDescription(''); setVenue(''); setCountry(''); setStateName(''); setStartsAt(''); setCoverFile(null);
       setNotice('Event published successfully.'); await load();
     }
     setBusy(false);
@@ -564,13 +879,14 @@ function EventsFeature({ userId }: { userId: string }) {
         <label>Event title<input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} required placeholder="What are we getting together for?" /></label>
         <label>Description<textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} maxLength={4000} placeholder="Tell people what to expect…" /></label>
         <label>Venue or meeting point<input value={venue} onChange={e => setVenue(e.target.value)} maxLength={250} placeholder="Venue, online or meeting point" /></label>
+        <label>Cover image (optional, JPG/PNG/WebP up to 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setCoverFile(e.target.files?.[0] ?? null)} />{coverFile && <small className="selected-file">Selected: {coverFile.name}</small>}</label>
         <div className="form-grid-three"><label>Country<input value={country} onChange={e => setCountry(e.target.value)} placeholder="Country" /></label><label>State<input value={stateName} onChange={e => setStateName(e.target.value)} placeholder="State" /></label><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => setStartsAt(e.target.value)} required /></label></div>
-        <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Publishing…' : 'Publish event ↗'}</button></div>
+        <div className="form-submit-row"><span className="draft-state">Optional cover image</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Publishing…' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section>
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
+      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body">{item.cover_url && <img className="event-cover-image" src={item.cover_url} alt={item.title} loading="lazy" />}<div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
   </div>;
 }
@@ -787,4 +1103,193 @@ function AdminFeature() {
     {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
     {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div> : <div className="empty-state"><p>No economy settings were found.</p></div>}
   </section>;
+}
+
+
+type SponsorCampaignRow = {
+  id: string;
+  sponsor_name: string;
+  campaign_name: string;
+  description: string;
+  format: string;
+  target_url: string | null;
+  countries: string[];
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  starts_at: string;
+  ends_at: string;
+  budget_naira: number;
+  cpm_naira: number;
+  target_impressions: number;
+  impressions: number;
+  clicks: number;
+  created_at: string;
+};
+
+function SponsorFeature({ userId }: { userId: string }) {
+  const [campaigns, setCampaigns] = useState<SponsorCampaignRow[]>([]);
+  const [sponsorName, setSponsorName] = useState('');
+  const [campaignName, setCampaignName] = useState('');
+  const [description, setDescription] = useState('');
+  const [format, setFormat] = useState('native');
+  const [targetUrl, setTargetUrl] = useState('');
+  const [countries, setCountries] = useState('Nigeria');
+  const [startsAt, setStartsAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
+  const [budget, setBudget] = useState('0');
+  const [cpm, setCpm] = useState('0');
+  const [targetImpressions, setTargetImpressions] = useState('0');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState('');
+
+  async function load() {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('sponsor_campaigns')
+      .select('id,sponsor_name,campaign_name,description,format,target_url,countries,status,starts_at,ends_at,budget_naira,cpm_naira,target_impressions,impressions,clicks,created_at')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) setNotice(error.message);
+    setCampaigns((data ?? []) as SponsorCampaignRow[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, [userId]);
+
+  async function createCampaign(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+    const parsedBudget = Number(budget);
+    const parsedCpm = Number(cpm);
+    const parsedTarget = Number(targetImpressions);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+      setNotice('Choose a valid campaign start and an end time after it.');
+      return;
+    }
+    if (![parsedBudget, parsedCpm, parsedTarget].every(v => Number.isFinite(v) && v >= 0)) {
+      setNotice('Budget, CPM and impression target must be zero or positive numbers.');
+      return;
+    }
+    let safeUrl: string | null = null;
+    if (targetUrl.trim()) {
+      try {
+        const parsed = new URL(targetUrl.trim());
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('invalid');
+        safeUrl = parsed.toString();
+      } catch {
+        setNotice('The sponsor destination must be a valid http or https URL.');
+        return;
+      }
+    }
+    setBusy(true); setNotice('');
+    const { error } = await supabase.from('sponsor_campaigns').insert({
+      sponsor_name: sponsorName.trim(),
+      campaign_name: campaignName.trim(),
+      description: description.trim(),
+      format,
+      target_url: safeUrl,
+      countries: countries.split(',').map(value => value.trim()).filter(Boolean),
+      starts_at: start.toISOString(),
+      ends_at: end.toISOString(),
+      budget_naira: parsedBudget,
+      cpm_naira: parsedCpm,
+      target_impressions: Math.floor(parsedTarget),
+      created_by: userId,
+      status: 'draft',
+    });
+    if (error) setNotice(error.message);
+    else {
+      setSponsorName(''); setCampaignName(''); setDescription(''); setTargetUrl('');
+      setNotice('Campaign saved as a draft. Review the targeting and dates before activating it.');
+      await load();
+    }
+    setBusy(false);
+  }
+
+  async function setStatus(campaign: SponsorCampaignRow, status: SponsorCampaignRow['status']) {
+    if (!supabase) return;
+    if (status === 'active' && new Date(campaign.ends_at).getTime() <= Date.now()) {
+      setNotice('This campaign has already ended. Edit its dates before activating it.');
+      return;
+    }
+    setBusy(true); setNotice('');
+    const { error } = await supabase.from('sponsor_campaigns').update({ status, updated_at: new Date().toISOString() }).eq('id', campaign.id);
+    if (error) setNotice(error.message);
+    else { setNotice(status === 'active' ? 'Campaign activated.' : status === 'paused' ? 'Campaign paused.' : 'Campaign updated.'); await load(); }
+    setBusy(false);
+  }
+
+  const activeCount = campaigns.filter(c => c.status === 'active' && new Date(c.ends_at).getTime() > Date.now()).length;
+  const impressions = campaigns.reduce((sum,c) => sum + Number(c.impressions || 0),0);
+  const clicks = campaigns.reduce((sum,c) => sum + Number(c.clicks || 0),0);
+
+  return <div className="sponsor-control-room">
+    <section className="feature-panel sponsor-intro"><div className="feature-icon">✦</div><p className="eyebrow">DIRECT SPONSOR CONTROL ROOM</p><h2>Turn campaigns into measurable partnerships.</h2><p className="feature-copy">Create sponsor campaigns, target countries, control delivery dates and track native-placement impressions and clicks. Sponsored content is clearly labelled; users are never asked to click ads to earn rewards.</p>
+      <div className="sponsor-metrics">
+        <div><span>CAMPAIGNS</span><strong>{campaigns.length}</strong></div>
+        <div><span>ACTIVE</span><strong>{activeCount}</strong></div>
+        <div><span>RECORDED IMPRESSIONS</span><strong>{impressions.toLocaleString()}</strong></div>
+        <div><span>RECORDED CLICKS</span><strong>{clicks.toLocaleString()}</strong></div>
+      </div>
+    </section>
+    {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+    <section className="feature-panel sponsor-create-panel">
+      <p className="eyebrow">CAMPAIGN SETUP</p><h2>Create a sponsor campaign</h2>
+      <form className="feature-form" onSubmit={createCampaign}>
+        <div className="form-grid-two"><label>Sponsor / brand name<input value={sponsorName} onChange={e=>setSponsorName(e.target.value)} maxLength={160} required placeholder="e.g. MTN Nigeria" /></label><label>Campaign name<input value={campaignName} onChange={e=>setCampaignName(e.target.value)} maxLength={160} required placeholder="e.g. Campus Connect" /></label></div>
+        <label>Campaign message<textarea value={description} onChange={e=>setDescription(e.target.value)} maxLength={2000} rows={3} required placeholder="What should Circle Panda members know?" /></label>
+        <div className="form-grid-two"><label>Placement format<select value={format} onChange={e=>setFormat(e.target.value)}><option value="native">Native sponsored card (available in app)</option><option value="direct_sponsor">Direct sponsor placement</option><option value="sponsor_reveal">Sponsor Reveal</option><option value="banner">Banner (provider integration pending)</option><option value="interstitial">Interstitial (provider integration pending)</option><option value="playable">Playable (provider integration pending)</option><option value="rewarded">Rewarded (verified ad SDK required)</option></select></label><label>Destination URL (optional)<input type="url" value={targetUrl} onChange={e=>setTargetUrl(e.target.value)} placeholder="https://brand.example/offer" /></label></div>
+        <label>Target countries (comma separated)<input value={countries} onChange={e=>setCountries(e.target.value)} placeholder="Nigeria, Ghana (blank means all countries)" /></label>
+        <div className="form-grid-two"><label>Starts at<input type="datetime-local" value={startsAt} onChange={e=>setStartsAt(e.target.value)} required /></label><label>Ends at<input type="datetime-local" value={endsAt} onChange={e=>setEndsAt(e.target.value)} required /></label></div>
+        <div className="form-grid-three"><label>Campaign budget (₦)<input type="number" min="0" step="0.01" value={budget} onChange={e=>setBudget(e.target.value)} required /></label><label>CPM estimate (₦ / 1,000 views)<input type="number" min="0" step="0.01" value={cpm} onChange={e=>setCpm(e.target.value)} required /></label><label>Target impressions<input type="number" min="0" step="1" value={targetImpressions} onChange={e=>setTargetImpressions(e.target.value)} required /></label></div>
+        <div className="form-submit-row"><span className="draft-state">New campaigns start as drafts</span><button className="primary-button" disabled={busy}>{busy ? 'Saving…' : 'Save campaign ↗'}</button></div>
+      </form>
+    </section>
+    <section className="sponsor-campaign-list"><div className="section-title-row"><div><h2>Campaigns</h2><p>Use live native placements for first-party pilots; other formats need their provider SDK/ad units.</p></div><span className="count-pill">{campaigns.length} TOTAL</span></div>
+      {loading ? <div className="empty-state">Loading campaigns…</div> : campaigns.length ? <div className="sponsor-campaign-grid">{campaigns.map(c => <article className="sponsor-campaign-card" key={c.id}><div className="sponsor-card-top"><span className={'sponsor-status status-'+c.status}>{c.status}</span><span className="sponsor-format">{c.format.replaceAll('_',' ')}</span></div><p className="eyebrow">{c.sponsor_name}</p><h3>{c.campaign_name}</h3><p>{c.description || 'No campaign message supplied.'}</p><div className="sponsor-card-meta"><span>⌖ {c.countries.length ? c.countries.join(', ') : 'All countries'}</span><span>Ends {new Date(c.ends_at).toLocaleDateString()}</span></div><div className="sponsor-card-stats"><div><strong>{Number(c.impressions).toLocaleString()}</strong><small>Impressions</small></div><div><strong>{Number(c.clicks).toLocaleString()}</strong><small>Clicks</small></div><div><strong>{c.impressions ? ((Number(c.clicks)/Number(c.impressions))*100).toFixed(2)+'%' : '—'}</strong><small>CTR</small></div></div><div className="sponsor-card-actions">{c.status === 'draft' || c.status === 'paused' ? <button className="primary-button" disabled={busy} onClick={()=>void setStatus(c,'active')}>Activate ↗</button> : c.status === 'active' ? <button className="decline-button" disabled={busy} onClick={()=>void setStatus(c,'paused')}>Pause campaign</button> : <span className="draft-state">Completed</span>}{c.status !== 'completed' && <button className="text-action" disabled={busy} onClick={()=>void setStatus(c,'completed')}>Mark complete</button>}</div></article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your first sponsor campaign starts here.</h3><p>Set up a pilot campaign, activate it, then use the recorded delivery metrics to prepare a sponsor report.</p></div>}
+    </section>
+    <p className="sponsor-footnote">Measurement note: these are first-party client events, suitable for pilot reporting and product QA—not final invoice-grade proof. Before billing sponsors by impressions or conversions, add server-side validation, campaign budget caps and a trusted conversion callback.</p>
+  </div>;
+}
+
+function SponsoredPlacement({ userId }: { userId: string }) {
+  const [campaign, setCampaign] = useState<SponsorCampaignRow | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      if (!supabase) return;
+      const now = new Date().toISOString();
+      const [{ data: profile }, { data, error }] = await Promise.all([
+        supabase.from('profiles').select('country').eq('id', userId).maybeSingle(),
+        supabase.from('sponsor_campaigns')
+          .select('id,sponsor_name,campaign_name,description,format,target_url,countries,status,starts_at,ends_at,budget_naira,cpm_naira,target_impressions,impressions,clicks,created_at')
+          .eq('status','active').in('format',['native','direct_sponsor','sponsor_reveal'])
+          .lte('starts_at',now).gt('ends_at',now).order('created_at',{ascending:false}).limit(30),
+      ]);
+      if (!alive || error) return;
+      const country = String(profile?.country || '').trim().toLowerCase();
+      const match = ((data ?? []) as SponsorCampaignRow[]).find(c =>
+        !c.countries?.length || c.countries.some(value => value.trim().toLowerCase() === country)
+      );
+      if (match) setCampaign(match);
+    }
+    void load();
+    return () => { alive = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!supabase || !campaign?.id) return;
+    void supabase.rpc('track_sponsor_event',{p_campaign_id:campaign.id,p_event_type:'impression',p_placement:'home_native_card'});
+  }, [campaign?.id]);
+
+  if (!campaign) return null;
+  const destination = campaign.target_url;
+  return <article className="sponsor-placement">
+    <div className="sponsor-placement-label"><span>✦ SPONSORED</span><span>{campaign.sponsor_name}</span></div>
+    <h3>{campaign.campaign_name}</h3><p>{campaign.description}</p>
+    {destination && <a href={destination} target="_blank" rel="noopener noreferrer" onClick={() => {
+      if (supabase) void supabase.rpc('track_sponsor_event',{p_campaign_id:campaign.id,p_event_type:'click',p_placement:'home_native_card'});
+    }}>Learn more ↗</a>}
+  </article>;
 }
