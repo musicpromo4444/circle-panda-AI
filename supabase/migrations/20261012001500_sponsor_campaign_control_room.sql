@@ -94,7 +94,9 @@ begin
   ) then return false; end if;
 
   insert into public.sponsor_campaign_events(campaign_id,user_id,event_type,placement)
-  values (p_campaign_id,v_user_id,p_event_type,p_placement);
+  values (p_campaign_id,v_user_id,p_event_type,p_placement)
+  on conflict do nothing;
+  if not found then return false; end if;
 
   if p_event_type = 'impression' then
     update public.sponsor_campaigns set impressions = impressions + 1, updated_at = now() where id = p_campaign_id;
