@@ -304,7 +304,7 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
 
 
 
-type CrushPostRow = { id: string; user_id: string; crush_type: 'mcm' | 'wcw'; caption: string; image_path: string | null; week_start: string; created_at: string };
+type CrushPostRow = { id: string; user_id: string; crush_type: 'mcm' | 'wcw'; caption: string; image_path: string | null; week_start: string; scheduled_for: string; created_at: string };
 type CrushVoteRow = { id: string; post_id: string; user_id: string; created_at: string };
 type CrushCommentRow = { id: string; post_id: string; user_id: string; body: string; created_at: string };
 type CrushReactionRow = { id: string; post_id: string; user_id: string; reaction: string; created_at: string };
@@ -333,7 +333,7 @@ function CrushFeature({ userId }: { userId: string }) {
     if (!supabase) return;
     setLoading(true);
     const { data, error } = await supabase.from('crush_posts')
-      .select('id,user_id,crush_type,caption,image_path,week_start,created_at')
+      .select('id,user_id,crush_type,caption,image_path,week_start,scheduled_for,created_at')
       .order('created_at',{ascending:false}).limit(60);
     if (error) { setNotice(error.message); setLoading(false); return; }
     const rows = (data ?? []) as CrushPostRow[];
@@ -369,9 +369,9 @@ function CrushFeature({ userId }: { userId: string }) {
         (commenterProfiles ?? []).forEach((p:{id:string;display_name:string|null;username:string|null})=>{commentNameMap[p.id]=p.display_name||p.username||'Panda';});
         setCommentNames(commentNameMap);
       } else setCommentNames({});
-      const monday = new Date(); monday.setUTCHours(0,0,0,0);
-      monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay()+6)%7));
-      const nextMonday = new Date(monday); nextMonday.setUTCDate(nextMonday.getUTCDate()+7);
+      const monday = new Date(); monday.setHours(0,0,0,0);
+      monday.setDate(monday.getDate() - ((monday.getDay()+6)%7));
+      const nextMonday = new Date(monday); nextMonday.setDate(nextMonday.getDate()+7);
       setFreeVotesUsed(mine.filter(v => v.user_id === userId && new Date(v.created_at) >= monday && new Date(v.created_at) < nextMonday).length);
     } else { setVotes([]); setComments([]); setReactions([]); setPhotoUrls({}); setNames({}); setAvatars({}); setFreeVotesUsed(0); }
     setLoading(false);
@@ -387,6 +387,9 @@ function CrushFeature({ userId }: { userId: string }) {
       setNotice('Use a JPG, PNG or WebP photo up to 5 MB.'); return;
     }
     setBusy(true); setNotice('');
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const {error:timezoneError} = await supabase.from('profiles').update({timezone}).eq('id',userId);
+    if (timezoneError) { setNotice('Could not save your local timezone for crush scheduling: '+timezoneError.message); setBusy(false); return; }
     let path: string | null = null;
     if (photo) {
       const ext = photo.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'') || 'jpg';
@@ -404,7 +407,7 @@ function CrushFeature({ userId }: { userId: string }) {
       setCaption(''); setPhoto(null);
       const input = document.getElementById('crush-photo-input') as HTMLInputElement | null;
       if (input) input.value = '';
-      setNotice(kind === 'mcm' ? 'Your MCM card has been published.' : 'Your WCW card has been published.');
+      setNotice(kind === 'mcm' ? 'Your MCM card is scheduled for Monday at 10:00 AM in your local timezone.' : 'Your WCW card is scheduled for Wednesday at 10:00 AM in your local timezone.');
       await load();
     }
     setBusy(false);
@@ -455,9 +458,9 @@ function CrushFeature({ userId }: { userId: string }) {
 
   const countFor = (postId:string) => votes.filter(v=>v.post_id===postId).length;
   const voted = (postId:string) => votes.some(v=>v.post_id===postId && v.user_id===userId);
-  const monday = new Date(); monday.setUTCHours(0,0,0,0); monday.setUTCDate(monday.getUTCDate()-((monday.getUTCDay()+6)%7));
-  const weekKey = monday.toISOString().slice(0,10);
-  const currentPosts = posts.filter(p=>p.week_start===weekKey);
+  const monday = new Date(); monday.setHours(0,0,0,0); monday.setDate(monday.getDate()-((monday.getDay()+6)%7));
+  const weekKey = monday.getFullYear()+'-'+String(monday.getMonth()+1).padStart(2,'0')+'-'+String(monday.getDate()).padStart(2,'0');
+  const currentPosts = posts.filter(p=>p.week_start===weekKey && new Date(p.scheduled_for)<=new Date());
   const filtered = currentPosts.filter(p=>p.crush_type===kind);
 
   return <div className="crush-page">
