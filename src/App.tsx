@@ -39,6 +39,8 @@ export default function App() {
   const [signupCountry, setSignupCountry] = useState('Nigeria');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'tour' | null>(null);
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
@@ -59,6 +61,20 @@ export default function App() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!supabase || !session) { setOnboardingStep(null); return; }
+    let alive = true;
+    supabase.from('profiles').select('welcome_popup_seen_at,app_tour_seen_at').eq('id',session.user.id).maybeSingle()
+      .then(({data,error}) => {
+        if (!alive) return;
+        if (error) { setNotice(error.message); return; }
+        if (!data?.welcome_popup_seen_at) setOnboardingStep('welcome');
+        else if (!data?.app_tour_seen_at) setOnboardingStep('tour');
+        else setOnboardingStep(null);
+      });
+    return () => { alive = false; };
+  }, [session]);
 
   useEffect(() => {
     if (!supabase || !session) { setIsAdmin(false); return; }
@@ -196,6 +212,15 @@ export default function App() {
     setNotice(error ? error.message : 'Message request sent. The author will see it in their inbox.');
   }
 
+  async function finishOnboarding(step: 'welcome' | 'tour') {
+    if (!supabase) return;
+    setOnboardingBusy(true);
+    const { error } = await supabase.rpc('mark_onboarding_seen', { p_step: step });
+    if (error) setNotice(error.message);
+    else setOnboardingStep(step === 'welcome' ? 'tour' : null);
+    setOnboardingBusy(false);
+  }
+
   async function signOut() {
     if (!supabase) return;
     const { error } = await supabase.auth.signOut();
@@ -252,6 +277,7 @@ export default function App() {
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
+    {onboardingStep && <div className="onboarding-backdrop"><section className="onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div className="onboarding-panda">🐼</div>{onboardingStep === 'welcome' ? <><p className="eyebrow">WELCOME TO YOUR CIRCLE</p><h2 id="onboarding-title">Your first 200 BC are ready.</h2><p>Your welcome bonus has already been added to your Panda wallet. It does not expire, and you can check it anytime in Wallet.</p><div className="onboarding-bonus">✦ <strong>200 BC</strong><span>WELCOME BONUS</span></div><button className="primary-button full" disabled={onboardingBusy} onClick={() => void finishOnboarding('welcome')}>{onboardingBusy ? 'One moment…' : 'Continue →'}</button></> : <><p className="eyebrow">A QUICK TOUR</p><h2 id="onboarding-title">One circle, many ways to connect.</h2><p>Share anonymous confessions, discover dating profiles, publish events, join groups, accept message requests and collect activity rewards. Sponsored content is labelled clearly.</p><div className="onboarding-feature-list"><span>☁ Confessions</span><span>♡ Dating</span><span>▦ Events</span><span>◉ Groups</span><span>↗ Messages</span><span>◈ Wallet</span></div><div className="onboarding-actions"><button className="secondary-button" disabled={onboardingBusy} onClick={() => void finishOnboarding('tour')}>Not now</button><button className="primary-button" disabled={onboardingBusy} onClick={() => { void finishOnboarding('tour'); setSection('Home'); }}>Explore Circle Panda ↗</button></div></>}</section></div>}
   </div>;
 }
 
