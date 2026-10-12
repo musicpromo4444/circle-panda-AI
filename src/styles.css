@@ -23,3 +23,74 @@
 
 .admin-panel{max-width:920px;margin:0 auto;padding:26px}.admin-settings{display:grid;gap:8px;margin-top:22px}.admin-setting-row{display:grid;grid-template-columns:minmax(0,1fr) 105px 72px;align-items:center;gap:12px;padding:12px;background:#0f1913;border:1px solid #27392b;border-radius:10px}.admin-setting-row>div{min-width:0}.admin-setting-row strong{display:block;text-transform:capitalize;font-size:11px;color:#dce7dd}.admin-setting-row small{display:block;font-size:8px;color:#728678;margin-top:5px}.admin-setting-row input{width:100%;min-width:0;background:#0a120d;border:1px solid #2d4131;border-radius:7px;padding:9px;color:#eff5ef;font-size:11px;outline:none}.admin-setting-row input:focus{border-color:#92d675}.admin-setting-row .primary-button{padding:9px 10px;font-size:9px}
 @media(max-width:560px){.admin-panel{padding:18px}.admin-setting-row{grid-template-columns:minmax(0,1fr) 78px;gap:9px}.admin-setting-row .primary-button{grid-column:2}.admin-setting-row small{line-height:1.4}}
+
+
+/* Personalised app chrome: coin balance, theme switch and a distinct dating identity. */
+.coin-balance-chip{display:flex;align-items:center;gap:8px;border:1px solid #66502a;background:linear-gradient(135deg,#252318,#151c16);border-radius:999px;padding:5px 12px 5px 6px;color:#f7e6b0;min-width:94px}
+.coin-balance-chip:hover{border-color:#d8b65c;transform:translateY(-1px)}
+.coin-token{position:relative;display:grid;place-items:center;flex-shrink:0;width:31px;height:31px;border-radius:50%;border:2px solid #f5d783;background:radial-gradient(circle at 28% 22%,#fff0a5 0,#e5b94f 24%,#a97622 58%,#4e3918 100%);box-shadow:inset 0 0 0 2px #9b702b,0 2px 8px #0007;color:#503712;font:900 14px Manrope,sans-serif;text-shadow:0 1px #ffedac}
+.coin-token:after{content:"";position:absolute;inset:4px;border:1px solid #6e4d1e;border-radius:50%;pointer-events:none}
+.coin-balance-copy{display:flex;align-items:baseline;gap:4px}
+.coin-balance-copy strong{font:800 12px Manrope,sans-serif;color:#ffedb8;font-variant-numeric:tabular-nums}
+.coin-balance-copy small{font-size:8px;font-weight:800;letter-spacing:1px;color:#d7b75f}
+.theme-toggle{width:36px;height:36px;display:grid;place-items:center;border:1px solid #2b3d32;background:#111d18;color:#d8e6d9;border-radius:11px;font-size:18px}
+.theme-toggle:hover{border-color:var(--green);color:var(--green)}
+.page-dating .welcome-row{padding:20px 23px;border:1px solid #56334d;border-radius:16px;background:radial-gradient(ellipse at 90% 0%,#6d31522b,transparent 50%),linear-gradient(120deg,#241923,#151b19);margin-bottom:20px}
+.page-dating .welcome-row .eyebrow{color:#e5a8d0}
+.page-dating .welcome-row h1{color:#fff0f8}
+.page-dating .welcome-row .heading-period{color:#ed83c2}
+.page-dating .date-pill{border-color:#69415b;color:#e9b5d5;background:#2a1b27}
+.page-dating .dating-form-panel{border-color:#55364b;background:linear-gradient(155deg,#211923,#121b17 70%);box-shadow:0 16px 42px #0002}
+.page-dating .dating-feature-icon{color:#ff9bd4;border-color:#754667;background:linear-gradient(145deg,#47263e,#211b27)}
+.page-dating .dating-form-panel .eyebrow{color:#e5a8d0}
+.page-dating .dating-form-panel .primary-button{background:linear-gradient(135deg,#ffc1e4,#e87bb7);color:#32172a}
+.page-dating .dating-card{border-color:#493344;background:linear-gradient(145deg,#211923,#141c18)}
+.page-dating .dating-avatar{border-color:#714565;background:#3a2637}
+.page-dating .heart-mark{color:#ff9bd4}
+.page-dating .personality-tag{border-color:#62415a;background:#2b202b;color:#f0c7e0}
+.page-dating .count-pill{border-color:#604056;color:#edb6d7;background:#2c1e29}
+@media(max-width:760px){
+ .top-actions{gap:6px}
+ .coin-balance-chip{min-width:0;padding:4px 8px 4px 4px;gap:5px}
+ .coin-token{width:27px;height:27px;font-size:12px}
+ .coin-balance-copy strong{font-size:10px}
+ .theme-toggle{width:31px;height:31px;font-size:16px}
+ .topbar-search{max-width:135px}
+ .page-dating .welcome-row{padding:17px}
+}
+/* App-wide light mode. Section accents remain intact while surfaces and text adapt. */
+:root[data-theme="light"]{color-scheme:light;--bg:#f3f6f2;--panel:#ffffff;--panel2:#edf3ed;--line:#d7e1d7;--muted:#5c6f61;--green:#377b2b;--green2:#4d9b3e;color:#1b2b20;background:#f3f6f2}
+:root[data-theme="light"] body{background:#f3f6f2;color:#1b2b20}
+:root[data-theme="light"] .app-shell{background:#f3f6f2;color:#1b2b20}
+:root[data-theme="light"] .sidebar{background:#fff;border-color:#dce5dc}
+:root[data-theme="light"] .brand{color:#203326}
+:root[data-theme="light"] .brand-icon,:root[data-theme="light"] .nav-item.active{background:#e8f3e4;border-color:#c8dfc0;color:#2c6d27}
+:root[data-theme="light"] .nav-item{color:#536657}
+:root[data-theme="light"] .nav-item:hover{background:#f0f6ef;color:#203326}
+:root[data-theme="light"] .brand small,:root[data-theme="light"] .nav-caption,:root[data-theme="light"] .sidebar-bottom,:root[data-theme="light"] .section-hint,:root[data-theme="light"] .page-footer{color:#718274}
+:root[data-theme="light"] .topbar{background:#ffffffed;border-color:#dce5dc}
+:root[data-theme="light"] .topbar-search,:root[data-theme="light"] .theme-toggle{background:#f5f8f4;border-color:#d6e0d6;color:#536657}
+:root[data-theme="light"] .profile-chip{background:#f7faf6;border-color:#d6e0d6;color:#304536}
+:root[data-theme="light"] .welcome-row h1,:root[data-theme="light"] .section-title-row h2,:root[data-theme="light"] .feature-panel h2,:root[data-theme="light"] .wallet-hero h2{color:#1d3022}
+:root[data-theme="light"] .hero-card,:root[data-theme="light"] .feature-panel,:root[data-theme="light"] .feed-composer,:root[data-theme="light"] .post-card,:root[data-theme="light"] .wallet-history,:root[data-theme="light"] .economy-rules,:root[data-theme="light"] .wallet-actions,:root[data-theme="light"] .balance-card,:root[data-theme="light"] .request-card,:root[data-theme="light"] .sent-card,:root[data-theme="light"] .chat-panel,:root[data-theme="light"] .chat-list-item,:root[data-theme="light"] .group-card,:root[data-theme="light"] .dating-card,:root[data-theme="light"] .event-card{background:#fff;border-color:#dce5dc;color:#24372a}
+:root[data-theme="light"] .wallet-hero{background:linear-gradient(115deg,#edf6e9,#e3f0df);border-color:#c8dfc0}
+:root[data-theme="light"] .wallet-coin{background:radial-gradient(circle at 30% 25%,#d7efc9,#8cbf78);border-color:#6eaa5d;color:#2f6f26}
+:root[data-theme="light"] .hero-card{background:linear-gradient(120deg,#e8f2e4,#f7faf5);border-color:#d1e3cb}
+:root[data-theme="light"] .hero-content h2,:root[data-theme="light"] .hero-content p,:root[data-theme="light"] .post-body,:root[data-theme="light"] .feature-copy,:root[data-theme="light"] .wallet-hero p:not(.eyebrow),:root[data-theme="light"] .dating-about,:root[data-theme="light"] .event-card-body>p,:root[data-theme="light"] .group-card-main>p{color:#526657}
+:root[data-theme="light"] .post-top strong,:root[data-theme="light"] .dating-card-top strong,:root[data-theme="light"] .event-card h3,:root[data-theme="light"] .group-card-title h3,:root[data-theme="light"] .balance-card strong,:root[data-theme="light"] .request-card-top strong,:root[data-theme="light"] .sent-card strong{color:#203326}
+:root[data-theme="light"] .feature-form input,:root[data-theme="light"] .feature-form textarea,:root[data-theme="light"] .feature-form select,:root[data-theme="light"] .chat-compose input,:root[data-theme="light"] .comment-form input,:root[data-theme="light"] .admin-setting-row input,:root[data-theme="light"] .feed-composer textarea{background:#f8fbf7;border-color:#d3dfd3;color:#203326}
+:root[data-theme="light"] .feature-form label,:root[data-theme="light"] .chat-bubble p,:root[data-theme="light"] .comment-row p,:root[data-theme="light"] .composer-footer>span{color:#526657}
+:root[data-theme="light"] .chat-bubble{background:#f0f6ee;border-color:#d8e5d5}
+:root[data-theme="light"] .chat-bubble.mine{background:#e1f2db;border-color:#c1e0b6}
+:root[data-theme="light"] .chat-bubble small,:root[data-theme="light"] .chat-header p,:root[data-theme="light"] .chat-list-item small,:root[data-theme="light"] .transaction-row small,:root[data-theme="light"] .balance-card small{color:#6d8070}
+:root[data-theme="light"] .request-content>p,:root[data-theme="light"] .sent-card p{color:#526657}
+:root[data-theme="light"] .empty-state h3,:root[data-theme="light"] .empty-state p{color:#526657}
+:root[data-theme="light"] .coin-balance-chip{background:linear-gradient(135deg,#fff6d8,#f3dfa1);border-color:#d5b65e;color:#5c4215}
+:root[data-theme="light"] .coin-balance-copy strong{color:#5c4215}
+:root[data-theme="light"] .coin-balance-copy small{color:#80601c}
+:root[data-theme="light"] .page-dating .welcome-row{background:radial-gradient(ellipse at 90% 0%,#f7dcecb8,transparent 50%),linear-gradient(120deg,#fff0f8,#f8f4f7);border-color:#edc6dd}
+:root[data-theme="light"] .page-dating .welcome-row h1{color:#492b3d}
+:root[data-theme="light"] .page-dating .dating-form-panel{background:linear-gradient(155deg,#fff8fc,#ffffff 70%);border-color:#edc6dd}
+:root[data-theme="light"] .page-dating .dating-card{background:linear-gradient(145deg,#fff8fc,#fff);border-color:#edc6dd}
+:root[data-theme="light"] .page-dating .personality-tag{background:#fff0f8;border-color:#edc6dd;color:#7c4267}
+:root[data-theme="light"] .page-dating .dating-form-panel .feature-copy{color:#6f5364}
