@@ -295,3 +295,20 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .crush-footnote{font-size:10px;line-height:1.7;color:#92a99e;padding:12px 14px;border:1px solid rgba(111,164,143,.14);border-radius:10px;background:rgba(10,24,27,.48)}
 @media(max-width:700px){.crush-card-grid{grid-template-columns:1fr}.crush-card-photo,.crush-card-art{height:230px}.crush-summary strong{font-size:20px}}
 @media(max-width:420px){.crush-intro,.crush-compose-panel{padding:21px 16px}.crush-summary{gap:6px}.crush-summary>div{padding:10px 8px}.crush-summary span{font-size:7px}.crush-tabs button{flex:1;padding:10px 8px}}
+
+
+.crush-reaction-area{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:10px 0 2px}
+.crush-react-trigger{border:1px solid rgba(122,174,151,.22);border-radius:8px;padding:7px 10px;background:rgba(11,27,30,.7);color:#bdd3c5;font-size:9px;font-weight:700}
+.crush-reaction-picker{display:flex;gap:5px;padding:5px;border:1px solid rgba(112,171,146,.2);border-radius:9px;background:rgba(5,16,20,.92)}
+.crush-reaction-picker button{display:grid;place-items:center;width:31px;height:31px;border:0;border-radius:7px;background:transparent;font-size:18px}
+.crush-reaction-picker button:hover{background:rgba(183,255,120,.11);transform:translateY(-1px)}
+.crush-reaction-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;color:#d8ebdc}
+.crush-reaction-summary small{font-size:8px;color:#a8c5b0}
+.crush-comments{display:grid;gap:8px;padding:13px 0 2px;border-top:1px solid rgba(111,164,143,.15);margin-top:12px}
+.crush-comments>strong{font-size:9px;color:#a8c2b2}
+.crush-comment{margin:0;font-size:10px;line-height:1.65;color:#c1d2c8;overflow-wrap:anywhere}
+.crush-comment b{color:#e1f1e4;margin-right:4px}
+.crush-comments form{display:flex;align-items:center;gap:7px;margin-top:3px}
+.crush-comments input{flex:1;min-width:0;border:1px solid rgba(111,164,143,.2);border-radius:8px;background:rgba(4,15,18,.68);padding:9px 10px;color:#f1f8f1;font-size:10px;outline:none}
+.crush-comments input:focus{border-color:rgba(183,255,120,.38)}
+.crush-comments .text-action{white-space:nowrap;font-size:9px}
