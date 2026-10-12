@@ -223,3 +223,6 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .sponsor-placement a:hover{box-shadow:0 7px 26px rgba(119,255,150,.22);transform:translateY(-1px)}
 @media(max-width:900px){.sponsor-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sponsor-campaign-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.sponsor-intro{padding:21px 17px}.sponsor-metrics strong{font-size:22px}.sponsor-create-panel{padding:22px 16px}.sponsor-placement{padding:17px 15px}.sponsor-placement h3{font-size:16px}}
+
+.auth-form select{width:100%;background:rgba(4,14,17,.78);border:1px solid #294448;border-radius:11px;padding:13px 14px;color:#f3f8f3;outline:none}
+.auth-form select:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(183,255,120,.10),0 0 20px rgba(99,245,173,.07)}
