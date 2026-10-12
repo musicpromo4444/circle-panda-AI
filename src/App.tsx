@@ -283,6 +283,7 @@ export default function App() {
 
 function FeaturePanel({ section, userId }: { section: Section; userId: string }) {
   if (section === 'Sponsors') return <SponsorFeature userId={userId} />;
+  if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
   if (section === 'Dating') return <DatingFeature userId={userId} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
@@ -299,6 +300,156 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
   };
   const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'Admin' | 'Sponsors'>];
   return <section className="feature-panel"><div className="feature-icon">{item.icon}</div><p className="eyebrow">THE CIRCLE PANDA EXPERIENCE</p><h2>{item.title}</h2><p className="feature-copy">{item.body}</p><div className="feature-list">{item.next.map((next, i) => <div key={next}><span>{String(i + 1).padStart(2, '0')}</span>{next}<b>↗</b></div>)}</div><div className="feature-note"><span className="pulse" /> This section is being connected to the new backend in stages.</div></section>;
+}
+
+
+
+type CrushPostRow = { id: string; user_id: string; crush_type: 'mcm' | 'wcw'; caption: string; image_path: string | null; week_start: string; created_at: string };
+type CrushVoteRow = { id: string; post_id: string; user_id: string; created_at: string };
+
+function CrushFeature({ userId }: { userId: string }) {
+  const [kind, setKind] = useState<'mcm' | 'wcw'>('mcm');
+  const [caption, setCaption] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [posts, setPosts] = useState<CrushPostRow[]>([]);
+  const [names, setNames] = useState<Record<string,string>>({});
+  const [avatars, setAvatars] = useState<Record<string,string>>({});
+  const [photoUrls, setPhotoUrls] = useState<Record<string,string>>({});
+  const [votes, setVotes] = useState<CrushVoteRow[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [busyVote, setBusyVote] = useState('');
+  const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [freeVotesUsed, setFreeVotesUsed] = useState(0);
+
+  async function load() {
+    if (!supabase) return;
+    setLoading(true);
+    const { data, error } = await supabase.from('crush_posts')
+      .select('id,user_id,crush_type,caption,image_path,week_start,created_at')
+      .order('created_at',{ascending:false}).limit(60);
+    if (error) { setNotice(error.message); setLoading(false); return; }
+    const rows = (data ?? []) as CrushPostRow[];
+    setPosts(rows);
+    const ids = [...new Set(rows.map(p => p.user_id))];
+    if (ids.length) {
+      const { data: profiles } = await supabase.from('profiles')
+        .select('id,display_name,username,avatar_url').in('id',ids);
+      const n: Record<string,string> = {}; const a: Record<string,string> = {};
+      (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;avatar_url:string|null}) => {
+        n[p.id] = p.display_name || p.username || 'Panda';
+        if (p.avatar_url) a[p.id] = p.avatar_url;
+      });
+      setNames(n); setAvatars(a);
+      const paths = await Promise.all(rows.filter(p => p.image_path).map(async p => {
+        const { data: url } = supabase!.storage.from('crush-post-photos').getPublicUrl(p.image_path!);
+        return [p.id,url.publicUrl] as const;
+      }));
+      setPhotoUrls(Object.fromEntries(paths));
+      const { data: voteRows, error: voteError } = await supabase.from('crush_votes')
+        .select('id,post_id,user_id,created_at').in('post_id',rows.map(p=>p.id));
+      if (voteError) setNotice(voteError.message);
+      setVotes((voteRows ?? []) as CrushVoteRow[]);
+      const monday = new Date(); monday.setUTCHours(0,0,0,0);
+      monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay()+6)%7));
+      const nextMonday = new Date(monday); nextMonday.setUTCDate(nextMonday.getUTCDate()+7);
+      const mine = (voteRows ?? []) as CrushVoteRow[];
+      setFreeVotesUsed(mine.filter(v => v.user_id === userId && new Date(v.created_at) >= monday && new Date(v.created_at) < nextMonday).length);
+    } else { setVotes([]); setPhotoUrls({}); setNames({}); setAvatars({}); setFreeVotesUsed(0); }
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, [userId]);
+
+  async function publish(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    if (!caption.trim() && !photo) { setNotice('Add a caption or choose a photo for your crush card.'); return; }
+    if (photo && (!['image/jpeg','image/png','image/webp'].includes(photo.type) || photo.size > 5 * 1024 * 1024)) {
+      setNotice('Use a JPG, PNG or WebP photo up to 5 MB.'); return;
+    }
+    setBusy(true); setNotice('');
+    let path: string | null = null;
+    if (photo) {
+      const ext = photo.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'') || 'jpg';
+      path = userId + '/' + crypto.randomUUID() + '.' + ext;
+      const { error: uploadError } = await supabase.storage.from('crush-post-photos').upload(path,photo,{contentType:photo.type,upsert:false});
+      if (uploadError) { setNotice(uploadError.message); setBusy(false); return; }
+    }
+    const { error } = await supabase.from('crush_posts').insert({
+      user_id:userId, crush_type:kind, caption:caption.trim(), image_path:path
+    });
+    if (error) {
+      setNotice(error.message);
+      if (path) await supabase.storage.from('crush-post-photos').remove([path]);
+    } else {
+      setCaption(''); setPhoto(null);
+      const input = document.getElementById('crush-photo-input') as HTMLInputElement | null;
+      if (input) input.value = '';
+      setNotice(kind === 'mcm' ? 'Your MCM card has been published.' : 'Your WCW card has been published.');
+      await load();
+    }
+    setBusy(false);
+  }
+
+  async function vote(post: CrushPostRow) {
+    if (!supabase || post.user_id === userId) return;
+    setBusyVote(post.id); setNotice('');
+    const { data, error } = await supabase.rpc('cast_crush_vote',{p_post_id:post.id});
+    if (error) setNotice(error.message);
+    else {
+      if (data && typeof data === 'object' && 'free_votes_used' in data) setFreeVotesUsed(Number((data as {free_votes_used:number}).free_votes_used) || 0);
+      await load();
+    }
+    setBusyVote('');
+  }
+
+  async function messageCreator(post: CrushPostRow) {
+    if (!supabase || post.user_id === userId) return;
+    const { error } = await supabase.rpc('send_message_request',{
+      p_recipient_id:post.user_id,p_source_type:post.crush_type,p_source_id:post.id,
+      p_greeting:'Hi! I saw your ' + (post.crush_type === 'mcm' ? 'MCM' : 'WCW') + ' card and would like to connect.'
+    });
+    setNotice(error ? error.message : 'Message request sent. You can track it in Messages.');
+  }
+
+  const countFor = (postId:string) => votes.filter(v=>v.post_id===postId).length;
+  const voted = (postId:string) => votes.some(v=>v.post_id===postId && v.user_id===userId);
+  const monday = new Date(); monday.setUTCHours(0,0,0,0); monday.setUTCDate(monday.getUTCDate()-((monday.getUTCDay()+6)%7));
+  const weekKey = monday.toISOString().slice(0,10);
+  const currentPosts = posts.filter(p=>p.week_start===weekKey);
+  const filtered = currentPosts.filter(p=>p.crush_type===kind);
+
+  return <div className="crush-page">
+    <section className="feature-panel crush-intro">
+      <div className="feature-icon">♛</div><p className="eyebrow">THE WEEKLY CRUSH SPOTLIGHT</p>
+      <h2>Celebrate your crush. Let your circle vote.</h2>
+      <p className="feature-copy">MCM is for Monday. WCW is for Wednesday. Every card has its own vote count, and card creators cannot vote for themselves.</p>
+      <div className="crush-summary"><div><strong>{currentPosts.filter(p=>p.crush_type==='mcm').length}</strong><span>MCM CARDS</span></div><div><strong>{currentPosts.filter(p=>p.crush_type==='wcw').length}</strong><span>WCW CARDS</span></div><div><strong>{freeVotesUsed}/3</strong><span>FREE WEEKLY VOTES USED</span></div></div>
+    </section>
+    <section className="feature-panel crush-compose-panel">
+      <div className="section-title-row"><div><p className="eyebrow">ADD TO THE SPOTLIGHT</p><h2>Create a crush card</h2></div></div>
+      <form className="feature-form" onSubmit={publish}>
+        <label>Spotlight day<select value={kind} onChange={e=>setKind(e.target.value as 'mcm'|'wcw')}><option value="mcm">Monday Crush (MCM)</option><option value="wcw">Wednesday Crush (WCW)</option></select></label>
+        <label>Photo (optional, JPG/PNG/WebP up to 5 MB)<input id="crush-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setPhoto(e.target.files?.[0] ?? null)} />{photo && <small className="selected-file">Selected: {photo.name}</small>}</label>
+        <label>Caption<textarea value={caption} onChange={e=>setCaption(e.target.value)} maxLength={1200} rows={3} placeholder="Tell your circle what makes this crush special…" /></label>
+        <button className="primary-button" disabled={busy}>{busy ? 'Publishing…' : 'Publish crush card ↗'}</button>
+      </form>
+    </section>
+    <section className="crush-feed-section">
+      <div className="crush-tabs"><button className={kind==='mcm'?'active':''} onClick={()=>setKind('mcm')}>♛ Monday Crush (MCM)</button><button className={kind==='wcw'?'active':''} onClick={()=>setKind('wcw')}>♡ Wednesday Crush (WCW)</button></div>
+      {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
+      {loading ? <div className="empty-state">Loading this week's crush cards…</div> : filtered.length ? <div className="crush-card-grid">{filtered.map(post => <article className="crush-card" key={post.id}>
+        {photoUrls[post.id] ? <img className="crush-card-photo" src={photoUrls[post.id]} alt="Crush card" /> : <div className="crush-card-art">🐼<span>✦</span></div>}
+        <div className="crush-card-body"><div className="crush-card-author"><span className="crush-author-avatar">{avatars[post.user_id] ? <img src={avatars[post.user_id]} alt="" /> : '🐼'}</span><div><strong>{names[post.user_id] || 'Panda'}</strong><small>{post.crush_type==='mcm'?'MONDAY CRUSH · MCM':'WEDNESDAY CRUSH · WCW'}</small></div><span className="crush-crown">♛</span></div>
+        {post.caption && <p className="crush-caption">{post.caption}</p>}
+        <div className="crush-card-stats"><span>♛ {countFor(post.id)} votes</span><span>{new Date(post.created_at).toLocaleDateString()}</span></div>
+        <div className="crush-card-actions">{post.user_id===userId ? <span className="own-card-note">Your card · voting disabled</span> : <><button className={voted(post.id)?'secondary-button':'primary-button'} disabled={busyVote===post.id || (freeVotesUsed>=3 && !voted(post.id))} onClick={()=>void vote(post)}>{busyVote===post.id?'Working…':voted(post.id)?'Remove vote':'Vote ♛'}</button><button className="decline-button" onClick={()=>void messageCreator(post)}>Message</button></>}</div>
+        </div>
+      </article>)}</div> : <div className="empty-state crush-empty"><span>{kind==='mcm'?'♛':'♡'}</span><h3>No {kind==='mcm'?'MCM':'WCW'} cards this week yet</h3><p>Be the first to share a crush card with your circle.</p></div>}
+      <p className="crush-footnote">Free voting is limited to 3 votes per week. Paid BC voting and extra votes earned from verified ad views are not connected yet.</p>
+    </section>
+  </div>;
 }
 
 
