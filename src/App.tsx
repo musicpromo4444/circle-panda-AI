@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Sponsors' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
@@ -23,6 +23,7 @@ const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Groups', icon: '◉', hint: 'Your people, your conversations' },
   { name: 'Messages', icon: '↗', hint: 'Requests and private chats' },
   { name: 'Wallet', icon: '◈', hint: 'Your Panda Coins and activity' },
+  { name: 'Sponsors', icon: '✦', hint: 'Direct campaigns and sponsor analytics' },
   { name: 'Admin', icon: '⚙', hint: 'Manage rewards and economy rules' },
 ];
 
@@ -225,7 +226,7 @@ export default function App() {
     <aside className="sidebar">
       <button className="brand" onClick={() => setSection('Home')}><span className="brand-icon">🐼</span><span>circle<span className="brand-green">panda</span><small>YOUR CIRCLE, YOUR WAY</small></span></button>
       <div className="nav-caption">YOUR SPACE</div>
-      <nav>{sections.filter(item => item.name !== 'Admin' || isAdmin).map(item => <button key={item.name} className={section === item.name ? 'nav-item active' : 'nav-item'} onClick={() => { setSection(item.name); setNotice(''); }}><span className="nav-icon">{item.icon}</span><span>{item.name}</span>{item.name === 'Messages' && <i className="nav-dot" />}</button>)}</nav>
+      <nav>{sections.filter(item => (item.name !== 'Admin' && item.name !== 'Sponsors') || isAdmin).map(item => <button key={item.name} className={section === item.name ? 'nav-item active' : 'nav-item'} onClick={() => { setSection(item.name); setNotice(''); }}><span className="nav-icon">{item.icon}</span><span>{item.name}</span>{item.name === 'Messages' && <i className="nav-dot" />}</button>)}</nav>
       <div className="sidebar-bottom"><div className="online-mark" /> <span>Connected to your circle</span><button onClick={signOut} className="signout">Sign out ↗</button></div>
     </aside>
     <main className="main-area">
@@ -235,6 +236,7 @@ export default function App() {
         {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
         {(section === 'Home' || section === 'Confessions') && <>
           <section className="hero-card"><div className="hero-content"><span className="hero-kicker">✦ A LITTLE SPACE TO BE YOU</span><h2>Good things happen<br />when we <em>connect.</em></h2><p>Share a thought, discover a new event, or start a conversation that matters.</p><button className="hero-button" onClick={() => setSection('Dating')}>Explore your circle <span>→</span></button></div><div className="hero-art"><div className="planet planet-back" /><div className="planet planet-front">🐼</div><span className="spark spark-a">✦</span><span className="spark spark-b">✧</span><span className="art-caption">STAY CURIOUS. STAY CONNECTED.</span></div></section>
+          {section === 'Home' && <SponsoredPlacement userId={session.user.id} />}
           <div className="section-title-row"><div><h2>{section === 'Confessions' ? 'Anonymous confessions' : 'From your circle'}</h2><p>Small moments, shared honestly.</p></div><span className="count-pill">{posts.length} POSTS</span></div>
           <section className="feed-composer"><div className="composer-avatar">🐼</div><form onSubmit={publishPost}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder={section === 'Confessions' ? 'Share what is on your mind — anonymously…' : 'What would you like to share with your circle?'} maxLength={5000} required /><div className="composer-footer"><span>{section === 'Confessions' ? '☁ Posted anonymously' : '✦ Be kind, be real'}</span><button className="primary-button" disabled={posting || !draft.trim()}>{posting ? 'Posting…' : 'Share post'} <span>↗</span></button></div></form></section>
           {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className="post-card" key={post.id}><div className="post-top"><div className="post-avatar">{post.is_anonymous ? '🐼' : '✦'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : (post.author_name || 'Panda')}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><span className="post-menu">•••</span></div><p className="post-body">{post.body}</p><div className="post-actions"><button className={myReactions[post.id] ? 'react-active' : ''} onClick={() => setReactionPickerPost(reactionPickerPost === post.id ? null : post.id)}>♡ React {reactionsByPost[post.id]?.length ? `(${reactionsByPost[post.id].length})` : ''}</button><button onClick={() => setExpandedComments(prev => ({...prev,[post.id]:!prev[post.id]}))}>▢ Comment {commentsByPost[post.id]?.length ? `(${commentsByPost[post.id].length})` : ''}</button><button onClick={() => void messagePostAuthor(post.id)}>↗ Message</button></div>
@@ -249,13 +251,14 @@ export default function App() {
 }
 
 function FeaturePanel({ section, userId }: { section: Section; userId: string }) {
+  if (section === 'Sponsors') return <SponsorFeature userId={userId} />;
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
   if (section === 'Dating') return <DatingFeature userId={userId} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Admin') return <AdminFeature />;
-  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'Admin'>, { icon: string; title: string; body: string; next: string[] }> = {
+  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'Admin' | 'Sponsors'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
     'Events': { icon: '▦', title: 'Make plans worth showing up for', body: 'Discover events around you or publish one of your own. Event cards will connect directly to the creator.', next: ['Create and publish events', 'Attendance and attendee counts', 'Creator messaging and event boosts'] },
@@ -787,4 +790,193 @@ function AdminFeature() {
     {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
     {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div> : <div className="empty-state"><p>No economy settings were found.</p></div>}
   </section>;
+}
+
+
+type SponsorCampaignRow = {
+  id: string;
+  sponsor_name: string;
+  campaign_name: string;
+  description: string;
+  format: string;
+  target_url: string | null;
+  countries: string[];
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  starts_at: string;
+  ends_at: string;
+  budget_naira: number;
+  cpm_naira: number;
+  target_impressions: number;
+  impressions: number;
+  clicks: number;
+  created_at: string;
+};
+
+function SponsorFeature({ userId }: { userId: string }) {
+  const [campaigns, setCampaigns] = useState<SponsorCampaignRow[]>([]);
+  const [sponsorName, setSponsorName] = useState('');
+  const [campaignName, setCampaignName] = useState('');
+  const [description, setDescription] = useState('');
+  const [format, setFormat] = useState('native');
+  const [targetUrl, setTargetUrl] = useState('');
+  const [countries, setCountries] = useState('Nigeria');
+  const [startsAt, setStartsAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
+  const [budget, setBudget] = useState('0');
+  const [cpm, setCpm] = useState('0');
+  const [targetImpressions, setTargetImpressions] = useState('0');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState('');
+
+  async function load() {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('sponsor_campaigns')
+      .select('id,sponsor_name,campaign_name,description,format,target_url,countries,status,starts_at,ends_at,budget_naira,cpm_naira,target_impressions,impressions,clicks,created_at')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) setNotice(error.message);
+    setCampaigns((data ?? []) as SponsorCampaignRow[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, [userId]);
+
+  async function createCampaign(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+    const parsedBudget = Number(budget);
+    const parsedCpm = Number(cpm);
+    const parsedTarget = Number(targetImpressions);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+      setNotice('Choose a valid campaign start and an end time after it.');
+      return;
+    }
+    if (![parsedBudget, parsedCpm, parsedTarget].every(v => Number.isFinite(v) && v >= 0)) {
+      setNotice('Budget, CPM and impression target must be zero or positive numbers.');
+      return;
+    }
+    let safeUrl: string | null = null;
+    if (targetUrl.trim()) {
+      try {
+        const parsed = new URL(targetUrl.trim());
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('invalid');
+        safeUrl = parsed.toString();
+      } catch {
+        setNotice('The sponsor destination must be a valid http or https URL.');
+        return;
+      }
+    }
+    setBusy(true); setNotice('');
+    const { error } = await supabase.from('sponsor_campaigns').insert({
+      sponsor_name: sponsorName.trim(),
+      campaign_name: campaignName.trim(),
+      description: description.trim(),
+      format,
+      target_url: safeUrl,
+      countries: countries.split(',').map(value => value.trim()).filter(Boolean),
+      starts_at: start.toISOString(),
+      ends_at: end.toISOString(),
+      budget_naira: parsedBudget,
+      cpm_naira: parsedCpm,
+      target_impressions: Math.floor(parsedTarget),
+      created_by: userId,
+      status: 'draft',
+    });
+    if (error) setNotice(error.message);
+    else {
+      setSponsorName(''); setCampaignName(''); setDescription(''); setTargetUrl('');
+      setNotice('Campaign saved as a draft. Review the targeting and dates before activating it.');
+      await load();
+    }
+    setBusy(false);
+  }
+
+  async function setStatus(campaign: SponsorCampaignRow, status: SponsorCampaignRow['status']) {
+    if (!supabase) return;
+    if (status === 'active' && new Date(campaign.ends_at).getTime() <= Date.now()) {
+      setNotice('This campaign has already ended. Edit its dates before activating it.');
+      return;
+    }
+    setBusy(true); setNotice('');
+    const { error } = await supabase.from('sponsor_campaigns').update({ status, updated_at: new Date().toISOString() }).eq('id', campaign.id);
+    if (error) setNotice(error.message);
+    else { setNotice(status === 'active' ? 'Campaign activated.' : status === 'paused' ? 'Campaign paused.' : 'Campaign updated.'); await load(); }
+    setBusy(false);
+  }
+
+  const activeCount = campaigns.filter(c => c.status === 'active' && new Date(c.ends_at).getTime() > Date.now()).length;
+  const impressions = campaigns.reduce((sum,c) => sum + Number(c.impressions || 0),0);
+  const clicks = campaigns.reduce((sum,c) => sum + Number(c.clicks || 0),0);
+
+  return <div className="sponsor-control-room">
+    <section className="feature-panel sponsor-intro"><div className="feature-icon">✦</div><p className="eyebrow">DIRECT SPONSOR CONTROL ROOM</p><h2>Turn campaigns into measurable partnerships.</h2><p className="feature-copy">Create sponsor campaigns, target countries, control delivery dates and track native-placement impressions and clicks. Sponsored content is clearly labelled; users are never asked to click ads to earn rewards.</p>
+      <div className="sponsor-metrics">
+        <div><span>CAMPAIGNS</span><strong>{campaigns.length}</strong></div>
+        <div><span>ACTIVE</span><strong>{activeCount}</strong></div>
+        <div><span>RECORDED IMPRESSIONS</span><strong>{impressions.toLocaleString()}</strong></div>
+        <div><span>RECORDED CLICKS</span><strong>{clicks.toLocaleString()}</strong></div>
+      </div>
+    </section>
+    {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+    <section className="feature-panel sponsor-create-panel">
+      <p className="eyebrow">CAMPAIGN SETUP</p><h2>Create a sponsor campaign</h2>
+      <form className="feature-form" onSubmit={createCampaign}>
+        <div className="form-grid-two"><label>Sponsor / brand name<input value={sponsorName} onChange={e=>setSponsorName(e.target.value)} maxLength={160} required placeholder="e.g. MTN Nigeria" /></label><label>Campaign name<input value={campaignName} onChange={e=>setCampaignName(e.target.value)} maxLength={160} required placeholder="e.g. Campus Connect" /></label></div>
+        <label>Campaign message<textarea value={description} onChange={e=>setDescription(e.target.value)} maxLength={2000} rows={3} required placeholder="What should Circle Panda members know?" /></label>
+        <div className="form-grid-two"><label>Placement format<select value={format} onChange={e=>setFormat(e.target.value)}><option value="native">Native sponsored card (available in app)</option><option value="direct_sponsor">Direct sponsor placement</option><option value="sponsor_reveal">Sponsor Reveal</option><option value="banner">Banner (provider integration pending)</option><option value="interstitial">Interstitial (provider integration pending)</option><option value="playable">Playable (provider integration pending)</option><option value="rewarded">Rewarded (verified ad SDK required)</option></select></label><label>Destination URL (optional)<input type="url" value={targetUrl} onChange={e=>setTargetUrl(e.target.value)} placeholder="https://brand.example/offer" /></label></div>
+        <label>Target countries (comma separated)<input value={countries} onChange={e=>setCountries(e.target.value)} placeholder="Nigeria, Ghana (blank means all countries)" /></label>
+        <div className="form-grid-two"><label>Starts at<input type="datetime-local" value={startsAt} onChange={e=>setStartsAt(e.target.value)} required /></label><label>Ends at<input type="datetime-local" value={endsAt} onChange={e=>setEndsAt(e.target.value)} required /></label></div>
+        <div className="form-grid-three"><label>Campaign budget (₦)<input type="number" min="0" step="0.01" value={budget} onChange={e=>setBudget(e.target.value)} required /></label><label>CPM estimate (₦ / 1,000 views)<input type="number" min="0" step="0.01" value={cpm} onChange={e=>setCpm(e.target.value)} required /></label><label>Target impressions<input type="number" min="0" step="1" value={targetImpressions} onChange={e=>setTargetImpressions(e.target.value)} required /></label></div>
+        <div className="form-submit-row"><span className="draft-state">New campaigns start as drafts</span><button className="primary-button" disabled={busy}>{busy ? 'Saving…' : 'Save campaign ↗'}</button></div>
+      </form>
+    </section>
+    <section className="sponsor-campaign-list"><div className="section-title-row"><div><h2>Campaigns</h2><p>Use live native placements for first-party pilots; other formats need their provider SDK/ad units.</p></div><span className="count-pill">{campaigns.length} TOTAL</span></div>
+      {loading ? <div className="empty-state">Loading campaigns…</div> : campaigns.length ? <div className="sponsor-campaign-grid">{campaigns.map(c => <article className="sponsor-campaign-card" key={c.id}><div className="sponsor-card-top"><span className={'sponsor-status status-'+c.status}>{c.status}</span><span className="sponsor-format">{c.format.replaceAll('_',' ')}</span></div><p className="eyebrow">{c.sponsor_name}</p><h3>{c.campaign_name}</h3><p>{c.description || 'No campaign message supplied.'}</p><div className="sponsor-card-meta"><span>⌖ {c.countries.length ? c.countries.join(', ') : 'All countries'}</span><span>Ends {new Date(c.ends_at).toLocaleDateString()}</span></div><div className="sponsor-card-stats"><div><strong>{Number(c.impressions).toLocaleString()}</strong><small>Impressions</small></div><div><strong>{Number(c.clicks).toLocaleString()}</strong><small>Clicks</small></div><div><strong>{c.impressions ? ((Number(c.clicks)/Number(c.impressions))*100).toFixed(2)+'%' : '—'}</strong><small>CTR</small></div></div><div className="sponsor-card-actions">{c.status === 'draft' || c.status === 'paused' ? <button className="primary-button" disabled={busy} onClick={()=>void setStatus(c,'active')}>Activate ↗</button> : c.status === 'active' ? <button className="decline-button" disabled={busy} onClick={()=>void setStatus(c,'paused')}>Pause campaign</button> : <span className="draft-state">Completed</span>}{c.status !== 'completed' && <button className="text-action" disabled={busy} onClick={()=>void setStatus(c,'completed')}>Mark complete</button>}</div></article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your first sponsor campaign starts here.</h3><p>Set up a pilot campaign, activate it, then use the recorded delivery metrics to prepare a sponsor report.</p></div>}
+    </section>
+    <p className="sponsor-footnote">Measurement note: these are first-party client events, suitable for pilot reporting and product QA—not final invoice-grade proof. Before billing sponsors by impressions or conversions, add server-side validation, campaign budget caps and a trusted conversion callback.</p>
+  </div>;
+}
+
+function SponsoredPlacement({ userId }: { userId: string }) {
+  const [campaign, setCampaign] = useState<SponsorCampaignRow | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      if (!supabase) return;
+      const now = new Date().toISOString();
+      const [{ data: profile }, { data, error }] = await Promise.all([
+        supabase.from('profiles').select('country').eq('id', userId).maybeSingle(),
+        supabase.from('sponsor_campaigns')
+          .select('id,sponsor_name,campaign_name,description,format,target_url,countries,status,starts_at,ends_at,budget_naira,cpm_naira,target_impressions,impressions,clicks,created_at')
+          .eq('status','active').in('format',['native','direct_sponsor','sponsor_reveal'])
+          .lte('starts_at',now).gt('ends_at',now).order('created_at',{ascending:false}).limit(30),
+      ]);
+      if (!alive || error) return;
+      const country = String(profile?.country || '').trim().toLowerCase();
+      const match = ((data ?? []) as SponsorCampaignRow[]).find(c =>
+        !c.countries?.length || c.countries.some(value => value.trim().toLowerCase() === country)
+      );
+      if (match) setCampaign(match);
+    }
+    void load();
+    return () => { alive = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!supabase || !campaign?.id) return;
+    void supabase.rpc('track_sponsor_event',{p_campaign_id:campaign.id,p_event_type:'impression',p_placement:'home_native_card'});
+  }, [campaign?.id]);
+
+  if (!campaign) return null;
+  const destination = campaign.target_url;
+  return <article className="sponsor-placement">
+    <div className="sponsor-placement-label"><span>✦ SPONSORED</span><span>{campaign.sponsor_name}</span></div>
+    <h3>{campaign.campaign_name}</h3><p>{campaign.description}</p>
+    {destination && <a href={destination} target="_blank" rel="noopener noreferrer" onClick={() => {
+      if (supabase) void supabase.rpc('track_sponsor_event',{p_campaign_id:campaign.id,p_event_type:'click',p_placement:'home_native_card'});
+    }}>Learn more ↗</a>}
+  </article>;
 }
