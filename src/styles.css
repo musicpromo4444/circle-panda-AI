@@ -332,3 +332,12 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .notification-item>i{width:6px;height:6px;margin-top:5px;border-radius:50%;background:#b7ff78;box-shadow:0 0 8px rgba(183,255,120,.55)}
 .notification-empty{padding:25px 15px;text-align:center;color:#9db4a7;font-size:10px}
 @media(max-width:560px){.notification-menu{right:0;top:calc(100% + 9px)}}
+
+
+.crush-scheduled-panel{max-width:none;margin:0;padding:20px}
+.crush-scheduled-panel h2{font:800 17px Manrope,sans-serif;margin:0}
+.crush-scheduled-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 0;border-top:1px solid rgba(111,164,143,.15)}
+.crush-scheduled-row>span{font-size:9px;font-weight:800;color:#d8ffbb;white-space:nowrap}
+.crush-scheduled-row p{margin:0;font-size:10px;color:#c0d4c7;overflow-wrap:anywhere}
+.crush-scheduled-row time{font-size:9px;color:#8ea99b;text-align:right}
+@media(max-width:560px){.crush-scheduled-row{grid-template-columns:auto minmax(0,1fr)}.crush-scheduled-row time{grid-column:2;text-align:left}}
