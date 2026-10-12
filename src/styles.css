@@ -312,3 +312,23 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .crush-comments input{flex:1;min-width:0;border:1px solid rgba(111,164,143,.2);border-radius:8px;background:rgba(4,15,18,.68);padding:9px 10px;color:#f1f8f1;font-size:10px;outline:none}
 .crush-comments input:focus{border-color:rgba(183,255,120,.38)}
 .crush-comments .text-action{white-space:nowrap;font-size:9px}
+
+
+.top-actions{position:relative}
+.notification-trigger{position:relative}
+.notification-badge{position:absolute;top:-4px;right:-4px;display:grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:#b7ff78;color:#10231a;font:800 8px Manrope,sans-serif;border:2px solid #0b191d}
+.notification-menu{position:absolute;z-index:25;top:calc(100% + 12px);right:58px;width:min(370px,calc(100vw - 28px));max-height:min(70vh,560px);overflow:auto;border:1px solid rgba(119,184,151,.25);border-radius:15px;background:rgba(7,20,24,.98);box-shadow:0 24px 70px rgba(0,0,0,.48);backdrop-filter:blur(16px)}
+.notification-menu-header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 16px;border-bottom:1px solid rgba(111,164,143,.16);background:rgba(8,22,26,.98)}
+.notification-menu-header>div{display:grid;gap:4px}
+.notification-menu-header strong{font:800 13px Manrope,sans-serif;color:#eef8ef}
+.notification-menu-header small{font-size:9px;color:#91aa9d}
+.notification-item{display:flex;align-items:flex-start;gap:10px;width:100%;padding:13px 14px;border:0;border-bottom:1px solid rgba(111,164,143,.12);background:transparent;color:inherit;text-align:left;cursor:pointer}
+.notification-item:hover,.notification-item.unread{background:rgba(65,113,75,.13)}
+.notification-symbol{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border:1px solid rgba(183,255,120,.2);border-radius:10px;background:rgba(43,87,54,.25);color:#d4ffb5}
+.notification-item>span:nth-child(2){display:grid;gap:5px;min-width:0;flex:1}
+.notification-item strong{font-size:10px;line-height:1.5;color:#e3f0e6}
+.notification-item small{font-size:9px;line-height:1.6;color:#9db4a7;overflow-wrap:anywhere}
+.notification-item time{font-size:8px;color:#718c7e}
+.notification-item>i{width:6px;height:6px;margin-top:5px;border-radius:50%;background:#b7ff78;box-shadow:0 0 8px rgba(183,255,120,.55)}
+.notification-empty{padding:25px 15px;text-align:center;color:#9db4a7;font-size:10px}
+@media(max-width:560px){.notification-menu{right:0;top:calc(100% + 9px)}}
