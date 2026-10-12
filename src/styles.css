@@ -181,3 +181,45 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
   .planet-back,.spark{animation:none!important}
   .primary-button::after,.hero-button::after{display:none}
 }
+
+
+/* Sponsor control room and labelled native campaign card */
+.sponsor-control-room{display:grid;gap:18px}
+.sponsor-intro{max-width:none;margin:0;padding:26px}
+.sponsor-intro h2{max-width:660px}
+.sponsor-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:24px}
+.sponsor-metrics>div{display:grid;gap:8px;padding:15px;background:linear-gradient(145deg,rgba(20,49,45,.72),rgba(10,27,31,.85));border:1px solid rgba(126,209,164,.19);border-radius:12px;min-width:0}
+.sponsor-metrics span{font-size:8px;letter-spacing:1px;color:#91aaa0;line-height:1.5}
+.sponsor-metrics strong{font:800 25px Manrope,sans-serif;color:var(--green);overflow-wrap:anywhere}
+.sponsor-create-panel{max-width:none;margin:0}
+.sponsor-create-panel h2{font:800 22px/1.3 Manrope,sans-serif;margin:0 0 20px}
+.sponsor-campaign-list{padding:5px 0}
+.sponsor-campaign-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.sponsor-campaign-card{min-width:0;padding:19px;border:1px solid rgba(100,155,145,.22);border-radius:15px;background:linear-gradient(145deg,rgba(17,35,35,.96),rgba(10,24,27,.96));box-shadow:0 10px 32px rgba(0,0,0,.11)}
+.sponsor-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
+.sponsor-status,.sponsor-format{font-size:8px;letter-spacing:.8px;text-transform:uppercase;padding:6px 8px;border-radius:6px;border:1px solid rgba(133,180,160,.22);color:#b4c9bc;background:rgba(30,53,47,.55)}
+.sponsor-status.status-active{color:#d4ffc1;border-color:rgba(183,255,120,.35);background:rgba(89,160,62,.15)}
+.sponsor-status.status-paused{color:#f4d6a0;border-color:rgba(241,190,94,.30);background:rgba(145,99,32,.12)}
+.sponsor-status.status-completed{color:#9eafaa}
+.sponsor-campaign-card>.eyebrow{margin-bottom:7px}
+.sponsor-campaign-card h3{font:800 18px/1.3 Manrope,sans-serif;margin:0 0 9px;overflow-wrap:anywhere}
+.sponsor-campaign-card>p:not(.eyebrow){font-size:11px;line-height:1.7;color:#a7bbb1;overflow-wrap:anywhere}
+.sponsor-card-meta{display:grid;gap:7px;margin:16px 0;padding:12px 0;border-top:1px solid rgba(99,153,142,.16);border-bottom:1px solid rgba(99,153,142,.16);font-size:9px;color:#91aaa0}
+.sponsor-card-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sponsor-card-stats>div{display:grid;gap:5px;min-width:0}
+.sponsor-card-stats strong{font:800 17px Manrope,sans-serif;color:#d7f7d2;overflow-wrap:anywhere}
+.sponsor-card-stats small{font-size:8px;color:#8ba49a}
+.sponsor-card-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:18px}
+.sponsor-card-actions .primary-button,.sponsor-card-actions .decline-button{padding:9px 12px;font-size:10px}
+.sponsor-footnote{font-size:10px;line-height:1.7;color:#8fa49b;padding:13px 15px;border:1px solid rgba(123,169,149,.15);border-radius:10px;background:rgba(13,29,31,.55)}
+.sponsor-placement{position:relative;overflow:hidden;margin:0 0 27px;padding:20px 22px;border:1px solid rgba(183,255,120,.28);border-radius:15px;background:linear-gradient(110deg,rgba(24,61,44,.88),rgba(13,43,45,.92) 70%,rgba(14,34,42,.96));box-shadow:0 12px 34px rgba(0,0,0,.16),inset 0 1px rgba(255,255,255,.045)}
+.sponsor-placement::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 18%,rgba(205,255,221,.035) 49%,transparent 73%)}
+.sponsor-placement-label{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.sponsor-placement-label span:first-child{font-size:8px;letter-spacing:1.4px;font-weight:800;color:#d5ffae;border:1px solid rgba(183,255,120,.26);background:rgba(117,192,80,.12);border-radius:5px;padding:6px 8px}
+.sponsor-placement-label span:last-child{font-size:9px;letter-spacing:.6px;color:#a4c7b7}
+.sponsor-placement h3{font:800 18px/1.3 Manrope,sans-serif;margin:0 0 8px;color:#f0fbf1}
+.sponsor-placement p{font-size:12px;line-height:1.75;color:#b0c7bc;margin:0;max-width:760px;white-space:pre-wrap;overflow-wrap:anywhere}
+.sponsor-placement a{position:relative;z-index:1;display:inline-flex;margin-top:15px;padding:9px 12px;border-radius:8px;background:linear-gradient(115deg,#c9ff8c,#75f5b5);color:#12251a;font-size:10px;font-weight:800;text-decoration:none;box-shadow:0 5px 20px rgba(119,255,150,.12)}
+.sponsor-placement a:hover{box-shadow:0 7px 26px rgba(119,255,150,.22);transform:translateY(-1px)}
+@media(max-width:900px){.sponsor-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sponsor-campaign-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.sponsor-intro{padding:21px 17px}.sponsor-metrics strong{font-size:22px}.sponsor-create-panel{padding:22px 16px}.sponsor-placement{padding:17px 15px}.sponsor-placement h3{font-size:16px}}
