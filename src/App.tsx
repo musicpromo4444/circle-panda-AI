@@ -519,6 +519,7 @@ function EventsFeature({ userId }: { userId: string }) {
   const [country, setCountry] = useState('');
   const [stateName, setStateName] = useState('');
   const [startsAt, setStartsAt] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
@@ -558,15 +559,29 @@ function EventsFeature({ userId }: { userId: string }) {
     event.preventDefault();
     if (!supabase) return;
     if (!startsAt || new Date(startsAt).getTime() <= Date.now()) { setNotice('Choose a future event date and time.'); return; }
+    if (coverFile && (!['image/jpeg','image/png','image/webp'].includes(coverFile.type) || coverFile.size > 5 * 1024 * 1024)) {
+      setNotice('Use a JPG, PNG or WebP image up to 5 MB.'); return;
+    }
     setBusy(true); setNotice('');
+    let coverUrl: string | null = null;
+    let uploadedPath: string | null = null;
+    if (coverFile) {
+      const extension = coverFile.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'') || 'jpg';
+      uploadedPath = `${userId}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('event-covers').upload(uploadedPath,coverFile,{contentType:coverFile.type,upsert:false});
+      if (uploadError) { setNotice(uploadError.message); setBusy(false); return; }
+      coverUrl = supabase.storage.from('event-covers').getPublicUrl(uploadedPath).data.publicUrl;
+    }
     const { error } = await supabase.from('events').insert({
       creator_id: userId, title: title.trim(), description: description.trim(),
       venue: venue.trim() || null, country: country.trim() || null,
-      state: stateName.trim() || null, starts_at: new Date(startsAt).toISOString(), is_published: true,
+      state: stateName.trim() || null, starts_at: new Date(startsAt).toISOString(), cover_url: coverUrl, is_published: true,
     });
-    if (error) setNotice(error.message);
-    else {
-      setTitle(''); setDescription(''); setVenue(''); setCountry(''); setStateName(''); setStartsAt('');
+    if (error) {
+      setNotice(error.message);
+      if (uploadedPath) await supabase.storage.from('event-covers').remove([uploadedPath]);
+    } else {
+      setTitle(''); setDescription(''); setVenue(''); setCountry(''); setStateName(''); setStartsAt(''); setCoverFile(null);
       setNotice('Event published successfully.'); await load();
     }
     setBusy(false);
@@ -598,13 +613,14 @@ function EventsFeature({ userId }: { userId: string }) {
         <label>Event title<input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} required placeholder="What are we getting together for?" /></label>
         <label>Description<textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} maxLength={4000} placeholder="Tell people what to expect…" /></label>
         <label>Venue or meeting point<input value={venue} onChange={e => setVenue(e.target.value)} maxLength={250} placeholder="Venue, online or meeting point" /></label>
+        <label>Cover image (optional, JPG/PNG/WebP up to 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setCoverFile(e.target.files?.[0] ?? null)} />{coverFile && <small className="selected-file">Selected: {coverFile.name}</small>}</label>
         <div className="form-grid-three"><label>Country<input value={country} onChange={e => setCountry(e.target.value)} placeholder="Country" /></label><label>State<input value={stateName} onChange={e => setStateName(e.target.value)} placeholder="State" /></label><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => setStartsAt(e.target.value)} required /></label></div>
-        <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Publishing…' : 'Publish event ↗'}</button></div>
+        <div className="form-submit-row"><span className="draft-state">Optional cover image</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Publishing…' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section>
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
+      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body">{item.cover_url && <img className="event-cover-image" src={item.cover_url} alt={item.title} loading="lazy" />}<div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
   </div>;
 }
