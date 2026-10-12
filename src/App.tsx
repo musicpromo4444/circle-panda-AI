@@ -8,7 +8,8 @@ type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boo
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
-type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
+type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null };
+type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string | null; sexual_experience: string | null; looking_for: string | null; is_published: boolean; created_at: string };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
@@ -669,6 +670,10 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [openConversationId, setOpenConversationId] = useState<string|null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatDraft, setChatDraft] = useState('');
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [groupReactions, setGroupReactions] = useState<Record<string,GroupMessageReaction[]>>({});
+  const [groupReactionPicker, setGroupReactionPicker] = useState<string | null>(null);
+  const [groupSenderNames, setGroupSenderNames] = useState<Record<string,string>>({});
 
   async function load() {
     if (!supabase) return;
@@ -724,24 +729,53 @@ function GroupsFeature({ userId }: { userId: string }) {
     if (error) { setNotice(error.message);return; }
     setOpenGroupId(group.id);setOpenConversationId(data as string);setNotice('');
     const { data: rows, error: messagesError } = await supabase.from('messages')
-      .select('id,conversation_id,sender_id,body,created_at').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
+      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
     if (messagesError) setNotice(messagesError.message);
-    else setChatMessages((rows ?? []) as ChatMessage[]);
+    else {
+      const messages = (rows ?? []) as ChatMessage[];
+      setChatMessages(messages);
+      const senderIds = [...new Set(messages.map(m => m.sender_id))];
+      if (senderIds.length) {
+        const { data: people } = await supabase.from('profiles').select('id,display_name,username').in('id', senderIds);
+        const map: Record<string,string> = {};
+        (people ?? []).forEach((p: {id:string;display_name:string|null;username:string|null}) => { map[p.id] = p.display_name || p.username || 'Panda'; });
+        setGroupSenderNames(map);
+      }
+      const messageIds = messages.map(m => m.id);
+      if (messageIds.length) {
+        const { data: reactions } = await supabase.from('group_message_reactions').select('id,message_id,user_id,reaction').in('message_id',messageIds);
+        const grouped: Record<string,GroupMessageReaction[]> = {};
+        (reactions ?? []).forEach((r: GroupMessageReaction) => { (grouped[r.message_id] ??= []).push(r); });
+        setGroupReactions(grouped);
+      } else setGroupReactions({});
+    }
   }
 
   async function sendGroupMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !openConversationId || !chatDraft.trim()) return;
     setBusy(true);setNotice('');
-    const { error } = await supabase.from('messages').insert({conversation_id:openConversationId,sender_id:userId,body:chatDraft.trim()});
+    const { error } = await supabase.from('messages').insert({conversation_id:openConversationId,sender_id:userId,body:chatDraft.trim(),reply_to_message_id:replyingTo?.id ?? null});
     if (error) setNotice(error.message);
     else {
-      setChatDraft('');
-      const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at')
+      setChatDraft(''); setReplyingTo(null);
+      const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at,reply_to_message_id')
         .eq('conversation_id',openConversationId).order('created_at',{ascending:true}).limit(200);
       setChatMessages((data ?? []) as ChatMessage[]);
     }
     setBusy(false);
+  }
+
+  async function toggleGroupReaction(messageId: string, reaction: string) {
+    if (!supabase) return;
+    const existing = groupReactions[messageId]?.find(r => r.user_id === userId);
+    const result = existing?.reaction === reaction
+      ? await supabase.from('group_message_reactions').delete().eq('message_id',messageId).eq('user_id',userId)
+      : await supabase.from('group_message_reactions').upsert({message_id:messageId,user_id:userId,reaction},{onConflict:'message_id,user_id'});
+    if (result.error) { setNotice(result.error.message); return; }
+    const { data } = await supabase.from('group_message_reactions').select('id,message_id,user_id,reaction').eq('message_id',messageId);
+    setGroupReactions(prev => ({...prev,[messageId]:(data ?? []) as GroupMessageReaction[]}));
+    setGroupReactionPicker(null);
   }
 
   const openGroup = groups.find(g => g.id === openGroupId);
@@ -765,7 +799,7 @@ function GroupsFeature({ userId }: { userId: string }) {
         return <article className="group-card" key={group.id}><div className="group-card-icon">◉</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}</div></div></article>;
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
-    {openGroup && openConversationId && <section className="group-chat-panel"><header className="chat-header"><div className="request-avatar">◉</div><div><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · group messages stay in the group</p></div><button className="text-action" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);}}>Close ×</button></header><div className="chat-history">{chatMessages.map(m=><div key={m.id} className={m.sender_id===userId?'chat-bubble mine':'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!chatMessages.length&&<div className="empty-state compact"><p>Welcome to the group. Say hello.</p></div>}</div><form className="chat-compose" onSubmit={sendGroupMessage}><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder="Message the group…" /><button className="primary-button" disabled={busy||!chatDraft.trim()}>{busy?'Sending…':'Send ↗'}</button></form></section>}
+    {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-avatar">◉</div><div className="group-chat-heading"><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · online chat</p></div><button className="group-header-action" title="Group settings" onClick={()=>setNotice('Group settings are being connected to member and creator controls.')}>⋮</button></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')}</div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p><div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder={replyingTo?'Write a reply…':'Message the group…'} /><button className="group-send-button" disabled={busy||!chatDraft.trim()} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
   </div>;
 }
 
