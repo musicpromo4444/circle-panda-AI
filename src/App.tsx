@@ -100,8 +100,8 @@ export default function App() {
   }
 
   async function openNotification(item: NotificationRow) {
-    if (supabase && !item.read_at) {
-      const {error} = await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',session?.user.id);
+    if (supabase && session && !item.read_at) {
+      const {error} = await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',session.user.id);
       if (!error) setNotifications(prev=>prev.map(n=>n.id===item.id?{...n,read_at:new Date().toISOString()}:n));
     }
     setNotificationsOpen(false);
