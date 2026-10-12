@@ -36,6 +36,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [signupCountry, setSignupCountry] = useState('Nigeria');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -125,7 +126,7 @@ export default function App() {
     try {
       if (authMode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
-          email, password, options: { data: { display_name: displayName.trim() || undefined } },
+          email, password, options: { data: { display_name: displayName.trim() || undefined, country: signupCountry } },
         });
         if (error) throw error;
         if (data.session) setNotice('Welcome to Circle Panda. Your account is ready.');
@@ -212,6 +213,7 @@ export default function App() {
         {!supabaseConfigured && <div className="notice warning">Connect this app with <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable account access.</div>}
         <form className="auth-form" onSubmit={handleAuth}>
           {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" /></label>}
+          {authMode === 'signup' && <label>Country<select value={signupCountry} onChange={e => setSignupCountry(e.target.value)} required><option>Nigeria</option><option>Ghana</option><option>South Africa</option><option>Kenya</option><option>Uganda</option><option>Tanzania</option><option>Rwanda</option><option>Cameroon</option><option>United Kingdom</option><option>United States</option><option>Canada</option><option>Other</option></select></label>}
           <label>Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" /></label>
           <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" minLength={8} required autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label>
           {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
