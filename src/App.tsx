@@ -523,6 +523,7 @@ function CrushFeature({ userId }: { userId: string }) {
         <button className="primary-button" disabled={busy}>{busy ? 'Publishing…' : 'Publish crush card ↗'}</button>
       </form>
     </section>
+    {posts.some(p=>p.user_id===userId && new Date(p.scheduled_for)>new Date()) && <section className="feature-panel crush-scheduled-panel"><div className="section-title-row"><div><p className="eyebrow">COMING UP</p><h2>Your scheduled cards</h2></div></div>{posts.filter(p=>p.user_id===userId && new Date(p.scheduled_for)>new Date()).map(p=><div className="crush-scheduled-row" key={p.id}><span>{p.crush_type==='mcm'?'♛ MCM':'♡ WCW'}</span><p>{p.caption || 'Photo crush card'}</p><time>{new Date(p.scheduled_for).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</time></div>)}</section>}
     <section className="crush-feed-section">
       <div className="crush-tabs"><button className={kind==='mcm'?'active':''} onClick={()=>setKind('mcm')}>♛ Monday Crush (MCM)</button><button className={kind==='wcw'?'active':''} onClick={()=>setKind('wcw')}>♡ Wednesday Crush (WCW)</button></div>
       {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
