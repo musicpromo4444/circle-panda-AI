@@ -13,6 +13,7 @@ type ChatConversation = { conversation_id: string; user_id: string; joined_at: s
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string | null; sexual_experience: string | null; looking_for: string | null; photos: string[]; is_published: boolean; created_at: string };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
+type NotificationRow = { id:string; user_id:string; actor_id:string|null; notification_type:string; title:string; body:string; target_type:string|null; target_id:string|null; read_at:string|null; created_at:string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Home', icon: '⌂', hint: 'Your circle at a glance' },
@@ -39,6 +40,9 @@ export default function App() {
   const [signupCountry, setSignupCountry] = useState('Nigeria');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'tour' | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -83,6 +87,33 @@ export default function App() {
       .then(({data}) => { if (alive) setIsAdmin(Boolean(data)); });
     return () => { alive = false; };
   }, [session]);
+
+  async function loadNotifications() {
+    if (!supabase || !session) return;
+    setNotificationsLoading(true);
+    const {data,error} = await supabase.from('notifications')
+      .select('id,user_id,actor_id,notification_type,title,body,target_type,target_id,read_at,created_at')
+      .eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(40);
+    if (error) setNotice(error.message);
+    else setNotifications((data ?? []) as NotificationRow[]);
+    setNotificationsLoading(false);
+  }
+
+  async function openNotification(item: NotificationRow) {
+    if (supabase && !item.read_at) {
+      const {error} = await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',session?.user.id);
+      if (!error) setNotifications(prev=>prev.map(n=>n.id===item.id?{...n,read_at:new Date().toISOString()}:n));
+    }
+    setNotificationsOpen(false);
+    const target = (item.target_type || '').toLowerCase();
+    const kind = item.notification_type.toLowerCase();
+    if (target==='crush' || kind.startsWith('crush_')) setSection('Crush');
+    else if (target==='event' || kind.includes('event')) setSection('Events');
+    else if (target==='dating' || kind.includes('dating')) setSection('Dating');
+    else if (target==='group' || kind.includes('group')) setSection('Groups');
+    else if (target==='message' || kind.includes('message') || kind.includes('request')) setSection('Messages');
+    else setSection('Home');
+  }
 
   useEffect(() => {
     if (!supabase || !session || (section !== 'Home' && section !== 'Confessions')) {
@@ -273,7 +304,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="online-mark" /> <span>Connected to your circle</span><button onClick={signOut} className="signout">Sign out ↗</button></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="icon-button" title="Notifications" onClick={() => setNotice('You are all caught up.')}>♧</button><button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>
+      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="icon-button notification-trigger" title="Notifications" aria-label="Notifications" onClick={() => {setNotificationsOpen(v=>!v);void loadNotifications();}}>♧{notifications.some(n=>!n.read_at)&&<span className="notification-badge">{notifications.filter(n=>!n.read_at).length>9?'9+':notifications.filter(n=>!n.read_at).length}</span>}</button>{notificationsOpen&&<div className="notification-menu"><div className="notification-menu-header"><div><strong>Notifications</strong><small>{notifications.filter(n=>!n.read_at).length} unread</small></div><button className="text-action" onClick={()=>{void loadNotifications();}}>Refresh</button></div>{notificationsLoading?<div className="notification-empty">Loading…</div>:notifications.length?notifications.map(n=><button className={n.read_at?'notification-item':'notification-item unread'} key={n.id} onClick={()=>void openNotification(n)}><span className="notification-symbol">{n.notification_type.startsWith('crush_')?'♛':n.notification_type.includes('event')?'▦':n.notification_type.includes('group')?'◉':'↗'}</span><span><strong>{n.title}</strong><small>{n.body}</small><time>{new Date(n.created_at).toLocaleString()}</time></span>{!n.read_at&&<i/>}</button>):<div className="notification-empty">You are all caught up.</div>}</div>}<button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>
       <div className="page-wrap">
         <div className="welcome-row"><div><p className="eyebrow">WELCOME BACK TO YOUR WORLD</p><h1>{section === 'Home' ? 'Your circle, in one place.' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{active.hint}</p></div><div className="date-pill"><span className="pulse" /> YOUR SPACE IS LIVE</div></div>
         {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
