@@ -306,6 +306,8 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
 
 type CrushPostRow = { id: string; user_id: string; crush_type: 'mcm' | 'wcw'; caption: string; image_path: string | null; week_start: string; created_at: string };
 type CrushVoteRow = { id: string; post_id: string; user_id: string; created_at: string };
+type CrushCommentRow = { id: string; post_id: string; user_id: string; body: string; created_at: string };
+type CrushReactionRow = { id: string; post_id: string; user_id: string; reaction: string; created_at: string };
 
 function CrushFeature({ userId }: { userId: string }) {
   const [kind, setKind] = useState<'mcm' | 'wcw'>('mcm');
@@ -316,6 +318,11 @@ function CrushFeature({ userId }: { userId: string }) {
   const [avatars, setAvatars] = useState<Record<string,string>>({});
   const [photoUrls, setPhotoUrls] = useState<Record<string,string>>({});
   const [votes, setVotes] = useState<CrushVoteRow[]>([]);
+  const [comments, setComments] = useState<CrushCommentRow[]>([]);
+  const [reactions, setReactions] = useState<CrushReactionRow[]>([]);
+  const [commentNames, setCommentNames] = useState<Record<string,string>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string,string>>({});
+  const [reactionPickerPost, setReactionPickerPost] = useState<string|null>(null);
   const [busy, setBusy] = useState(false);
   const [busyVote, setBusyVote] = useState('');
   const [notice, setNotice] = useState('');
@@ -346,16 +353,27 @@ function CrushFeature({ userId }: { userId: string }) {
         return [p.id,url.publicUrl] as const;
       }));
       setPhotoUrls(Object.fromEntries(paths));
-      const { data: voteRows, error: voteError } = await supabase.from('crush_votes')
-        .select('id,post_id,user_id,created_at').in('post_id',rows.map(p=>p.id));
-      if (voteError) setNotice(voteError.message);
-      setVotes((voteRows ?? []) as CrushVoteRow[]);
+      const [{data:voteRows,error:voteError},{data:commentRows,error:commentError},{data:reactionRows,error:reactionError}] = await Promise.all([
+        supabase.from('crush_votes').select('id,post_id,user_id,created_at').in('post_id',rows.map(p=>p.id)),
+        supabase.from('crush_comments').select('id,post_id,user_id,body,created_at').in('post_id',rows.map(p=>p.id)).order('created_at',{ascending:true}),
+        supabase.from('crush_reactions').select('id,post_id,user_id,reaction,created_at').in('post_id',rows.map(p=>p.id))
+      ]);
+      if (voteError || commentError || reactionError) setNotice(voteError?.message || commentError?.message || reactionError?.message || 'Could not load crush activity.');
+      const mine = (voteRows ?? []) as CrushVoteRow[];
+      const commentList = (commentRows ?? []) as CrushCommentRow[];
+      setVotes(mine); setComments(commentList); setReactions((reactionRows ?? []) as CrushReactionRow[]);
+      const commenterIds = [...new Set(commentList.map(c=>c.user_id).filter(id=>!ids.includes(id)))];
+      if (commenterIds.length) {
+        const {data: commenterProfiles} = await supabase.from('profiles').select('id,display_name,username').in('id',commenterIds);
+        const commentNameMap: Record<string,string> = {};
+        (commenterProfiles ?? []).forEach((p:{id:string;display_name:string|null;username:string|null})=>{commentNameMap[p.id]=p.display_name||p.username||'Panda';});
+        setCommentNames(commentNameMap);
+      } else setCommentNames({});
       const monday = new Date(); monday.setUTCHours(0,0,0,0);
       monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay()+6)%7));
       const nextMonday = new Date(monday); nextMonday.setUTCDate(nextMonday.getUTCDate()+7);
-      const mine = (voteRows ?? []) as CrushVoteRow[];
       setFreeVotesUsed(mine.filter(v => v.user_id === userId && new Date(v.created_at) >= monday && new Date(v.created_at) < nextMonday).length);
-    } else { setVotes([]); setPhotoUrls({}); setNames({}); setAvatars({}); setFreeVotesUsed(0); }
+    } else { setVotes([]); setComments([]); setReactions([]); setPhotoUrls({}); setNames({}); setAvatars({}); setFreeVotesUsed(0); }
     setLoading(false);
   }
 
@@ -404,6 +422,28 @@ function CrushFeature({ userId }: { userId: string }) {
     setBusyVote('');
   }
 
+
+  async function react(post: CrushPostRow, reaction: string) {
+    if (!supabase || post.user_id===userId) return;
+    const existing = reactions.find(r=>r.post_id===post.id && r.user_id===userId);
+    const {error} = existing
+      ? existing.reaction===reaction
+        ? await supabase.from('crush_reactions').delete().eq('id',existing.id)
+        : await supabase.from('crush_reactions').update({reaction,created_at:new Date().toISOString()}).eq('id',existing.id)
+      : await supabase.from('crush_reactions').insert({post_id:post.id,user_id:userId,reaction});
+    if (error) setNotice(error.message);
+    else { setReactionPickerPost(null); await load(); }
+  }
+
+  async function comment(event: FormEvent<HTMLFormElement>, post: CrushPostRow) {
+    event.preventDefault();
+    const body = (commentDrafts[post.id] || '').trim();
+    if (!supabase || !body || post.user_id===userId) return;
+    const {error} = await supabase.from('crush_comments').insert({post_id:post.id,user_id:userId,body});
+    if (error) setNotice(error.message);
+    else { setCommentDrafts(prev=>({...prev,[post.id]:''})); await load(); }
+  }
+
   async function messageCreator(post: CrushPostRow) {
     if (!supabase || post.user_id === userId) return;
     const { error } = await supabase.rpc('send_message_request',{
@@ -444,6 +484,8 @@ function CrushFeature({ userId }: { userId: string }) {
         <div className="crush-card-body"><div className="crush-card-author"><span className="crush-author-avatar">{avatars[post.user_id] ? <img src={avatars[post.user_id]} alt="" /> : '🐼'}</span><div><strong>{names[post.user_id] || 'Panda'}</strong><small>{post.crush_type==='mcm'?'MONDAY CRUSH · MCM':'WEDNESDAY CRUSH · WCW'}</small></div><span className="crush-crown">♛</span></div>
         {post.caption && <p className="crush-caption">{post.caption}</p>}
         <div className="crush-card-stats"><span>♛ {countFor(post.id)} votes</span><span>{new Date(post.created_at).toLocaleDateString()}</span></div>
+        {post.user_id!==userId && <div className="crush-reaction-area"><button className="crush-react-trigger" onClick={()=>setReactionPickerPost(reactionPickerPost===post.id?null:post.id)}>☺ React</button>{reactionPickerPost===post.id && <div className="crush-reaction-picker">{['❤️','😂','😮','😡','🐼'].map(emoji=><button key={emoji} aria-label={'React '+emoji} onClick={()=>void react(post,emoji)}>{emoji}</button>)}</div>}<div className="crush-reaction-summary">{['❤️','😂','😮','😡','🐼'].map(emoji=>{const count=reactions.filter(r=>r.post_id===post.id&&r.reaction===emoji).length;return count>0?<span key={emoji}>{emoji} {count}</span>:null})}{reactions.some(r=>r.post_id===post.id&&r.user_id===userId)&&<small>Your reaction: {reactions.find(r=>r.post_id===post.id&&r.user_id===userId)?.reaction}</small>}</div></div>}
+        {post.user_id!==userId && <div className="crush-comments"><strong>{comments.filter(c=>c.post_id===post.id).length} comments</strong>{comments.filter(c=>c.post_id===post.id).slice(-3).map(c=><p className="crush-comment" key={c.id}><b>{commentNames[c.user_id] || names[c.user_id] || (c.user_id===userId?'You':'Panda')}</b> {c.body}</p>)}<form onSubmit={e=>void comment(e,post)}><input value={commentDrafts[post.id]||''} onChange={e=>setCommentDrafts(prev=>({...prev,[post.id]:e.target.value}))} maxLength={800} placeholder="Write a kind comment…" required/><button className="text-action" type="submit">Send</button></form></div>}
         <div className="crush-card-actions">{post.user_id===userId ? <span className="own-card-note">Your card · voting disabled</span> : <><button className={voted(post.id)?'secondary-button':'primary-button'} disabled={busyVote===post.id || voted(post.id) || freeVotesUsed>=3} onClick={()=>void vote(post)}>{busyVote===post.id?'Working…':voted(post.id)?'Voted ✓':'Vote ♛'}</button><button className="decline-button" onClick={()=>void messageCreator(post)}>Message</button></>}</div>
         </div>
       </article>)}</div> : <div className="empty-state crush-empty"><span>{kind==='mcm'?'♛':'♡'}</span><h3>No {kind==='mcm'?'MCM':'WCW'} cards this week yet</h3><p>Be the first to share a crush card with your circle.</p></div>}
