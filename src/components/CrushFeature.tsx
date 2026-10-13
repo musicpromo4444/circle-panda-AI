@@ -13,7 +13,11 @@ export default function CrushFeature({ userId }: { userId: string }) {
   const [genderDraft, setGenderDraft] = useState('');
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [crushType, setCrushType] = useState<'mcm' | 'wcw'>(() => new Date().getDay() === 3 ? 'wcw' : 'mcm');
+  const [crushType, setCrushType] = useState<'mcm' | 'wcw'>(() => {
+    const requested = localStorage.getItem('circle-panda-crush-type');
+    if (requested === 'wcw' || requested === 'mcm') { localStorage.removeItem('circle-panda-crush-type'); return requested; }
+    return new Date().getDay() === 3 ? 'wcw' : 'mcm';
+  });
   const [caption, setCaption] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [votes, setVotes] = useState<Record<string, number>>({});
@@ -194,10 +198,10 @@ export default function CrushFeature({ userId }: { userId: string }) {
     setNotice(error ? error.message : 'Message request sent. You can track it in Messages.');
   }
 
-  const livePosts = posts.filter(post => !post.scheduled_for || new Date(post.scheduled_for).getTime() <= Date.now());
+  const livePosts = posts.filter(post => post.crush_type === crushType && (!post.scheduled_for || new Date(post.scheduled_for).getTime() <= Date.now()));
   return <div className="crush-page">
     <section className="crush-upload-launch">
-      <div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>Woman Crush Wednesday · Man Crush Monday</h2><p className="feature-copy">Upload a photo and caption when you are ready. Your gallery stays below.</p></div>
+      <div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>{crushType === 'wcw' ? 'Woman Crush Wednesday' : 'Man Crush Monday'}</h2><p className="feature-copy">Upload a photo and caption when you are ready. Your gallery stays below.</p><div className="crush-type-tabs"><button type="button" className={crushType === 'wcw' ? 'active' : ''} onClick={() => setCrushType('wcw')}>♡ WCW</button><button type="button" className={crushType === 'mcm' ? 'active' : ''} onClick={() => setCrushType('mcm')}>♛ MCM</button></div></div>
       <button type="button" className="primary-button" onClick={() => { if (!gender) { setGenderDraft(''); setShowGenderPicker(true); } else { setShowUploadModal(true); } }}>＋ Upload crush photo</button>
     </section>
     <section className="crush-feed-section"><div className="section-title-row"><div><h2>Crush cards</h2><p>Celebrate your circle without voting on your own card.</p></div><span className="count-pill">{livePosts.length} CARDS</span></div>
