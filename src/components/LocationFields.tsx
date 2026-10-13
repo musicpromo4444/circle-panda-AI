@@ -70,12 +70,12 @@ export default function LocationFields({ value, onChange, required = false }: Pr
   return <div className="location-fields" aria-label="Location">
     <SearchSelect label="Country" value={value.country} options={countries} required={required}
       onChange={code => update({ country: code, state: '', city: '', area: '' })} />
-    <SearchSelect label={country?.name && ['US','CA','AU','IN','BR','MX'].includes(value.country) ? 'State / province' : 'State / region'}
+    <SearchSelect label={country?.name && ['United States','Canada','Australia','India','Brazil','Mexico'].includes(country?.name || value.country) ? 'State / province' : 'State / region'}
       value={value.state} options={states} disabled={!value.country || !hasStates}
       onChange={code => update({ state: code, city: '', area: '' })} />
     <SearchSelect label="City" value={value.city} options={cities} disabled={!value.country}
       onChange={city => update({ city, area: '' })} />
-    <SearchSelect label="Area / neighbourhood" value={value.area} options={areaOptions}
+    <SearchSelect label="Area / neighbourhood (listed locality)" value={value.area} options={areaOptions}
       disabled={!value.country} onChange={area => update({ area })} />
     {!hasStates && value.country && <p className="location-hint">This country’s location dataset does not list states or provinces; you can still select a city and area.</p>}
     <p className="location-hint">Start typing to search, then select a result. Location fields are selections, not free-text entries.</p>
