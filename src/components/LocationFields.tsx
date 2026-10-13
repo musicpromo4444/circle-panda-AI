@@ -81,3 +81,11 @@ export default function LocationFields({ value, onChange, required = false }: Pr
     <p className="location-hint">Start typing to search, then select a result. Location fields are selections, not free-text entries.</p>
   </div>;
 }
+
+export function CountryDropdown({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const countries = useMemo<Option[]>(() => Country.getAllCountries()
+    .map(country => ({ label: country.name, value: country.name }))
+    .sort((a, b) => a.label.localeCompare(b.label)), []);
+  return <SearchSelect label="Country restriction (optional)" value={value} options={countries}
+    onChange={onChange} />;
+}
