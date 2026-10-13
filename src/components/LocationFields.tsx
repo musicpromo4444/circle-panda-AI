@@ -1,5 +1,20 @@
-import { useMemo, useState } from 'react';
-import { City, Country, State } from 'country-state-city';
+import { useEffect, useMemo, useState } from 'react';
+
+type GeoModule = typeof import('country-state-city');
+
+function useGeoData() {
+  const [geo, setGeo] = useState<GeoModule | null>(null);
+  useEffect(() => {
+    let active = true;
+    import('country-state-city').then(module => {
+      if (active) setGeo(module);
+    }).catch(() => {
+      if (active) setGeo(null);
+    });
+    return () => { active = false; };
+  }, []);
+  return geo;
+}
 
 export type LocationValue = { country: string; state: string; city: string; area: string };
 type Props = {
@@ -48,22 +63,23 @@ function SearchSelect({ label, value, options, onChange, disabled, required }: {
 }
 
 export default function LocationFields({ value, onChange, required = false }: Props) {
-  const countries = useMemo<Option[]>(() => Country.getAllCountries()
+  const geo = useGeoData();
+  const countries = useMemo<Option[]>(() => (geo?.Country.getAllCountries() ?? [])
     .map(country => ({ label: country.name, value: country.name }))
-    .sort((a, b) => a.label.localeCompare(b.label)), []);
-  const country = Country.getAllCountries().find(item => item.name === value.country || item.isoCode === value.country);
-  const states = useMemo<Option[]>(() => value.country
-    ? State.getStatesOfCountry(country?.isoCode || value.country).map(state => ({ label: state.name, value: state.name })).sort((a,b) => a.label.localeCompare(b.label))
-    : [], [value.country]);
+    .sort((a, b) => a.label.localeCompare(b.label)), [geo]);
+  const country = (geo?.Country.getAllCountries() ?? []).find(item => item.name === value.country || item.isoCode === value.country);
+  const states = useMemo<Option[]>(() => value.country && geo
+    ? geo.State.getStatesOfCountry(country?.isoCode || value.country).map(state => ({ label: state.name, value: state.name })).sort((a,b) => a.label.localeCompare(b.label))
+    : [], [value.country, country?.isoCode, geo]);
   const cities = useMemo<Option[]>(() => {
-    if (!value.country) return [];
+    if (!value.country || !geo) return [];
     const countryCode = country?.isoCode || value.country;
-    const selectedState = State.getStatesOfCountry(countryCode).find(item => item.name === value.state || item.isoCode === value.state);
+    const selectedState = geo.State.getStatesOfCountry(countryCode).find(item => item.name === value.state || item.isoCode === value.state);
     const rows = selectedState
-      ? City.getCitiesOfState(countryCode, selectedState.isoCode)
-      : City.getCitiesOfCountry(countryCode) || [];
+      ? geo.City.getCitiesOfState(countryCode, selectedState.isoCode)
+      : geo.City.getCitiesOfCountry(countryCode) || [];
     return [...new Set(rows.map(city => city.name))].map(name => ({ label: name, value: name })).sort((a,b) => a.label.localeCompare(b.label));
-  }, [value.country, value.state, country?.isoCode]);
+  }, [value.country, value.state, country?.isoCode, geo]);
   const areaOptions = cities;
   const hasStates = states.length > 0;
   const update = (patch: Partial<LocationValue>) => onChange({ ...value, ...patch });
@@ -83,9 +99,10 @@ export default function LocationFields({ value, onChange, required = false }: Pr
 }
 
 export function CountryDropdown({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const countries = useMemo<Option[]>(() => Country.getAllCountries()
+  const geo = useGeoData();
+  const countries = useMemo<Option[]>(() => (geo?.Country.getAllCountries() ?? [])
     .map(country => ({ label: country.name, value: country.name }))
-    .sort((a, b) => a.label.localeCompare(b.label)), []);
+    .sort((a, b) => a.label.localeCompare(b.label)), [geo]);
   return <SearchSelect label="Country restriction (optional)" value={value} options={countries}
     onChange={onChange} />;
 }
