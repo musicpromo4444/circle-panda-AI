@@ -87,8 +87,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
     sessionStorage.removeItem('circle-panda-open-crush-upload');
     const ownPostExists = posts.some(post => post.user_id === userId && post.crush_type === crushType);
     if (!ownPostExists) {
-      if (!gender) { setGenderDraft(''); setShowGenderPicker(true); }
-      else setShowUploadModal(true);
+      setShowUploadModal(true);
     }
   }, [loading, posts, userId, crushType, gender]);
 
@@ -212,7 +211,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
   return <div className="crush-page">
     {!showUploadModal && <section className="crush-upload-launch">
       <div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>{crushType === 'wcw' ? 'Woman Crush Wednesday' : 'Man Crush Monday'}</h2><p className="feature-copy">Share a photo and a short caption. Your published crush cards appear in the feed below.</p><div className="crush-type-tabs"><button type="button" className={crushType === 'wcw' ? 'active' : ''} onClick={() => setCrushType('wcw')}>♡ WCW</button><button type="button" className={crushType === 'mcm' ? 'active' : ''} onClick={() => setCrushType('mcm')}>♛ MCM</button></div></div>
-      <button type="button" className="primary-button" onClick={() => { if (!gender) { setGenderDraft(''); setShowGenderPicker(true); } else { setShowUploadModal(true); } }}>＋ Upload crush photo</button>
+      <button type="button" className="primary-button" onClick={() => setShowUploadModal(true)}>＋ Upload crush photo</button>
     </section>}
     <section className="crush-feed-section"><div className="section-title-row"><div><h2>Crush cards</h2><p>Celebrate your circle without voting on your own card.</p></div><span className="count-pill">{livePosts.length} CARDS</span></div>
       {loading ? <div className="empty-state">Loading crush cards…</div> : livePosts.length ? <div className="crush-card-grid">{livePosts.map(post => {
