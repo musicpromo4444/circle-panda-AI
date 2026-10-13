@@ -346,7 +346,7 @@ function MessagesFeature({ userId }: { userId: string }) {
           : [...current, incoming].sort((a, b) => a.created_at.localeCompare(b.created_at)));
       })
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { void channel.unsubscribe(); };
   }, [openConversation]);
 
   useEffect(() => {
@@ -354,7 +354,7 @@ function MessagesFeature({ userId }: { userId: string }) {
     const channel = supabase.channel('dm-requests-' + userId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'message_requests', filter: 'recipient_id=eq.' + userId }, () => { void loadRequests(); })
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { void channel.unsubscribe(); };
   }, [userId]);
 
 
@@ -750,7 +750,7 @@ function GroupsFeature({ userId }: { userId: string }) {
           : [...current, incoming].sort((a, b) => a.created_at.localeCompare(b.created_at)));
       })
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { void channel.unsubscribe(); };
   }, [openConversationId]);
 
 
