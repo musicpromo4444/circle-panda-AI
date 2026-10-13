@@ -12,6 +12,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
   const [gender, setGender] = useState('');
   const [genderDraft, setGenderDraft] = useState('');
   const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [crushType, setCrushType] = useState<'mcm' | 'wcw'>(() => new Date().getDay() === 3 ? 'wcw' : 'mcm');
   const [caption, setCaption] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
@@ -32,7 +33,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
     const { data: profile } = await supabase.from('profiles').select('gender,timezone').eq('id', userId).maybeSingle();
     const currentGender = profile?.gender || '';
     setGender(currentGender);
-    if (!currentGender) setShowGenderPicker(true);
+    // Gender and upload dialogs are opened only when the user taps Upload.
     if (!profile?.timezone) {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (timezone) await supabase.from('profiles').update({ timezone }).eq('id', userId);
@@ -83,7 +84,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
     setBusy(true); setNotice('');
     const { error } = await supabase.from('profiles').update({ gender: genderDraft }).eq('id', userId);
     if (error) setNotice(error.message);
-    else { setGender(genderDraft); setShowGenderPicker(false); setNotice('Your profile gender is saved.'); }
+    else { setGender(genderDraft); setShowGenderPicker(false); setShowUploadModal(true); setNotice('Your profile gender is saved. Add your crush photo and caption.'); }
     setBusy(false);
   }
 
@@ -103,7 +104,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
       const { data: urlData } = supabase.storage.from('crush-post-photos').getPublicUrl(uploadedPath);
       const { error } = await supabase.from('crush_posts').insert({ user_id: userId, crush_type: crushType, caption: caption.trim(), image_path: urlData.publicUrl });
       if (error) throw error;
-      setCaption(''); setPhoto(null);
+      setCaption(''); setPhoto(null); setShowUploadModal(false);
       const input = document.getElementById('crush-photo-input') as HTMLInputElement | null;
       if (input) input.value = '';
       setNotice('Your card is scheduled for the next ' + (crushType === 'mcm' ? 'Monday Crush (MCM)' : 'Wednesday Crush (WCW)') + ' at 10:00 AM in your profile timezone.');
@@ -196,16 +197,9 @@ export default function CrushFeature({ userId }: { userId: string }) {
   const livePosts = posts.filter(post => !post.scheduled_for || new Date(post.scheduled_for).getTime() <= Date.now());
   const scheduledMine = posts.filter(post => post.user_id === userId && post.scheduled_for && new Date(post.scheduled_for).getTime() > Date.now());
   return <div className="crush-page">
-    <section className="feature-panel crush-create-panel">
-      <div className="feature-icon">♛</div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>Post your crush card</h2>
-      <p className="feature-copy">Choose a photo and a short caption. Cards go live at 10:00 AM on the next scheduled MCM Monday or WCW Wednesday in your profile timezone.</p>
-      <form className="feature-form" onSubmit={createCrushPost}>
-        <div className="form-grid-two"><label>Crush moment<select value={crushType} onChange={e => setCrushType(e.target.value as 'mcm'|'wcw')}><option value="mcm">MCM · Monday Crush</option><option value="wcw">WCW · Wednesday Crush</option></select></label><label>Caption (optional)<input value={caption} onChange={e => setCaption(e.target.value)} maxLength={300} placeholder="A little note for your circle…" /></label></div>
-        <label>Photo<input id="crush-photo-input" type="file" accept="image/*" onChange={e => setPhoto(e.target.files?.[0] || null)} required /></label>
-        <div className="form-submit-row"><span className="draft-state">Image limit: 10 MB</span><button className="primary-button" type="submit" disabled={busy || !photo}>{busy ? 'Publishing…' : 'Schedule crush card ↗'}</button></div>
-      </form>
-      {notice && <div className="notice">{notice}</div>}
-      {scheduledMine.length > 0 && <div className="crush-scheduled-list"><strong>Your upcoming card</strong>{scheduledMine.map(p => <p key={p.id}>{p.crush_type.toUpperCase()} · scheduled {new Date(p.scheduled_for!).toLocaleString()}</p>)}</div>}
+    <section className="crush-upload-launch">
+      <div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>Woman Crush Wednesday · Man Crush Monday</h2><p className="feature-copy">Upload a photo and caption when you are ready. Your gallery stays below.</p></div>
+      <button type="button" className="primary-button" onClick={() => { if (!gender) { setGenderDraft(''); setShowGenderPicker(true); } else { setShowUploadModal(true); } }}>＋ Upload crush photo</button>
     </section>
     <section className="crush-feed-section"><div className="section-title-row"><div><h2>Crush cards</h2><p>Celebrate your circle without voting on your own card.</p></div><span className="count-pill">{livePosts.length} CARDS</span></div>
       {loading ? <div className="empty-state">Loading crush cards…</div> : livePosts.length ? <div className="crush-card-grid">{livePosts.map(post => {
@@ -225,6 +219,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
         </article>;
       })}</div> : <div className="empty-state"><span>♛</span><h3>The next crush moment starts here.</h3><p>Schedule the first MCM or WCW card and it will appear when its weekly time arrives.</p></div>}
     </section>
+    {showUploadModal && <div className="modal-backdrop"><section className="feature-panel crush-upload-modal" role="dialog" aria-modal="true" aria-labelledby="crush-upload-title"><button type="button" className="modal-close" aria-label="Close upload" onClick={() => setShowUploadModal(false)}>×</button><div className="feature-icon">♛</div><p className="eyebrow">YOUR CRUSH MOMENT</p><h2 id="crush-upload-title">Upload your crush card</h2><form className="feature-form" onSubmit={createCrushPost}><label>Crush page<select value={crushType} onChange={e => setCrushType(e.target.value as 'mcm'|'wcw')}><option value="wcw">Woman Crush Wednesday (WCW)</option><option value="mcm">Man Crush Monday (MCM)</option></select></label><label>Caption (optional)<input value={caption} onChange={e => setCaption(e.target.value)} maxLength={300} placeholder="Write a short caption…" /></label><label>Upload photo<input id="crush-photo-input" type="file" accept="image/*" onChange={e => setPhoto(e.target.files?.[0] || null)} required /></label><div className="form-submit-row"><span className="draft-state">Image limit: 10 MB</span><button className="primary-button" type="submit" disabled={busy || !photo}>{busy ? 'Uploading…' : 'Publish photo ↗'}</button></div></form>{notice && <div className="notice">{notice}</div>}</section></div>}
     {showGenderPicker && <div className="modal-backdrop"><section className="feature-panel gender-picker-modal" role="dialog" aria-modal="true" aria-labelledby="crush-gender-title"><div className="feature-icon">♙</div><h2 id="crush-gender-title">Complete your profile</h2><p className="feature-copy">Choose your gender to finish setting up your Circle Panda profile.</p><form className="feature-form" onSubmit={saveGender}><label>Gender<select value={genderDraft || gender} onChange={e => setGenderDraft(e.target.value)} required><option value="">Select gender</option><option value="female">Female</option><option value="male">Male</option><option value="non_binary">Non-binary</option><option value="prefer_not_to_say">Prefer not to say</option></select></label><button className="primary-button" type="submit" disabled={busy || !(genderDraft || gender)}>Save and continue</button><button type="button" className="decline-button" onClick={() => setShowGenderPicker(false)}>Not now</button></form></section></div>}
   </div>;
 }
