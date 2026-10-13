@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
-import LocationFields, { type LocationValue } from './components/LocationFields';
+import LocationFields, { CountryDropdown, type LocationValue } from './components/LocationFields';
 
 type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
@@ -782,7 +782,7 @@ function GroupsFeature({ userId }: { userId: string }) {
       <form className="feature-form" onSubmit={createGroup}>
         <label>Group name<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} minLength={2} required placeholder="Give your group a name" /></label>
         <label>About the group<textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} maxLength={2000} placeholder="What brings this group together?" /></label>
-        <label>Country restriction (optional)<input value={countryRestriction} onChange={e=>setCountryRestriction(e.target.value)} placeholder="Only allow members from this country" /></label>
+        <CountryDropdown value={countryRestriction} onChange={setCountryRestriction} />
         <div className="form-submit-row"><span className="draft-state">3 members to open chat</span><button className="primary-button" disabled={busy}>{busy?'Creating…':'Create group ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
