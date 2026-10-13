@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
 import LocationFields, { CountryDropdown, type LocationValue } from './components/LocationFields';
+import CrushFeature from './components/CrushFeature';
 
 type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
@@ -274,6 +275,7 @@ function FeaturePanel({ section, userId }: { section: Section; userId: string })
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
+  if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Admin') return <AdminFeature />;
   const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'Admin'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
