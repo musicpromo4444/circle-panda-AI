@@ -55,6 +55,9 @@ export default function App() {
   const [expandedComments, setExpandedComments] = useState<Record<string,boolean>>({});
   const [reactionPickerPost, setReactionPickerPost] = useState<string|null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string,string>>({});
+  const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'tour' | null>(null);
+  const [welcomeBonusAmount, setWelcomeBonusAmount] = useState(200);
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -69,6 +72,37 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem('circle-panda-theme', theme); } catch { /* Theme still works for this session. */ }
   }, [theme]);
+
+  useEffect(() => {
+    if (!supabase || !session) { setOnboardingStep(null); return; }
+    let alive = true;
+    async function loadOnboarding() {
+      const [profileResult, rewardResult] = await Promise.all([
+        supabase!.from('profiles').select('welcome_popup_seen_at,app_tour_seen_at').eq('id', session!.user.id).maybeSingle(),
+        supabase!.from('economy_settings').select('numeric_value').eq('setting_key', 'welcome_bonus').maybeSingle(),
+      ]);
+      if (!alive || profileResult.error || !profileResult.data) return;
+      if (rewardResult.data?.numeric_value != null) setWelcomeBonusAmount(Number(rewardResult.data.numeric_value));
+      if (!profileResult.data.welcome_popup_seen_at) setOnboardingStep('welcome');
+      else if (!profileResult.data.app_tour_seen_at) setOnboardingStep('tour');
+      else setOnboardingStep(null);
+    }
+    void loadOnboarding();
+    return () => { alive = false; };
+  }, [session]);
+
+  async function continueOnboarding(step: 'welcome' | 'tour', explore = false) {
+    if (!supabase || onboardingBusy) return;
+    setOnboardingBusy(true);
+    const { error } = await supabase.rpc('mark_onboarding_seen', { p_step: step });
+    if (error) setNotice(error.message);
+    else if (step === 'welcome') setOnboardingStep('tour');
+    else {
+      setOnboardingStep(null);
+      if (explore) setSection('Home');
+    }
+    setOnboardingBusy(false);
+  }
 
   useEffect(() => {
     if (!supabase || !session) { setCoinBalance(null); return; }
@@ -266,6 +300,23 @@ export default function App() {
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
+    {onboardingStep && <div className="onboarding-backdrop"><section className="onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+      {onboardingStep === 'tour' && <button type="button" className="onboarding-close" aria-label="Close introduction" onClick={() => void continueOnboarding('tour')} disabled={onboardingBusy}>×</button>}
+      <div className="onboarding-panda" aria-hidden="true">🐼</div>
+      {onboardingStep === 'welcome' ? <>
+        <p className="eyebrow">A LITTLE SOMETHING FOR YOU</p>
+        <h2 id="onboarding-title">Welcome to Circle Panda!</h2>
+        <p>Your welcome bonus has been added to your wallet. Use your BC to enjoy more of your circle.</p>
+        <div className="welcome-bonus-amount"><span className="coin-token">P</span><strong>{welcomeBonusAmount.toLocaleString()}</strong><small>BC WELCOME BONUS</small></div>
+        <button type="button" className="primary-button full" onClick={() => void continueOnboarding('welcome')} disabled={onboardingBusy}>{onboardingBusy ? 'One moment…' : 'Continue'} <span>→</span></button>
+      </> : <>
+        <p className="eyebrow">YOUR PEOPLE. YOUR WORLD.</p>
+        <h2 id="onboarding-title">Your circle, all in one place.</h2>
+        <p>Share posts and anonymous confessions, celebrate WCW and MCM, discover dating connections and events, then take every connection into messages.</p>
+        <div className="onboarding-features"><span>☁ Confessions</span><span>♡ Crush & dating</span><span>▦ Events</span><span>◉ Groups & chats</span></div>
+        <button type="button" className="primary-button full" onClick={() => void continueOnboarding('tour', true)} disabled={onboardingBusy}>{onboardingBusy ? 'One moment…' : 'Explore Circle Panda'} <span>→</span></button>
+      </>}
+    </section></div>}
   </div>;
 }
 
