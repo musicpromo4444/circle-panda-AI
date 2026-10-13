@@ -49,19 +49,21 @@ function SearchSelect({ label, value, options, onChange, disabled, required }: {
 
 export default function LocationFields({ value, onChange, required = false }: Props) {
   const countries = useMemo<Option[]>(() => Country.getAllCountries()
-    .map(country => ({ label: country.name, value: country.isoCode }))
+    .map(country => ({ label: country.name, value: country.name }))
     .sort((a, b) => a.label.localeCompare(b.label)), []);
-  const country = Country.getCountryByCode(value.country);
+  const country = Country.getAllCountries().find(item => item.name === value.country || item.isoCode === value.country);
   const states = useMemo<Option[]>(() => value.country
-    ? State.getStatesOfCountry(value.country).map(state => ({ label: state.name, value: state.isoCode })).sort((a,b) => a.label.localeCompare(b.label))
+    ? State.getStatesOfCountry(country?.isoCode || value.country).map(state => ({ label: state.name, value: state.name })).sort((a,b) => a.label.localeCompare(b.label))
     : [], [value.country]);
   const cities = useMemo<Option[]>(() => {
     if (!value.country) return [];
-    const rows = value.state
-      ? City.getCitiesOfState(value.country, value.state)
-      : City.getCitiesOfCountry(value.country) || [];
+    const countryCode = country?.isoCode || value.country;
+    const selectedState = State.getStatesOfCountry(countryCode).find(item => item.name === value.state || item.isoCode === value.state);
+    const rows = selectedState
+      ? City.getCitiesOfState(countryCode, selectedState.isoCode)
+      : City.getCitiesOfCountry(countryCode) || [];
     return [...new Set(rows.map(city => city.name))].map(name => ({ label: name, value: name })).sort((a,b) => a.label.localeCompare(b.label));
-  }, [value.country, value.state]);
+  }, [value.country, value.state, country?.isoCode]);
   const areaOptions = cities;
   const hasStates = states.length > 0;
   const update = (patch: Partial<LocationValue>) => onChange({ ...value, ...patch });
