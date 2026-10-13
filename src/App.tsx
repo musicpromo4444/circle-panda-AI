@@ -336,6 +336,27 @@ function MessagesFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void loadRequests(); }, [userId]);
+  useEffect(() => {
+    if (!supabase || !openConversation) return;
+    const channel = supabase.channel('dm-messages-' + openConversation)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'conversation_id=eq.' + openConversation }, payload => {
+        const incoming = payload.new as ChatMessage;
+        setMessages(current => current.some(item => item.id === incoming.id)
+          ? current
+          : [...current, incoming].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [openConversation]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const channel = supabase.channel('dm-requests-' + userId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_requests', filter: 'recipient_id=eq.' + userId }, () => { void loadRequests(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [userId]);
+
 
   async function respond(requestId: string, accept: boolean) {
     if (!supabase) return;
@@ -719,6 +740,19 @@ function GroupsFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void load(); }, [userId]);
+  useEffect(() => {
+    if (!supabase || !openConversationId) return;
+    const channel = supabase.channel('group-messages-' + openConversationId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'conversation_id=eq.' + openConversationId }, payload => {
+        const incoming = payload.new as ChatMessage;
+        setChatMessages(current => current.some(item => item.id === incoming.id)
+          ? current
+          : [...current, incoming].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [openConversationId]);
+
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
