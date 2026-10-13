@@ -286,7 +286,7 @@ export default function App() {
     <main className="main-area">
       <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true">P</span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="theme-toggle" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☼' : '☾'}</button><button className="icon-button" title="Notifications" onClick={() => setNotice('You are all caught up.')}>♧</button><button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>
       <div className={`page-wrap page-${section.toLowerCase()}`}>
-        {(section === 'Home' || section === 'Confessions') && <div className="confession-shortcuts" aria-label="Circle Panda quick actions"><button type="button" className="confession-shortcut" onClick={() => { const composer = document.getElementById('confession-composer'); composer?.scrollIntoView({ behavior: 'smooth', block: 'center' }); composer?.querySelector('textarea')?.focus({ preventScroll: true }); }}><span className="shortcut-circle">＋</span><strong>Upload</strong><small>Share a thought with your circle</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','wcw'); setSection('Crush'); }}><span className="shortcut-circle">♡</span><strong>Woman Crush Wednesday</strong><small>Celebrate the women in your circle</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','mcm'); setSection('Crush'); }}><span className="shortcut-circle">♛</span><strong>Man Crush Monday</strong><small>Celebrate the men in your circle</small></button></div>}<div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confessions' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div>{section !== 'Confessions' && <div className="date-pill"><span className="pulse" /> YOUR SPACE IS LIVE</div>}</div>
+        {(section === 'Home' || section === 'Confessions') && <div className="confession-shortcuts" aria-label="Circle Panda quick actions"><button type="button" className="confession-shortcut" onClick={() => { const composer = document.getElementById('confession-composer'); composer?.scrollIntoView({ behavior: 'smooth', block: 'center' }); composer?.querySelector('textarea')?.focus({ preventScroll: true }); }}><span className="shortcut-circle">＋</span><strong>Upload</strong><small>Share a thought with your circle</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','wcw'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Crush'); }}><span className="shortcut-circle">♡</span><strong>Woman Crush Wednesday</strong><small>Celebrate the women in your circle</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','mcm'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Crush'); }}><span className="shortcut-circle">♛</span><strong>Man Crush Monday</strong><small>Celebrate the men in your circle</small></button></div>}<div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confessions' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div>{section !== 'Confessions' && <div className="date-pill"><span className="pulse" /> YOUR SPACE IS LIVE</div>}</div>
         {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
         {(section === 'Home' || section === 'Confessions') && <>
           {section === 'Home' && <section className="hero-card"><div className="hero-content"><span className="hero-kicker">✦ A LITTLE SPACE TO BE YOU</span><h2>Good things happen<br />when we <em>connect.</em></h2><p>Share a thought, discover a new event, or start a conversation that matters.</p><button className="hero-button" onClick={() => setSection('Dating')}>Explore your circle <span>→</span></button></div><div className="hero-art"><div className="planet planet-back" /><div className="planet planet-front">🐼</div><span className="spark spark-a">✦</span><span className="spark spark-b">✧</span><span className="art-caption">STAY CURIOUS. STAY CONNECTED.</span></div></section>}
@@ -462,6 +462,9 @@ function MessagesFeature({ userId }: { userId: string }) {
 
 
 function DatingFeature({ userId }: { userId: string }) {
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterLocation, setFilterLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [location, setLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [headline, setHeadline] = useState('');
@@ -473,6 +476,7 @@ function DatingFeature({ userId }: { userId: string }) {
   const [directory, setDirectory] = useState<DatingProfileRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [locations, setLocations] = useState<Record<string, string>>({});
+  const [locationDetails, setLocationDetails] = useState<Record<string, LocationValue>>({});
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
@@ -507,11 +511,13 @@ function DatingFeature({ userId }: { userId: string }) {
         .select('id,display_name,username,country,state,city,area').in('id', ids);
       const nameMap: Record<string, string> = {};
       const locationMap: Record<string, string> = {};
+      const detailsMap: Record<string, LocationValue> = {};
       (publicProfiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;country:string|null;state:string|null;city:string|null;area:string|null}) => {
         nameMap[p.id] = p.display_name || p.username || 'Panda';
         locationMap[p.id] = [p.area,p.city,p.state,p.country].filter(Boolean).join(', ');
+        detailsMap[p.id] = { country: p.country || '', state: p.state || '', city: p.city || '', area: p.area || '' };
       });
-      setNames(nameMap); setLocations(locationMap);
+      setNames(nameMap); setLocations(locationMap); setLocationDetails(detailsMap);
     }
     setLoading(false);
   }
@@ -558,8 +564,26 @@ function DatingFeature({ userId }: { userId: string }) {
     setNotice(error ? error.message : 'Message request sent. You can track it in Messages.');
   }
 
+  const filteredDirectory = directory.filter(profile => {
+    const place = locationDetails[profile.user_id];
+    if (!place) return !filterLocation.country && !filterLocation.state && !filterLocation.city && !filterLocation.area;
+    return (!filterLocation.country || place.country === filterLocation.country)
+      && (!filterLocation.state || place.state === filterLocation.state)
+      && (!filterLocation.city || place.city === filterLocation.city)
+      && (!filterLocation.area || place.area === filterLocation.area);
+  });
+
   return <div className="dating-page">
-    <section className="feature-panel dating-form-panel"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>Make room for a connection</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
+    <div className="dating-toolbar">
+      <button type="button" className="primary-button" onClick={() => setRegisterOpen(open => !open)}>{registerOpen ? 'Close registration ×' : published ? 'Edit Dating Profile' : 'Register for Dating'}</button>
+      <button type="button" className="secondary-button dating-filter-button" onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Hide filters' : '⌕ Filter dating cards'}</button>
+    </div>
+    {filtersOpen && <section className="dating-filter-panel">
+      <div className="section-title-row"><div><h2>Filter dating cards</h2><p>Choose a location to narrow the feed.</p></div><button type="button" className="secondary-button" onClick={() => setFilterLocation({ country: '', state: '', city: '', area: '' })}>Clear</button></div>
+      <LocationFields value={filterLocation} onChange={setFilterLocation} />
+    </section>}
+    {registerOpen && <section className="feature-panel dating-form-panel"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>{published ? 'Update your dating profile' : 'Register for Dating'}</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
+<div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>Make room for a connection</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         <label>Date of birth<input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} required /></label>
         <LocationFields value={location} onChange={setLocation} />
@@ -571,8 +595,9 @@ function DatingFeature({ userId }: { userId: string }) {
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section>
-    <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Published profiles from adults in the community.</p></div><span className="count-pill">{directory.length} PROFILES</span></div>
-      {loading ? <div className="empty-state">Loading dating profiles…</div> : directory.length ? <div className="dating-directory">{directory.map(profile => <article className="dating-card" key={profile.id}><div className="dating-card-top"><div className="dating-avatar">🐼</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div><span className="heart-mark">♡</span></div><h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>{profile.personality && <div className="personality-tag">{profile.personality}</div>}<div className="dating-card-bottom"><span>Looking for: {profile.looking_for || 'Connection'}</span><button className="primary-button" onClick={() => void requestChat(profile)}>Message request ↗</button></div></article>)}</div> : <div className="empty-state"><span>♡</span><h3>Your next connection starts here.</h3><p>When adult members publish dating profiles, they will appear here.</p></div>}
+    }
+    <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Published profiles from adults in the community.</p></div><span className="count-pill">{filteredDirectory.length} PROFILES</span></div>
+      {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => <article className="dating-card" key={profile.id}><div className="dating-card-top"><div className="dating-avatar">🐼</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div><span className="heart-mark">♡</span></div><h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>{profile.personality && <div className="personality-tag">{profile.personality}</div>}<div className="dating-card-bottom"><span>Looking for: {profile.looking_for || 'Connection'}</span><button className="primary-button" onClick={() => void requestChat(profile)}>Message request ↗</button></div></article>)}</div> : <div className="empty-state"><span>♡</span><h3>{directory.length ? 'No dating cards match these filters.' : 'Your next connection starts here.'}</h3><p>{directory.length ? 'Try a different location or clear your filters.' : 'Published profiles from adults in the community will appear here.'}</p></div>}
     </section>
   </div>;
 }
