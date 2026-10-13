@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
+import LocationFields, { type LocationValue } from './components/LocationFields';
 
 type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
@@ -12,7 +13,7 @@ type ChatMessage = { id: string; conversation_id: string; sender_id: string; bod
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string | null; sexual_experience: string | null; looking_for: string | null; is_published: boolean; created_at: string };
-type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
+type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
@@ -388,9 +389,7 @@ function MessagesFeature({ userId }: { userId: string }) {
 
 function DatingFeature({ userId }: { userId: string }) {
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [country, setCountry] = useState('');
-  const [stateName, setStateName] = useState('');
-  const [area, setArea] = useState('');
+  const [location, setLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [headline, setHeadline] = useState('');
   const [about, setAbout] = useState('');
   const [personality, setPersonality] = useState('');
@@ -407,12 +406,12 @@ function DatingFeature({ userId }: { userId: string }) {
   async function load() {
     if (!supabase) return;
     const [{ data: profile }, { data: birthDate }] = await Promise.all([
-      supabase.from('profiles').select('country,state,area').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('country,state,city,area').eq('id', userId).maybeSingle(),
       supabase.rpc('get_my_date_of_birth'),
     ]);
     setDateOfBirth(typeof birthDate === 'string' ? birthDate : '');
     if (profile) {
-      setCountry(profile.country || ''); setStateName(profile.state || ''); setArea(profile.area || '');
+      setLocation({ country: profile.country || '', state: profile.state || '', city: profile.city || '', area: profile.area || '' });
     }
     const { data: mine } = await supabase.from('dating_profiles')
       .select('headline,about,personality,sexual_experience,looking_for,is_published')
@@ -431,12 +430,12 @@ function DatingFeature({ userId }: { userId: string }) {
     const ids = rows.map(row => row.user_id);
     if (ids.length) {
       const { data: publicProfiles } = await supabase.from('profiles')
-        .select('id,display_name,username,country,state,area').in('id', ids);
+        .select('id,display_name,username,country,state,city,area').in('id', ids);
       const nameMap: Record<string, string> = {};
       const locationMap: Record<string, string> = {};
-      (publicProfiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;country:string|null;state:string|null;area:string|null}) => {
+      (publicProfiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;country:string|null;state:string|null;city:string|null;area:string|null}) => {
         nameMap[p.id] = p.display_name || p.username || 'Panda';
-        locationMap[p.id] = [p.area,p.state,p.country].filter(Boolean).join(', ');
+        locationMap[p.id] = [p.area,p.city,p.state,p.country].filter(Boolean).join(', ');
       });
       setNames(nameMap); setLocations(locationMap);
     }
@@ -451,8 +450,8 @@ function DatingFeature({ userId }: { userId: string }) {
     if (publishNow && !dateOfBirth) { setNotice('Add your date of birth first. Dating is for adults aged 18 and over.'); return; }
     setBusy(true); setNotice('');
     const { error: profileError } = await supabase.from('profiles').update({
-      date_of_birth: dateOfBirth || null, country: country.trim() || null,
-      state: stateName.trim() || null, area: area.trim() || null,
+      date_of_birth: dateOfBirth || null, country: location.country || null,
+      state: location.state || null, city: location.city || null, area: location.area || null,
     }).eq('id', userId);
     if (profileError) { setNotice(profileError.message); setBusy(false); return; }
     const { error } = await supabase.from('dating_profiles').upsert({
@@ -478,7 +477,7 @@ function DatingFeature({ userId }: { userId: string }) {
     <section className="feature-panel dating-form-panel"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>Make room for a connection</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         <label>Date of birth<input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} required /></label>
-        <div className="form-grid-three"><label>Country<input value={country} onChange={e => setCountry(e.target.value)} placeholder="Country" /></label><label>State<input value={stateName} onChange={e => setStateName(e.target.value)} placeholder="State" /></label><label>Area<input value={area} onChange={e => setArea(e.target.value)} placeholder="City / area" /></label></div>
+        <LocationFields value={location} onChange={setLocation} />
         <label>Profile headline<input value={headline} onChange={e => setHeadline(e.target.value)} maxLength={120} placeholder="A little about the kind of person you are…" required /></label>
         <label>About me<textarea value={about} onChange={e => setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
         <label>Personality<textarea value={personality} onChange={e => setPersonality(e.target.value)} maxLength={1200} rows={2} placeholder="Your personality and lifestyle" /></label>
@@ -501,8 +500,7 @@ function EventsFeature({ userId }: { userId: string }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [venue, setVenue] = useState('');
-  const [country, setCountry] = useState('');
-  const [stateName, setStateName] = useState('');
+  const [location, setLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [startsAt, setStartsAt] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -511,7 +509,7 @@ function EventsFeature({ userId }: { userId: string }) {
   async function load() {
     if (!supabase) return;
     const { data, error } = await supabase.from('events')
-      .select('id,creator_id,title,description,venue,country,state,starts_at,cover_url,is_published')
+      .select('id,creator_id,title,description,venue,country,state,city,area,starts_at,cover_url,is_published')
       .eq('is_published', true).order('starts_at', { ascending: true }).limit(60);
     if (error) setNotice(error.message);
     const rows = (data ?? []) as EventRow[];
@@ -546,12 +544,12 @@ function EventsFeature({ userId }: { userId: string }) {
     setBusy(true); setNotice('');
     const { error } = await supabase.from('events').insert({
       creator_id: userId, title: title.trim(), description: description.trim(),
-      venue: venue.trim() || null, country: country.trim() || null,
-      state: stateName.trim() || null, starts_at: new Date(startsAt).toISOString(), is_published: true,
+      venue: venue.trim() || null, country: location.country || null,
+      state: location.state || null, city: location.city || null, area: location.area || null, starts_at: new Date(startsAt).toISOString(), is_published: true,
     });
     if (error) setNotice(error.message);
     else {
-      setTitle(''); setDescription(''); setVenue(''); setCountry(''); setStateName(''); setStartsAt('');
+      setTitle(''); setDescription(''); setVenue(''); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
       setNotice('Event published successfully.'); await load();
     }
     setBusy(false);
@@ -583,13 +581,13 @@ function EventsFeature({ userId }: { userId: string }) {
         <label>Event title<input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} required placeholder="What are we getting together for?" /></label>
         <label>Description<textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} maxLength={4000} placeholder="Tell people what to expect…" /></label>
         <label>Venue or meeting point<input value={venue} onChange={e => setVenue(e.target.value)} maxLength={250} placeholder="Venue, online or meeting point" /></label>
-        <div className="form-grid-three"><label>Country<input value={country} onChange={e => setCountry(e.target.value)} placeholder="Country" /></label><label>State<input value={stateName} onChange={e => setStateName(e.target.value)} placeholder="State" /></label><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => setStartsAt(e.target.value)} required /></label></div>
+        <LocationFields value={location} onChange={setLocation} /><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => setStartsAt(e.target.value)} required /></label>
         <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Publishing…' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section>
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
+      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
   </div>;
 }
