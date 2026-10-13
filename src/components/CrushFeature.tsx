@@ -195,7 +195,6 @@ export default function CrushFeature({ userId }: { userId: string }) {
   }
 
   const livePosts = posts.filter(post => !post.scheduled_for || new Date(post.scheduled_for).getTime() <= Date.now());
-  const scheduledMine = posts.filter(post => post.user_id === userId && post.scheduled_for && new Date(post.scheduled_for).getTime() > Date.now());
   return <div className="crush-page">
     <section className="crush-upload-launch">
       <div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>Woman Crush Wednesday · Man Crush Monday</h2><p className="feature-copy">Upload a photo and caption when you are ready. Your gallery stays below.</p></div>
