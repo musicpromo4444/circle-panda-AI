@@ -351,3 +351,26 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
   .confession-shortcut strong{font-size:9px;max-width:112px}
   .confession-shortcut small{font-size:9px;max-width:112px}
 }
+
+
+/* Dating page: keep the directory as the page, with registration and filters on top. */
+.dating-page{display:block!important;min-width:0}
+.dating-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 18px}
+.secondary-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #304438;border-radius:10px;padding:11px 15px;background:#14221b;color:#dce9dd;font-size:12px;font-weight:700}
+.secondary-button:hover{border-color:#8edb69;color:#baf39a}
+.dating-filter-panel{margin:0 0 20px;padding:20px;border:1px solid #283c30;background:#101a15;border-radius:16px}
+.dating-filter-panel .section-title-row{margin-bottom:16px}
+.dating-page .dating-form-panel{position:relative;top:auto;margin:0 0 22px;padding:24px}
+.dating-page .directory-section{min-width:0}
+.dating-page .dating-directory{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px}
+.dating-page .dating-card{min-width:0}
+.crush-upload-inline{width:100%;max-width:none;max-height:none;overflow:visible;margin:0 0 24px;padding:24px;background:linear-gradient(145deg,#132019,#101916);box-shadow:none}
+.crush-upload-inline .feature-copy{max-width:620px;line-height:1.6}
+.crush-upload-inline .feature-form{max-width:720px}
+@media(max-width:760px){
+  .dating-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .dating-toolbar .primary-button,.dating-toolbar .secondary-button{width:100%;min-height:42px;padding:10px 8px;font-size:11px}
+  .dating-filter-panel{padding:15px}
+  .dating-page .dating-form-panel{position:relative;padding:18px}
+  .crush-upload-inline{padding:18px}
+}
