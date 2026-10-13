@@ -303,3 +303,7 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
 .crush-upload-modal .feature-icon,.gender-picker-modal .feature-icon{margin-bottom:16px}
 .modal-close{position:absolute;right:15px;top:13px;border:1px solid #34483a;border-radius:50%;width:34px;height:34px;background:#17251c;color:#e7f1e8;font-size:22px;line-height:1}
 @media(max-width:760px){.confession-shortcuts{gap:5px;margin-bottom:25px}.shortcut-circle{width:62px;height:62px;font-size:24px}.confession-shortcut strong{font-size:9px;max-width:100px}.crush-upload-launch{align-items:flex-start;flex-direction:column;padding:18px}.crush-upload-launch .primary-button{width:100%}.crush-upload-modal,.gender-picker-modal{padding:24px 17px}}
+
+.crush-type-tabs{display:flex;gap:8px;margin-top:13px}
+.crush-type-tabs button{border:1px solid #304536;background:#101a14;color:#9caf9f;border-radius:9px;padding:8px 13px;font-size:10px;font-weight:800}
+.crush-type-tabs button.active{background:#213a25;border-color:#8fd86a;color:#c4f6a8}
