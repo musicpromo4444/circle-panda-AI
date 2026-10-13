@@ -152,6 +152,38 @@ export default function CrushFeature({ userId }: { userId: string }) {
     setComments(prev => ({ ...prev, [post.id]: (data ?? []) as Comment[] }));
   }
 
+  async function deletePost(post: CrushPost) {
+    if (!supabase || post.user_id !== userId) return;
+    if (!window.confirm('Delete this crush card? This cannot be undone.')) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.from('crush_posts').delete().eq('id', post.id).eq('user_id', userId);
+    if (error) setNotice(error.message);
+    else {
+      if (post.image_path) {
+        const marker = '/crush-post-photos/';
+        const at = post.image_path.indexOf(marker);
+        if (at >= 0) await supabase.storage.from('crush-post-photos').remove([decodeURIComponent(post.image_path.slice(at + marker.length))]);
+      }
+      setNotice('Crush card deleted.');
+      await load();
+    }
+    setBusy(false);
+  }
+
+  async function sharePost(post: CrushPost) {
+    const shareUrl = window.location.origin + window.location.pathname + '#crush-' + post.id;
+    const shareText = post.crush_type.toUpperCase() + ' · ' + (names[post.user_id] || 'A Panda') + (post.caption ? ': ' + post.caption : '');
+    try {
+      if (navigator.share) await navigator.share({ title: 'Circle Panda ' + post.crush_type.toUpperCase(), text: shareText, url: shareUrl });
+      else {
+        await navigator.clipboard.writeText(shareText + ' ' + shareUrl);
+        setNotice('Crush card link copied.');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') setNotice('Could not share this card on this device.');
+    }
+  }
+
   async function messageOwner(post: CrushPost) {
     if (!supabase || post.user_id === userId) return;
     const { error } = await supabase.rpc('send_message_request', {
@@ -179,12 +211,13 @@ export default function CrushFeature({ userId }: { userId: string }) {
       {loading ? <div className="empty-state">Loading crush cards…</div> : livePosts.length ? <div className="crush-card-grid">{livePosts.map(post => {
         const mine = post.user_id === userId;
         const postReactions = reactions[post.id] || [];
-        return <article className="crush-card" key={post.id}>
+        return <article className="crush-card" id={"crush-" + post.id} key={post.id}>
           <div className="crush-card-label"><span>{post.crush_type === 'mcm' ? '♛ MCM · MONDAY' : '♡ WCW · WEDNESDAY'}</span>{mine && <span className="source-tag">Your card</span>}</div>
           {post.image_path && <img className="crush-card-photo" src={post.image_path} alt={post.crush_type.toUpperCase() + ' crush card'} loading="lazy" />}
           <div className="crush-card-content"><div className="crush-card-author"><strong>{mine ? 'You' : (names[post.user_id] || 'Panda')}</strong><small>{post.scheduled_for ? new Date(post.scheduled_for).toLocaleString() : new Date(post.created_at).toLocaleDateString()}</small></div>
             {post.caption && <p>{post.caption}</p>}
             <div className="crush-card-stats"><span>♛ {votes[post.id] || 0} votes</span><span>☺ {postReactions.length} reactions</span><span>▢ {(comments[post.id] || []).length} comments</span></div>
+            {mine && <div className="crush-card-actions"><button onClick={() => void sharePost(post)}>Share ↗</button><button className="decline-button" disabled={busy} onClick={() => void deletePost(post)}>Delete card</button></div>}
             {!mine && <div className="crush-card-actions"><button className="primary-button" disabled={busy || myVotes[post.id]} onClick={() => void vote(post)}>{myVotes[post.id] ? '✓ Voted' : 'Vote'}</button><button onClick={() => void messageOwner(post)}>Message ↗</button><button onClick={() => setExpandedComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}>Comment</button></div>}
             {!mine && <div className="crush-reactions">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button type="button" key={item.key} className={myReactions[post.id]===item.key?'selected':''} title={item.key} onClick={() => void toggleReaction(post,item.key)}>{item.emoji}</button>)}</div>}
             {expandedComments[post.id] && <div className="comments-panel crush-comments">{(comments[post.id] || []).map(comment => <div className="comment-row" key={comment.id}><span className="comment-avatar">🐼</span><div><strong>{names[comment.user_id] || 'Panda'}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}{!mine && <form className="comment-form" onSubmit={e => void addComment(e,post)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))} maxLength={1200} required placeholder="Write a comment…" /><button className="primary-button">Send</button></form>}</div>}
