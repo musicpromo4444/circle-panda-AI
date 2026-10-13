@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
@@ -444,24 +444,35 @@ function DatingFeature({ userId }: { userId: string }) {
 
   useEffect(() => { void load(); }, [userId]);
 
+  const submitLock = useRef(false);
+
   async function saveProfile(event: FormEvent<HTMLFormElement>, publishNow: boolean) {
     event.preventDefault();
-    if (!supabase) return;
+    if (!supabase || submitLock.current) return;
     if (publishNow && !dateOfBirth) { setNotice('Add your date of birth first. Dating is for adults aged 18 and over.'); return; }
+    submitLock.current = true;
     setBusy(true); setNotice('');
-    const { error: profileError } = await supabase.from('profiles').update({
-      date_of_birth: dateOfBirth || null, country: location.country || null,
-      state: location.state || null, city: location.city || null, area: location.area || null,
-    }).eq('id', userId);
-    if (profileError) { setNotice(profileError.message); setBusy(false); return; }
-    const { error } = await supabase.from('dating_profiles').upsert({
-      user_id: userId, headline: headline.trim(), about: about.trim(),
-      personality: personality.trim() || null, sexual_experience: sexualExperience || null,
-      looking_for: lookingFor, is_published: publishNow,
-    }, { onConflict: 'user_id' });
-    if (error) setNotice(error.message);
-    else { setPublished(publishNow); setNotice(publishNow ? 'Your dating profile is published.' : 'Your dating profile draft is saved.'); await load(); }
-    setBusy(false);
+    try {
+      const { error: profileError } = await supabase.from('profiles').update({
+        date_of_birth: dateOfBirth || null, country: location.country || null,
+        state: location.state || null, city: location.city || null, area: location.area || null,
+      }).eq('id', userId);
+      if (profileError) throw profileError;
+      const { error } = await supabase.from('dating_profiles').upsert({
+        user_id: userId, headline: headline.trim(), about: about.trim(),
+        personality: personality.trim() || null, sexual_experience: sexualExperience || null,
+        looking_for: lookingFor, is_published: publishNow,
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+      setPublished(publishNow);
+      setNotice(publishNow ? 'Your dating profile is published.' : 'Your dating profile draft is saved.');
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not save your dating profile. Please try again.');
+    } finally {
+      submitLock.current = false;
+      setBusy(false);
+    }
   }
 
   async function requestChat(profile: DatingProfileRow) {
@@ -537,22 +548,29 @@ function EventsFeature({ userId }: { userId: string }) {
 
   useEffect(() => { void load(); }, [userId]);
 
+  const publishLock = useRef(false);
+
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase) return;
+    if (!supabase || publishLock.current) return;
     if (!startsAt || new Date(startsAt).getTime() <= Date.now()) { setNotice('Choose a future event date and time.'); return; }
+    publishLock.current = true;
     setBusy(true); setNotice('');
-    const { error } = await supabase.from('events').insert({
-      creator_id: userId, title: title.trim(), description: description.trim(),
-      venue: venue.trim() || null, country: location.country || null,
-      state: location.state || null, city: location.city || null, area: location.area || null, starts_at: new Date(startsAt).toISOString(), is_published: true,
-    });
-    if (error) setNotice(error.message);
-    else {
+    try {
+      const { error } = await supabase.from('events').insert({
+        creator_id: userId, title: title.trim(), description: description.trim(),
+        venue: venue.trim() || null, country: location.country || null,
+        state: location.state || null, city: location.city || null, area: location.area || null, starts_at: new Date(startsAt).toISOString(), is_published: true,
+      });
+      if (error) throw error;
       setTitle(''); setDescription(''); setVenue(''); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
       setNotice('Event published successfully.'); await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not publish this event. Please try again.');
+    } finally {
+      publishLock.current = false;
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function toggleAttendance(item: EventRow) {
