@@ -232,3 +232,24 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
 :root[data-theme="light"] .post-actions button,:root[data-theme="light"] .feature-copy,:root[data-theme="light"] .section-hint{color:#63748a}
 @media(max-width:760px){.sidebar{background:#0d1622ed;border-top-color:#2b3b50}.nav-item.active{background:#1d3441}.page-wrap{padding-top:22px}.hero-card{box-shadow:0 12px 32px #0002}}
 @media(prefers-reduced-motion:reduce){.page-wrap{animation:none}}
+
+
+/* Universal searchable country / state / city / area selectors */
+.location-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:2px 0 10px}
+.location-field{display:grid;gap:7px;min-width:0;color:#c6d2ca;font-size:12px;font-weight:600}
+.location-select-wrap{position:relative;min-width:0}
+.location-select-wrap input{width:100%;min-width:0;padding:12px 36px 12px 13px;border:1px solid #304055;border-radius:11px;background:#0e1723;color:#eef4fc;outline:none;font:inherit;font-weight:400}
+.location-select-wrap input:focus{border-color:#8ebcff;box-shadow:0 0 0 3px #88bfff20}
+.location-select-wrap input:disabled{opacity:.55;cursor:not-allowed}
+.location-chevron{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:#a8b9ce;pointer-events:none}
+.location-options{position:absolute;z-index:30;top:calc(100% + 5px);left:0;right:0;max-height:235px;overflow:auto;padding:5px;border:1px solid #3b506a;border-radius:12px;background:#111d2c;box-shadow:0 18px 42px #0008}
+.location-options button{display:block;width:100%;padding:9px 10px;text-align:left;border:0;border-radius:7px;background:transparent;color:#e1eaf6;font-size:12px}
+.location-options button:hover,.location-options button[aria-selected="true"]{background:#23384f;color:#c3e2ff}
+.location-options p,.location-hint{margin:4px 2px;color:#94a8c0;font-size:10px;line-height:1.5;font-weight:400}
+.location-hint{grid-column:1/-1;margin:0}
+@media(max-width:520px){.location-fields{grid-template-columns:minmax(0,1fr);gap:11px}}
+:root[data-theme="light"] .location-field{color:#3d4c60}
+:root[data-theme="light"] .location-select-wrap input{background:#f8fafd;border-color:#d5deea;color:#26364b}
+:root[data-theme="light"] .location-options{background:#fff;border-color:#d6e0ec;box-shadow:0 18px 42px #27374b22}
+:root[data-theme="light"] .location-options button{color:#2b3b50}
+:root[data-theme="light"] .location-options button:hover,:root[data-theme="light"] .location-options button[aria-selected="true"]{background:#edf3fb;color:#1e4776}
