@@ -75,7 +75,7 @@ begin
    if v_conversation is not null then delete from public.conversation_members where conversation_id=v_conversation and user_id=v_req.target_user_id; end if;
    update public.group_eviction_requests set status='approved',resolved_at=now() where id=p_request_id;
    insert into public.notifications(user_id,notification_type,title,body,target_type,target_id)
-   values(v_req.target_user_id,'group_eviction','Group membership ended','Three group members approved your removal from a group.','group',v_req.group_id::text);
+   values(v_req.target_user_id,'group_eviction','Group membership ended','Three group members approved your removal from a group.','group',v_req.group_id);
  elsif v_no>=3 then
    update public.group_eviction_requests set status='rejected',resolved_at=now() where id=p_request_id;
  end if;
