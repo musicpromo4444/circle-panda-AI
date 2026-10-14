@@ -431,6 +431,7 @@ function DatingFeature({ userId }: { userId: string }) {
     event.preventDefault();
     if (!supabase) return;
     if (publishNow && !dateOfBirth) { setNotice('Add your date of birth first. Dating is for adults aged 18 and over.'); return; }
+    if (publishNow) { const dob = new Date(`${dateOfBirth}T00:00:00`); const today = new Date(); let age = today.getFullYear() - dob.getFullYear(); const beforeBirthday = today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate()); if (beforeBirthday) age -= 1; if (!Number.isFinite(dob.getTime()) || age < 18) { setNotice('You must be at least 18 years old to publish a dating profile.'); return; } }
     setBusy(true); setNotice('');
     const { error: profileError } = await supabase.from('profiles').update({
       date_of_birth: dateOfBirth || null, country: country.trim() || null,
