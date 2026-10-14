@@ -451,7 +451,8 @@ function MessagesFeature({ userId }: { userId: string }) {
   const incoming = requests.filter(r => r.recipient_id === userId && r.status === 'pending');
   const sent = requests.filter(r => r.sender_id === userId);
   const activeConversations = [...new Set(conversations.map(c => c.conversation_id))];
-  const sourceLabel = (source: string) => ({ dating: 'Dating 💌', event: 'Event ▦', events: 'Event ▦', group: 'Group ◉', wcw: 'WCW ♛', mcm: 'MCM ♛', confession: 'Secret Confession ☁', post: 'Secret Confession ☁' }[source.toLowerCase()] || source.replaceAll('_', ' '));
+  const sourceLabels: Record<string, string> = { dating: 'Dating 💌', event: 'Event ▦', events: 'Event ▦', group: 'Group ◉', wcw: 'WCW ♛', mcm: 'MCM ♛', confession: 'Secret Confession ☁', post: 'Secret Confession ☁' };
+  const sourceLabel = (source: string) => sourceLabels[source.toLowerCase()] || source.replaceAll('_', ' ');
   const conversationTitle = (id: string) => {
     const request = requests.find(r => r.conversation_id === id);
     if (!request) return 'Private conversation';
