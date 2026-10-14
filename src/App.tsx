@@ -888,11 +888,11 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
-    <div className="dating-toolbar">
-      <button type="button" className="primary-button" onClick={() => { setFormStep(0); setRegisterOpen(open => !open); }}>
-        {registerOpen ? 'Close profile ×' : published ? 'Edit Your Profile' : 'Create Your Profile'}
+    <div className="dating-toolbar dating-toolbar-stacked">
+      <button type="button" className="secondary-button dating-filter-button" aria-expanded={filtersOpen} onClick={() => { setFiltersOpen(open => !open); if (!filtersOpen) setRegisterOpen(false); }}>{filtersOpen ? 'Close Filter ×' : 'Filter'}</button>
+      <button type="button" className="primary-button dating-create-button" aria-expanded={registerOpen} onClick={() => { setFormStep(0); setRegisterOpen(open => !open); if (!registerOpen) setFiltersOpen(false); }}>
+        {registerOpen ? 'Close Dating Profile ×' : published ? 'Edit Dating Profile' : 'Create Dating Profile'}
       </button>
-      <button type="button" className="secondary-button dating-filter-button" onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Hide filters' : '⌕ Filter dating cards'}</button>
     </div>
     {filtersOpen && <section className="feature-panel dating-filter-panel">
       <div className="section-title-row"><div><h2>Filter dating cards</h2><p>Choose location and relationship preferences.</p></div><button type="button" className="secondary-button" onClick={() => {setFilterLocation({country:'',state:'',city:'',area:''});setFilterGoal('');setFilterLookingFor('');setFilterPersonality('');setFilterSmoking('');setFilterDrinking('');setFilterChildren('');setSameCountryOnly(false);}}>Clear</button></div>
