@@ -894,3 +894,12 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
 .coin-token:after{content:"";position:absolute;inset:4px;border-radius:50%;background:linear-gradient(125deg,#fff8c966 0%,transparent 35%,transparent 72%,#fff1a033 100%);pointer-events:none}
 .wallet-coin{background:radial-gradient(circle at 30% 22%,#fff8ce 0%,#f7d15b 18%,#d99819 42%,#88500a 72%,#f2c34b 100%)!important;border:2px solid #ffeaa0!important;box-shadow:inset 0 2px 3px #fff9,inset 0 -5px 8px #71400788,0 7px 16px #b87b1b55!important;color:#fff8c9!important;text-shadow:0 2px 0 #80500a,0 4px 8px #60380088!important}
 .wallet-coin span{font-weight:900!important;letter-spacing:.08em!important}
+
+
+/* Refine raised Dating control: larger icons, gold body, simple outline heart, clean half-circle */
+@media (max-width:760px){
+ .mobile-nav-icon{font-size:29px!important;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#f6d36c!important;-webkit-text-stroke:.65px #8c5b0b!important;text-shadow:0 1px 0 #fff3ad,0 2px 0 #a76b0d,0 4px 6px #0006!important}
+ .mobile-nav-dating .mobile-nav-icon{width:54px!important;height:54px!important;flex-basis:54px!important;margin:-22px auto 0!important;border-radius:50%!important;background:linear-gradient(145deg,#fff5b9 0%,#f3cb55 25%,#c68a16 68%,#8a580b 100%)!important;border:1px solid #ffe99b!important;color:#e83e78!important;-webkit-text-stroke:0!important;font-size:35px!important;font-weight:400!important;text-shadow:none!important;box-shadow:inset 0 2px 3px #fff9,inset 0 -4px 7px #69400077,0 4px 0 #85550b,0 7px 14px #0004!important}
+ .mobile-nav-dating::before{content:""!important;position:absolute!important;top:-10px!important;left:50%!important;width:82px!important;height:41px!important;transform:translateX(-50%)!important;border-radius:82px 82px 0 0!important;background:transparent!important;border:2px solid #dca92e!important;border-bottom:0!important;box-shadow:0 -1px 4px #f5d77933!important;pointer-events:none!important}
+ .mobile-nav-label{font-size:11px!important;font-weight:800!important}
+}
