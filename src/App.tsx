@@ -243,13 +243,14 @@ export default function App() {
   async function shareFeedPost(post: FeedPost) {
     const shareText = `${post.is_anonymous ? 'Anonymous confession' : (post.author_name || 'Panda')}: ${post.body}`;
     try {
-      if (typeof navigator !== 'undefined' && 'share' in navigator) {
-        await navigator.share({ title: 'Circle Panda', text: shareText, url: window.location.href });
-      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(`${shareText} — ${window.location.href}`);
+      const nav = navigator as Navigator & { share?: (data: ShareData) => Promise<void>; clipboard?: Clipboard };
+      if (typeof nav.share === 'function') {
+        await nav.share({ title: 'Circle Panda', text: shareText, url: window.location.href });
+      } else if (nav.clipboard && typeof nav.clipboard.writeText === 'function') {
+        await nav.clipboard.writeText(`${shareText} — ${window.location.href}`);
         setNotice('Share text copied. You can paste it into any app.');
       } else {
-        setNotice('Sharing is not available in this browser.');
+        window.prompt('Copy this to share:', `${shareText} — ${window.location.href}`);
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') setNotice('Could not open sharing options. Please try again.');
