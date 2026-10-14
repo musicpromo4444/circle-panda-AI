@@ -467,6 +467,15 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterLocation, setFilterLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [filterGoal, setFilterGoal] = useState('');
+  const [filterLookingFor, setFilterLookingFor] = useState('');
+  const [filterPersonality, setFilterPersonality] = useState('');
+  const [filterSmoking, setFilterSmoking] = useState('');
+  const [filterDrinking, setFilterDrinking] = useState('');
+  const [filterChildren, setFilterChildren] = useState('');
+  const [sameCountryOnly, setSameCountryOnly] = useState(false);
+  const [openProfile, setOpenProfile] = useState<DatingProfileRow | null>(null);
+  const [profileDetailPage, setProfileDetailPage] = useState(0);
+  const [detailPhotoUrl, setDetailPhotoUrl] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [location, setLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [mainProfile, setMainProfile] = useState<{name:string;username:string;age:number|null;gender:string}>({name:'',username:'',age:null,gender:''});
@@ -799,14 +808,31 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
 
   const filteredDirectory = directory.filter(profile => {
     const place = locationDetails[profile.user_id];
-    const row = profile as DatingProfileRow & {relationship_goal?:string;looking_for?:string[]};
+    const row = profile as DatingProfileRow & {relationship_goal?:string;looking_for?:string[];personality_tags?:string[];children?:string;smoking?:string;drinking?:string};
     if (filterGoal && !(row.relationship_goal || '').toLowerCase().includes(filterGoal.toLowerCase())) return false;
-    if (!place) return !filterLocation.country && !filterLocation.state && !filterLocation.city && !filterLocation.area;
+    if (filterLookingFor && !(row.looking_for || []).some(value => value.toLowerCase().includes(filterLookingFor.toLowerCase()))) return false;
+    if (filterPersonality && !(row.personality_tags || row.personality || []).some(value => value.toLowerCase().includes(filterPersonality.toLowerCase()))) return false;
+    if (filterSmoking && row.smoking !== filterSmoking) return false;
+    if (filterDrinking && row.drinking !== filterDrinking) return false;
+    if (filterChildren && row.children !== filterChildren) return false;
+    if (sameCountryOnly && location.country && place?.country !== location.country) return false;
+    if (!place) return !filterLocation.country && !filterLocation.state && !filterLocation.city && !filterLocation.area && !sameCountryOnly;
     return (!filterLocation.country || place.country === filterLocation.country)
       && (!filterLocation.state || place.state === filterLocation.state)
       && (!filterLocation.city || place.city === filterLocation.city)
       && (!filterLocation.area || place.area === filterLocation.area);
   });
+
+  async function viewDatingProfile(profile: DatingProfileRow) {
+    setOpenProfile(profile);
+    setProfileDetailPage(0);
+    setDetailPhotoUrl('');
+    const row = profile as DatingProfileRow & {blurred_photo_path?:string|null};
+    if (supabase && row.blurred_photo_path) {
+      const { data } = await supabase.storage.from('dating-photo-blur').createSignedUrl(row.blurred_photo_path, 10 * 60);
+      setDetailPhotoUrl(data?.signedUrl || '');
+    }
+  }
 
   function ChoiceChips({values,selected,onToggle}:{values:string[];selected:string[];onToggle:(value:string)=>void}) {
     return <div className="choice-chips">{values.map(value => <button type="button" key={value}
@@ -832,9 +858,17 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       <button type="button" className="secondary-button dating-filter-button" onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Hide filters' : '⌕ Filter dating cards'}</button>
     </div>
     {filtersOpen && <section className="feature-panel dating-filter-panel">
-      <div className="section-title-row"><div><h2>Filter dating cards</h2><p>Choose location and relationship preferences.</p></div><button type="button" className="secondary-button" onClick={() => {setFilterLocation({country:'',state:'',city:'',area:''});setFilterGoal('');}}>Clear</button></div>
+      <div className="section-title-row"><div><h2>Filter dating cards</h2><p>Choose location and relationship preferences.</p></div><button type="button" className="secondary-button" onClick={() => {setFilterLocation({country:'',state:'',city:'',area:''});setFilterGoal('');setFilterLookingFor('');setFilterPersonality('');setFilterSmoking('');setFilterDrinking('');setFilterChildren('');setSameCountryOnly(false);}}>Clear</button></div>
       <LocationFields value={filterLocation} onChange={setFilterLocation} />
       <label>Relationship goal<select value={filterGoal} onChange={e => setFilterGoal(e.target.value)}><option value="">Any relationship goal</option>{relationshipOptions.map(option => <option key={option}>{option}</option>)}</select></label>
+      <div className="dating-filter-grid">
+        <label>Looking for<select value={filterLookingFor} onChange={e=>setFilterLookingFor(e.target.value)}><option value="">Any preference</option>{lookingForOptions.map(option=><option key={option}>{option}</option>)}</select></label>
+        <label>Personality<select value={filterPersonality} onChange={e=>setFilterPersonality(e.target.value)}><option value="">Any personality</option>{personalityOptions.map(option=><option key={option}>{option}</option>)}</select></label>
+        <label>Smoking<select value={filterSmoking} onChange={e=>setFilterSmoking(e.target.value)}><option value="">Any</option>{smokingOptions.map(option=><option key={option}>{option}</option>)}</select></label>
+        <label>Drinking<select value={filterDrinking} onChange={e=>setFilterDrinking(e.target.value)}><option value="">Any</option>{drinkingOptions.map(option=><option key={option}>{option}</option>)}</select></label>
+        <label>Children<select value={filterChildren} onChange={e=>setFilterChildren(e.target.value)}><option value="">Any</option>{childrenOptions.map(option=><option key={option}>{option}</option>)}</select></label>
+      </div>
+      <label className="dating-same-country"><input type="checkbox" checked={sameCountryOnly} onChange={e=>setSameCountryOnly(e.target.checked)} /> Only show people in my country{location.country ? ' (' + location.country + ')' : ''}</label>
     </section>}
     {registerOpen && <section className="feature-panel dating-form-panel">
       <div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
@@ -916,6 +950,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           {row.relationship_goal && <div className="personality-tag">Looking for: {row.relationship_goal}</div>}
           {Array.isArray(row.personality_tags) && row.personality_tags.length > 0 && <div className="dating-tag-list">{row.personality_tags.slice(0,5).map(tag=><span className="personality-tag" key={tag}>{tag}</span>)}</div>}
           {Array.isArray(row.interests) && row.interests.length > 0 && <p className="dating-about"><strong>Interests:</strong> {row.interests.slice(0,5).join(' · ')}</p>}
+          <button type="button" className="secondary-button dating-view-profile" onClick={()=>void viewDatingProfile(profile)}>View full profile</button>
           <div className="dating-card-bottom"><span>{alreadyMatched ? 'Mutual match 💗' : request ? 'Request: ' + request.status : '18+ · Dating'}</span>
             <button className="primary-button" disabled={busy || Boolean(request && request.status === 'pending' && !alreadyMatched)} onClick={()=>alreadyMatched || request?.status === 'accepted' ? onOpenMessages() : void requestChat(profile)}>
               {alreadyMatched || request?.status === 'accepted' ? 'Open chat ↗' : request?.status === 'pending' ? 'Request sent ✓' : request?.status === 'declined' ? 'Send again ↗' : 'Send message request ↗'}
@@ -924,6 +959,37 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         </article>;
       })}</div> : <div className="empty-state"><span>♡</span><h3>{directory.length ? 'No dating cards match these filters.' : 'Your next connection starts here.'}</h3><p>{directory.length ? 'Try a different location or clear your filters.' : 'Published profiles from adults in the community will appear here.'}</p></div>}
     </section>
+    {openProfile && <div className="dating-profile-backdrop" role="dialog" aria-modal="true" aria-label="Dating profile details">
+      <section className="dating-profile-detail">
+        <header><button type="button" className="secondary-button" onClick={()=>setOpenProfile(null)}>‹ Back</button><strong>Dating profile</strong><span>{profileDetailPage+1}/2</span></header>
+        {profileDetailPage === 0 ? <div className="dating-detail-body">
+          {detailPhotoUrl ? <img className="dating-detail-photo" src={detailPhotoUrl} alt="Blurred dating profile photo" /> : <div className="dating-detail-avatar">♡</div>}
+          <p className="eyebrow">ABOUT THIS PANDA</p>
+          <h2>{names[openProfile.user_id] || 'Panda'}{(openProfile as DatingProfileRow & {age?:number}).age ? ' · ' + (openProfile as DatingProfileRow & {age?:number}).age : ''}</h2>
+          <p className="dating-about">{openProfile.headline || 'Getting to know someone new'}</p>
+          <p className="dating-about">{openProfile.about || 'This panda is looking forward to meeting someone.'}</p>
+          <div className="dating-detail-facts">
+            <div><span>Location</span><strong>{locations[openProfile.user_id] || 'Not added'}</strong></div>
+            <div><span>Relationship goal</span><strong>{(openProfile as DatingProfileRow & {relationship_goal?:string}).relationship_goal || 'Not specified'}</strong></div>
+            <div><span>Sexual Experience</span><strong>{openProfile.sexual_experience || 'Prefer not to say'}</strong></div>
+          </div>
+          <button type="button" className="primary-button" onClick={()=>setProfileDetailPage(1)}>More about this Panda →</button>
+        </div> : <div className="dating-detail-body">
+          <p className="eyebrow">GET TO KNOW THEM</p>
+          <h2>More about {names[openProfile.user_id] || 'this Panda'}</h2>
+          <div className="dating-detail-facts">
+            <div><span>Looking for</span><strong>{((openProfile as DatingProfileRow & {looking_for?:string[]}).looking_for || []).join(', ') || 'Not specified'}</strong></div>
+            <div><span>Personality</span><strong>{((openProfile as DatingProfileRow & {personality_tags?:string[]}).personality_tags || openProfile.personality || []).join(', ') || 'Not specified'}</strong></div>
+            <div><span>Interests</span><strong>{((openProfile as DatingProfileRow & {interests?:string[]}).interests || []).join(', ') || 'Not specified'}</strong></div>
+            <div><span>Occupation</span><strong>{(openProfile as DatingProfileRow & {occupation?:string}).occupation || 'Not specified'}</strong></div>
+            <div><span>Children</span><strong>{(openProfile as DatingProfileRow & {children?:string}).children || 'Prefer not to say'}</strong></div>
+            <div><span>Smoking / drinking</span><strong>{[(openProfile as DatingProfileRow & {smoking?:string}).smoking,(openProfile as DatingProfileRow & {drinking?:string}).drinking].filter(Boolean).join(' · ') || 'Not specified'}</strong></div>
+          </div>
+          <button type="button" className="secondary-button" onClick={()=>setProfileDetailPage(0)}>← Back to overview</button>
+          <button type="button" className="primary-button" disabled={busy} onClick={()=>{const selected=openProfile;setOpenProfile(null);void requestChat(selected);}}>Send message request ↗</button>
+        </div>}
+      </section>
+    </div>}
   </div>;
 }
 
