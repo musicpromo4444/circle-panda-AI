@@ -13,7 +13,7 @@ type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; 
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
-type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string | null; sexual_experience: string | null; looking_for: string | null; is_published: boolean; created_at: string };
+type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 
@@ -465,87 +465,247 @@ function DatingFeature({ userId }: { userId: string }) {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterLocation, setFilterLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
+  const [filterGoal, setFilterGoal] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [location, setLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
+  const [mainProfile, setMainProfile] = useState<{name:string;username:string;age:number|null;gender:string}>({name:'',username:'',age:null,gender:''});
   const [headline, setHeadline] = useState('');
   const [about, setAbout] = useState('');
-  const [personality, setPersonality] = useState('');
+  const [relationshipGoal, setRelationshipGoal] = useState('Dating / getting to know someone');
+  const [lookingFor, setLookingFor] = useState<string[]>([]);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [personalityTags, setPersonalityTags] = useState<string[]>([]);
   const [sexualExperience, setSexualExperience] = useState('');
-  const [lookingFor, setLookingFor] = useState('Relationship');
+  const [occupation, setOccupation] = useState('');
+  const [children, setChildren] = useState('Prefer not to say');
+  const [smoking, setSmoking] = useState('Prefer not to say');
+  const [drinking, setDrinking] = useState('Prefer not to say');
   const [published, setPublished] = useState(false);
   const [directory, setDirectory] = useState<DatingProfileRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [locations, setLocations] = useState<Record<string, string>>({});
   const [locationDetails, setLocationDetails] = useState<Record<string, LocationValue>>({});
+  const [sentRequests, setSentRequests] = useState<Record<string, {status:string; id:string}>>({});
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [formStep, setFormStep] = useState(0);
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [photoPath, setPhotoPath] = useState('');
+  const [blurredPhotoPath, setBlurredPhotoPath] = useState('');
+
+  const relationshipOptions = [
+    'Long-distance relationship','Something casual','Long-term relationship','Something that leads to marriage',
+    'Just for fun','Just exploring','Friendship first','Dating / getting to know someone'
+  ];
+  const lookingForOptions = [
+    'Very fair','Fair','Light brown','Brown','Dark brown','Deep dark',
+    'Slim','Petite','Average build','Athletic','Muscular','Chubby','Curvy','Plus-size','Broad shoulders','Figure-eight',
+    'Black hair','Brown hair','Blonde hair','Red hair','Grey hair','Other',
+    'Short hair','Long hair','Dreads','Braids','Curly hair','Straight hair','Bald',
+    'Black eyes','Brown eyes','Hazel eyes','Blue eyes','Green eyes','Grey eyes',
+    'Casual','Smart','Streetwear','Glamorous','Feminine','Masculine','Sexy'
+  ];
+  const interestOptions = [
+    'Social media','Content creation','Comedy','Movies & TV','Music','TikTok / Reels','Gaming','Memes',
+    'Football','Sports','Travel','Food','Fitness','Photography','Dancing','Fashion','Podcasts','Live music',
+    'Cooking','Coffee','Books','Late walks','Night drives','Art galleries'
+  ];
+  const personalityOptions = [
+    'Playful','Adventurous','Social','Social-media person','Office type','Inside type','Romantic','Funny',
+    'Ambitious','Party person','Quiet/private','Family-oriented','Spontaneous','Jealous','Easygoing',
+    'Quiet','Confident','Caring','Flirty','Introverted','Outgoing'
+  ];
+  const sexualExperienceOptions = ['Virgin','Novice','Expert','Good in bed','Pro','Prefer not to say'];
+  const smokingOptions = ['Non-smoker','Smoker','Occasionally','Prefer not to say'];
+  const drinkingOptions = ['Non-drinker','Drinker','Occasionally','Prefer not to say'];
+  const childrenOptions = ['No children','Have children','Prefer not to say'];
+
+  function toggleChoice(values: string[], value: string, setter: (next:string[]) => void) {
+    setter(values.includes(value) ? values.filter(item => item !== value) : [...values, value]);
+  }
+
+  function ageFromDate(date: string) {
+    if (!date) return null;
+    const born = new Date(date + 'T00:00:00');
+    if (Number.isNaN(born.getTime())) return null;
+    const now = new Date();
+    let age = now.getFullYear() - born.getFullYear();
+    if (now.getMonth() < born.getMonth() || (now.getMonth() === born.getMonth() && now.getDate() < born.getDate())) age--;
+    return age;
+  }
 
   async function load() {
-    if (!supabase) return;
-    const [{ data: profile }, { data: birthDate }] = await Promise.all([
-      supabase.from('profiles').select('country,state,city,area').eq('id', userId).maybeSingle(),
-      supabase.rpc('get_my_date_of_birth'),
-    ]);
-    setDateOfBirth(typeof birthDate === 'string' ? birthDate : '');
-    if (profile) {
-      setLocation({ country: profile.country || '', state: profile.state || '', city: profile.city || '', area: profile.area || '' });
+    if (!supabase) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const { data: profile, error: profileError } = await supabase.from('profiles')
+        .select('display_name,username,age,date_of_birth,gender,country,state,state_province,city,area')
+        .eq('id', userId).maybeSingle();
+      if (profileError) throw profileError;
+      if (profile) {
+        setMainProfile({ name: profile.display_name || profile.username || 'Panda', username: profile.username || '', age: profile.age == null ? null : Number(profile.age), gender: profile.gender || '' });
+        setDateOfBirth(profile.date_of_birth || '');
+        setLocation({
+          country: profile.country || '',
+          state: profile.state_province || profile.state || '',
+          city: profile.city || '',
+          area: profile.area || '',
+        });
+      }
+
+      const { data: mine, error: mineError } = await supabase.from('dating_profiles')
+        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path')
+        .eq('user_id', userId).maybeSingle();
+      if (mineError) throw mineError;
+      if (mine) {
+        setHeadline(mine.headline || '');
+        setAbout(mine.about || '');
+        setRelationshipGoal(mine.relationship_goal || 'Dating / getting to know someone');
+        setLookingFor(Array.isArray(mine.looking_for) ? mine.looking_for : []);
+        setInterests(Array.isArray(mine.interests) ? mine.interests : []);
+        setPersonalityTags(Array.isArray(mine.personality_tags) ? mine.personality_tags : (Array.isArray(mine.personality) ? mine.personality : []));
+        setSexualExperience(mine.sexual_experience || '');
+        setOccupation(mine.occupation || '');
+        setChildren(mine.children || 'Prefer not to say');
+        setSmoking(mine.smoking || 'Prefer not to say');
+        setDrinking(mine.drinking || 'Prefer not to say');
+        setPublished(Boolean(mine.is_published));
+        setPhotoPath(mine.photo_path || '');
+        setBlurredPhotoPath(mine.blurred_photo_path || '');
+      }
+
+      const { data, error } = await supabase.from('dating_profiles')
+        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path')
+        .eq('is_published', true).neq('user_id', userId).order('created_at', { ascending: false }).limit(60);
+      if (error) throw error;
+      const rows = (data ?? []) as DatingProfileRow[];
+      setDirectory(rows);
+      const ids = rows.map(row => row.user_id);
+      if (ids.length) {
+        const { data: publicProfiles } = await supabase.from('profiles')
+          .select('id,display_name,username,country,state,state_province,city,area,age,gender').in('id', ids);
+        const nameMap: Record<string, string> = {};
+        const locationMap: Record<string, string> = {};
+        const detailsMap: Record<string, LocationValue> = {};
+        (publicProfiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;country:string|null;state:string|null;state_province:string|null;city:string|null;area:string|null}) => {
+          nameMap[p.id] = p.display_name || p.username || 'Panda';
+          locationMap[p.id] = [p.area,p.city,p.state_province || p.state,p.country].filter(Boolean).join(', ');
+          detailsMap[p.id] = { country: p.country || '', state: p.state_province || p.state || '', city: p.city || '', area: p.area || '' };
+        });
+        setNames(nameMap); setLocations(locationMap); setLocationDetails(detailsMap);
+      } else {
+        setNames({}); setLocations({}); setLocationDetails({});
+      }
+
+      const { data: requests, error: requestsError } = await supabase.from('message_requests')
+        .select('id,sender_id,recipient_id,source_type,status,created_at')
+        .eq('source_type','dating').or('sender_id.eq.' + userId + ',recipient_id.eq.' + userId)
+        .order('created_at',{ascending:false}).limit(100);
+      if (requestsError) throw requestsError;
+      const requestMap: Record<string,{status:string;id:string}> = {};
+      (requests ?? []).filter((r: {sender_id:string;recipient_id:string}) => r.sender_id === userId)
+        .forEach((r: {id:string;recipient_id:string;status:string}) => { requestMap[r.recipient_id] = {status:r.status,id:r.id}; });
+      setSentRequests(requestMap);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not load dating profiles.');
+    } finally {
+      setLoading(false);
     }
-    const { data: mine } = await supabase.from('dating_profiles')
-      .select('headline,about,personality,sexual_experience,looking_for,is_published')
-      .eq('user_id', userId).maybeSingle();
-    if (mine) {
-      setHeadline(mine.headline || ''); setAbout(mine.about || '');
-      setPersonality(mine.personality || ''); setSexualExperience(mine.sexual_experience || '');
-      setLookingFor(mine.looking_for || 'Relationship'); setPublished(Boolean(mine.is_published));
-    }
-    const { data, error } = await supabase.from('dating_profiles')
-      .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at')
-      .eq('is_published', true).neq('user_id', userId).order('created_at', { ascending: false }).limit(60);
-    if (error) setNotice(error.message);
-    const rows = (data ?? []) as DatingProfileRow[];
-    setDirectory(rows);
-    const ids = rows.map(row => row.user_id);
-    if (ids.length) {
-      const { data: publicProfiles } = await supabase.from('profiles')
-        .select('id,display_name,username,country,state,city,area').in('id', ids);
-      const nameMap: Record<string, string> = {};
-      const locationMap: Record<string, string> = {};
-      const detailsMap: Record<string, LocationValue> = {};
-      (publicProfiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;country:string|null;state:string|null;city:string|null;area:string|null}) => {
-        nameMap[p.id] = p.display_name || p.username || 'Panda';
-        locationMap[p.id] = [p.area,p.city,p.state,p.country].filter(Boolean).join(', ');
-        detailsMap[p.id] = { country: p.country || '', state: p.state || '', city: p.city || '', area: p.area || '' };
-      });
-      setNames(nameMap); setLocations(locationMap); setLocationDetails(detailsMap);
-    }
-    setLoading(false);
   }
 
   useEffect(() => { void load(); }, [userId]);
 
   const submitLock = useRef(false);
 
+  async function createBlurredPhoto(file: File) {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    const max = 1200;
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Could not prepare the dating photo.');
+    context.filter = 'blur(18px)';
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error('Could not create blurred photo.')), 'image/webp', 0.78));
+    return new File([blob], 'blurred.webp', {type:'image/webp'});
+  }
+
+  async function uploadDatingPhoto() {
+    if (!supabase || !profilePhoto) return {photo_path:photoPath || null, blurred_photo_path:blurredPhotoPath || null};
+    const extension = profilePhoto.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const base = userId + '/' + crypto.randomUUID();
+    const originalPath = base + '.' + extension;
+    const blurredPath = base + '-blurred.webp';
+    const blurredFile = await createBlurredPhoto(profilePhoto);
+    const { error: originalError } = await supabase.storage.from('dating-photos').upload(originalPath, profilePhoto, {upsert:true,contentType:profilePhoto.type});
+    if (originalError) throw originalError;
+    const { error: blurredError } = await supabase.storage.from('dating-photo-blur').upload(blurredPath, blurredFile, {upsert:true,contentType:'image/webp'});
+    if (blurredError) throw blurredError;
+    return {photo_path:originalPath,blurred_photo_path:blurredPath};
+  }
+
   async function saveProfile(event: FormEvent<HTMLFormElement>, publishNow: boolean) {
     event.preventDefault();
     if (!supabase || submitLock.current) return;
-    if (publishNow && !dateOfBirth) { setNotice('Add your date of birth first. Dating is for adults aged 18 and over.'); return; }
+    const calculatedAge = ageFromDate(dateOfBirth);
+    const effectiveAge = calculatedAge ?? mainProfile.age;
+    if (publishNow && (effectiveAge == null || effectiveAge < 18)) {
+      setNotice(effectiveAge != null && effectiveAge < 18 ? 'Dating is only available to adults aged 18 and over.' : 'Add your date of birth to your main profile before publishing Dating.');
+      return;
+    }
+    if (!headline.trim()) { setNotice('Add a profile headline before saving.'); return; }
     submitLock.current = true;
     setBusy(true); setNotice('');
     try {
+      let photo = {photo_path:photoPath || null,blurred_photo_path:blurredPhotoPath || null};
+      if (profilePhoto) photo = await uploadDatingPhoto();
       const { error: profileError } = await supabase.from('profiles').update({
-        date_of_birth: dateOfBirth || null, country: location.country || null,
-        state: location.state || null, city: location.city || null, area: location.area || null,
+        date_of_birth: dateOfBirth || null,
+        country: location.country || null,
+        state: location.state || null,
+        state_province: location.state || null,
+        city: location.city || null,
+        area: location.area || null,
+        age: calculatedAge ?? mainProfile.age,
       }).eq('id', userId);
       if (profileError) throw profileError;
       const { error } = await supabase.from('dating_profiles').upsert({
-        user_id: userId, headline: headline.trim(), about: about.trim(),
-        personality: personality.trim() || null, sexual_experience: sexualExperience || null,
-        looking_for: lookingFor, is_published: publishNow,
+        user_id: userId,
+        headline: headline.trim(),
+        about: about.trim(),
+        bio: about.trim(),
+        name: mainProfile.name || 'Panda',
+        age: effectiveAge,
+        gender: mainProfile.gender || null,
+        location: [location.area,location.city,location.state,location.country].filter(Boolean).join(', '),
+        country: location.country || null,
+        state_province: location.state || null,
+        relationship_goal: relationshipGoal,
+        looking_for: lookingFor,
+        interests,
+        personality: personalityTags,
+        personality_tags: personalityTags,
+        sexual_experience: sexualExperience || null,
+        occupation: occupation.trim() || null,
+        children,
+        smoking,
+        drinking,
+        photo_path: photo.photo_path,
+        blurred_photo_path: photo.blurred_photo_path,
+        photos: photo.photo_path ? [photo.photo_path] : [],
+        is_published: publishNow,
       }, { onConflict: 'user_id' });
       if (error) throw error;
+      setPhotoPath(photo.photo_path || '');
+      setBlurredPhotoPath(photo.blurred_photo_path || '');
+      setProfilePhoto(null);
       setPublished(publishNow);
-      setNotice(publishNow ? 'Your dating profile is published.' : 'Your dating profile draft is saved.');
+      setNotice(publishNow ? 'Your dating profile is published and ready to discover.' : 'Your dating profile draft is saved.');
+      setRegisterOpen(false);
       await load();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not save your dating profile. Please try again.');
@@ -557,15 +717,28 @@ function DatingFeature({ userId }: { userId: string }) {
 
   async function requestChat(profile: DatingProfileRow) {
     if (!supabase || profile.user_id === userId) return;
+    const previous = sentRequests[profile.user_id];
+    if (previous && ['pending','accepted'].includes(previous.status)) {
+      setNotice(previous.status === 'accepted' ? 'You already have an accepted conversation with this person.' : 'Your message request is already waiting for a response.');
+      return;
+    }
+    setBusy(true); setNotice('');
     const { error } = await supabase.rpc('send_message_request', {
       p_recipient_id: profile.user_id, p_source_type: 'dating', p_source_id: profile.id,
       p_greeting: 'Hi! I saw your dating profile and would like to get to know you.',
     });
-    setNotice(error ? error.message : 'Message request sent. You can track it in Messages.');
+    if (error) setNotice(error.message);
+    else {
+      setNotice('Dating message request sent. You can track it in Messages.');
+      await load();
+    }
+    setBusy(false);
   }
 
   const filteredDirectory = directory.filter(profile => {
     const place = locationDetails[profile.user_id];
+    const row = profile as DatingProfileRow & {relationship_goal?:string;looking_for?:string[]};
+    if (filterGoal && !(row.relationship_goal || '').toLowerCase().includes(filterGoal.toLowerCase())) return false;
     if (!place) return !filterLocation.country && !filterLocation.state && !filterLocation.city && !filterLocation.area;
     return (!filterLocation.country || place.country === filterLocation.country)
       && (!filterLocation.state || place.state === filterLocation.state)
@@ -573,30 +746,100 @@ function DatingFeature({ userId }: { userId: string }) {
       && (!filterLocation.area || place.area === filterLocation.area);
   });
 
+  function ChoiceChips({values,selected,onToggle}:{values:string[];selected:string[];onToggle:(value:string)=>void}) {
+    return <div className="choice-chips">{values.map(value => <button type="button" key={value}
+      className={selected.includes(value) ? 'choice-chip selected' : 'choice-chip'}
+      onClick={() => onToggle(value)}>{value}</button>)}</div>;
+  }
+
+  function SingleChoices({values,value,onChange}:{values:string[];value:string;onChange:(value:string)=>void}) {
+    return <div className="choice-chips">{values.map(option => <button type="button" key={option}
+      className={value === option ? 'choice-chip selected' : 'choice-chip'}
+      onClick={() => onChange(option)}>{option}</button>)}</div>;
+  }
+
+  const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
+  const formSteps = ['Your Panda','Relationship','Looking for','About you','Dating photo'];
+  const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
+
   return <div className="dating-page">
     <div className="dating-toolbar">
-      <button type="button" className="primary-button" onClick={() => setRegisterOpen(open => !open)}>{registerOpen ? 'Close profile ×' : published ? 'Edit Your Profile' : 'Create Your Profile'}</button>
+      <button type="button" className="primary-button" onClick={() => { setFormStep(0); setRegisterOpen(open => !open); }}>
+        {registerOpen ? 'Close profile ×' : published ? 'Edit Your Profile' : 'Create Your Profile'}
+      </button>
       <button type="button" className="secondary-button dating-filter-button" onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Hide filters' : '⌕ Filter dating cards'}</button>
     </div>
-    {filtersOpen && <section className="dating-filter-panel">
-      <div className="section-title-row"><div><h2>Filter dating cards</h2><p>Choose a location to narrow the feed.</p></div><button type="button" className="secondary-button" onClick={() => setFilterLocation({ country: '', state: '', city: '', area: '' })}>Clear</button></div>
+    {filtersOpen && <section className="feature-panel dating-filter-panel">
+      <div className="section-title-row"><div><h2>Filter dating cards</h2><p>Choose location and relationship preferences.</p></div><button type="button" className="secondary-button" onClick={() => {setFilterLocation({country:'',state:'',city:'',area:''});setFilterGoal('');}}>Clear</button></div>
       <LocationFields value={filterLocation} onChange={setFilterLocation} />
+      <label>Relationship goal<select value={filterGoal} onChange={e => setFilterGoal(e.target.value)}><option value="">Any relationship goal</option>{relationshipOptions.map(option => <option key={option}>{option}</option>)}</select></label>
     </section>}
-    {registerOpen && <section className="feature-panel dating-form-panel"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>{published ? 'Update your dating profile' : 'Make room for a connection'}</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
+    {registerOpen && <section className="feature-panel dating-form-panel">
+      <div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
+      <h2>{published ? 'Update your dating profile' : 'Create your dating profile'}</h2>
+      <p className="feature-copy">Dating is for adults aged 18+. Your name, age and gender come from your Circle Panda account; your profile details help people find a genuine connection.</p>
+      <div className="dating-stepper">{formSteps.map((label,index)=><button type="button" key={label} onClick={()=>index<=formStep&&setFormStep(index)} className={index<=formStep?'step active':'step'}>{index+1}. {label}</button>)}</div>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
-        <label>Date of birth<input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} required /></label>
-        <LocationFields value={location} onChange={setLocation} />
-        <label>Profile headline<input value={headline} onChange={e => setHeadline(e.target.value)} maxLength={120} placeholder="A little about the kind of person you are…" required /></label>
-        <label>About me<textarea value={about} onChange={e => setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
-        <label>Personality<textarea value={personality} onChange={e => setPersonality(e.target.value)} maxLength={1200} rows={2} placeholder="Your personality and lifestyle" /></label>
-        <div className="form-grid-two"><label>Sexual Experience<select value={sexualExperience} onChange={e => setSexualExperience(e.target.value)}><option value="">Prefer not to say</option><option>Inexperienced</option><option>Some experience</option><option>Experienced</option></select></label><label>Looking for<select value={lookingFor} onChange={e => setLookingFor(e.target.value)}><option>Relationship</option><option>Dating</option><option>Friendship</option><option>Open to possibilities</option></select></label></div>
-        <div className="form-submit-row"><span className={published ? 'published-state' : 'draft-state'}>{published ? '● Published' : '○ Draft'}</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save draft'}</button><button className="primary-button" type="button" disabled={busy} onClick={e => { const form = e.currentTarget.form; if (form) void saveProfile({ preventDefault: () => {}, currentTarget: form } as FormEvent<HTMLFormElement>, true); }}>Publish profile ↗</button></div>
+        {formStep === 0 && <section className="dating-form-step">
+          <h3>Your Circle Panda profile</h3>
+          <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Complete your Circle Panda profile'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? 'Add date of birth' : effectiveAge}</strong></div><div><span>Gender</span><strong>{mainProfile.gender || 'Not set'}</strong></div></div>
+          <label>Date of birth<input type="date" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} required={!mainProfile.age} /></label>
+          <LocationFields value={location} onChange={setLocation} required />
+          <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
+          <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
+        </section>}
+        {formStep === 1 && <section className="dating-form-step">
+          <h3>What kind of relationship are you looking for?</h3>
+          <p>Choose the option that best describes what you want.</p>
+          <SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} />
+        </section>}
+        {formStep === 2 && <section className="dating-form-step">
+          <h3>What are you looking for?</h3><p>Select the traits you would like in a potential partner.</p>
+          <ChoiceChips values={lookingForOptions} selected={lookingFor} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} />
+        </section>}
+        {formStep === 3 && <section className="dating-form-step">
+          <h3>Your details</h3>
+          <label>Occupation<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
+          <label>Children<SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
+          <label>Smoking<SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
+          <label>Drinking<SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
+          <label>Interests<ChoiceChips values={interestOptions} selected={interests} onToggle={value=>toggleChoice(interests,value,setInterests)} /></label>
+          <label>Personality<ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} /></label>
+          <label>Sexual Experience<SingleChoices values={sexualExperienceOptions} value={sexualExperience} onChange={setSexualExperience} /></label>
+        </section>}
+        {formStep === 4 && <section className="dating-form-step">
+          <h3>Dating photo</h3><p>Upload a dating photo. A blurred preview is stored separately so the original can remain private until the mutual reveal rules are satisfied.</p>
+          <div className="dating-photo-preview">{profilePhoto ? <img src={URL.createObjectURL(profilePhoto)} alt="Dating photo preview" /> : <span>🐼</span>}</div>
+          <label className="photo-upload-label">Choose dating photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label>
+          <p className="draft-state">{currentPhotoLabel}</p>
+        </section>}
+        <div className="form-submit-row dating-form-actions">
+          <button className="secondary-button" type="button" disabled={formStep===0 || busy} onClick={()=>setFormStep(step=>Math.max(0,step-1))}>Back</button>
+          {formStep < formSteps.length-1
+            ? <button className="primary-button" type="button" disabled={busy} onClick={()=>setFormStep(step=>Math.min(formSteps.length-1,step+1))}>Continue →</button>
+            : <><button className="secondary-button" type="submit" disabled={busy}>{busy?'Saving…':'Save draft'}</button><button className="primary-button" type="button" disabled={busy} onClick={e=>{const form=e.currentTarget.form;if(form)void saveProfile({preventDefault:()=>{},currentTarget:form} as FormEvent<HTMLFormElement>,true);}}>{busy?'Publishing…':'Publish profile ↗'}</button></>}
+        </div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </section>
-    }
-    <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Published profiles from adults in the community.</p></div><span className="count-pill">{filteredDirectory.length} PROFILES</span></div>
-      {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => <article className="dating-card" key={profile.id}><div className="dating-card-top"><div className="dating-avatar">🐼</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div><span className="heart-mark">♡</span></div><h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>{profile.personality && <div className="personality-tag">{profile.personality}</div>}<div className="dating-card-bottom"><span>Looking for: {profile.looking_for || 'Connection'}</span><button className="primary-button" onClick={() => void requestChat(profile)}>Message request ↗</button></div></article>)}</div> : <div className="empty-state"><span>♡</span><h3>{directory.length ? 'No dating cards match these filters.' : 'Your next connection starts here.'}</h3><p>{directory.length ? 'Try a different location or clear your filters.' : 'Published profiles from adults in the community will appear here.'}</p></div>}
+    </section>}
+    {notice && !registerOpen && <div className="notice">{notice}</div>}
+    <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Adult profiles from the Circle Panda community.</p></div><span className="count-pill">{filteredDirectory.length} PROFILES</span></div>
+      {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => {
+        const row = profile as DatingProfileRow & {relationship_goal?:string;interests?:string[];personality_tags?:string[];occupation?:string;children?:string;smoking?:string;drinking?:string;sexual_experience?:string;looking_for?:string[];age?:number;gender?:string};
+        const request = sentRequests[profile.user_id];
+        return <article className="dating-card" key={profile.id}>
+          <div className="dating-card-top"><div className="dating-avatar">♡</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}{row.age ? ' · ' + row.age : ''}</p></div><span className="heart-mark">♡</span></div>
+          <h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>
+          {row.relationship_goal && <div className="personality-tag">Looking for: {row.relationship_goal}</div>}
+          {Array.isArray(row.personality_tags) && row.personality_tags.length > 0 && <div className="dating-tag-list">{row.personality_tags.slice(0,5).map(tag=><span className="personality-tag" key={tag}>{tag}</span>)}</div>}
+          {Array.isArray(row.interests) && row.interests.length > 0 && <p className="dating-about"><strong>Interests:</strong> {row.interests.slice(0,5).join(' · ')}</p>}
+          <div className="dating-card-bottom"><span>{request ? 'Request: ' + request.status : '18+ · Dating'}</span>
+            <button className="primary-button" disabled={busy || Boolean(request && ['pending','accepted'].includes(request.status))} onClick={()=>void requestChat(profile)}>
+              {request?.status === 'accepted' ? 'Open conversation in Messages' : request?.status === 'pending' ? 'Request sent ✓' : request?.status === 'declined' ? 'Send again ↗' : 'Send message request ↗'}
+            </button>
+          </div>
+        </article>;
+      })}</div> : <div className="empty-state"><span>♡</span><h3>{directory.length ? 'No dating cards match these filters.' : 'Your next connection starts here.'}</h3><p>{directory.length ? 'Try a different location or clear your filters.' : 'Published profiles from adults in the community will appear here.'}</p></div>}
     </section>
   </div>;
 }
