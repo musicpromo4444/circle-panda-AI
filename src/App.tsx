@@ -1405,6 +1405,7 @@ function WalletFeature({ userId }: { userId: string }) {
 
 
 type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string };
+type GroupJoinRequestRow = { id:string; group_id:string; user_id:string; status:string; created_at:string };
 function GroupsFeature({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
@@ -1413,6 +1414,7 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [myCountry, setMyCountry] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [limitations, setLimitations] = useState('');
   const [countryRestriction, setCountryRestriction] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1430,6 +1432,17 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [groupMediaUrls, setGroupMediaUrls] = useState<Record<string,string>>({});
   const [groupViewedOnce, setGroupViewedOnce] = useState<Record<string,boolean>>({});
   const [groupMediaBusyId, setGroupMediaBusyId] = useState('');
+  const [groupSettingsOpen,setGroupSettingsOpen] = useState(false);
+  const [groupSettingsLoading,setGroupSettingsLoading] = useState(false);
+  const [groupSettingsBusy,setGroupSettingsBusy] = useState(false);
+  const [groupNameDraft,setGroupNameDraft] = useState('');
+  const [groupAboutDraft,setGroupAboutDraft] = useState('');
+  const [groupEditInfo,setGroupEditInfo] = useState<'admins'|'admins_members'>('admins');
+  const [groupSendMessages,setGroupSendMessages] = useState(true);
+  const [groupApproveMembers,setGroupApproveMembers] = useState(false);
+  const [groupMyRole,setGroupMyRole] = useState('member');
+  const [groupJoinRequests,setGroupJoinRequests] = useState<GroupJoinRequestRow[]>([]);
+  const [joinRequestNames,setJoinRequestNames] = useState<Record<string,string>>({});
 
   async function load() {
     if (!supabase) return;
@@ -1475,20 +1488,25 @@ function GroupsFeature({ userId }: { userId: string }) {
     event.preventDefault();
     if (!supabase) return;
     setBusy(true); setNotice('');
-    const { error } = await supabase.rpc('create_chat_group',{
-      p_name:name.trim(),p_description:description.trim(),p_country_restriction:countryRestriction.trim() || null,p_is_vip:false,
+    const { error } = await supabase.rpc('create_group',{
+      p_name:name.trim(),p_about:description.trim(),p_limitations:limitations.trim(),
+      p_country_restriction:countryRestriction.trim() || null,p_is_vip:false,p_vip_scope:'worldwide',
     });
     if (error) setNotice(error.message);
-    else { setName('');setDescription('');setCountryRestriction('');setNotice('Group created. Invite people to join; chat opens at 3 members.');await load(); }
+    else { setName('');setDescription('');setLimitations('');setCountryRestriction('');setNotice('Group created. Invite people to join; chat opens at 3 members.');await load(); }
     setBusy(false);
   }
 
   async function joinGroup(group: GroupRow) {
     if (!supabase) return;
     setBusy(true);setNotice('');
-    const { error } = await supabase.rpc('join_chat_group',{p_group_id:group.id});
+    const { data, error } = await supabase.rpc('join_group',{p_group_id:group.id});
     if (error) setNotice(error.message);
-    else { setNotice('You joined the group.');await load(); }
+    else {
+      const result=(data??{}) as {status?:string};
+      setNotice(result.status==='pending'?'Your request to join was sent to the group admins.':result.status==='waiting'?'You joined. Chat opens when the group reaches three members.':'You joined the group.');
+      await load();
+    }
     setBusy(false);
   }
 
@@ -1611,6 +1629,7 @@ function GroupsFeature({ userId }: { userId: string }) {
       <form className="feature-form" onSubmit={createGroup}>
         <label>Group name<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} minLength={2} required placeholder="Give your group a name" /></label>
         <label>About the group<textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} maxLength={2000} placeholder="What brings this group together?" /></label>
+         <label>Group limitations (optional)<textarea value={limitations} onChange={e=>setLimitations(e.target.value)} rows={2} maxLength={1200} placeholder="Membership rules or group guidelines" /></label>
         <CountryDropdown value={countryRestriction} onChange={setCountryRestriction} />
         <div className="form-submit-row"><span className="draft-state">3 members to open chat</span><button className="primary-button" disabled={busy}>{busy?'Creating…':'Create group ↗'}</button></div>
       </form>
