@@ -18,7 +18,6 @@ type EventRow = { id: string; creator_id: string; title: string; description: st
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
-  { name: 'Home', icon: '⌂', hint: 'Your circle at a glance' },
   { name: 'Confessions', icon: '☁', hint: 'Say what is on your mind' },
   { name: 'Dating', icon: '♡', hint: 'Meet someone new' },
   { name: 'Events', icon: '▦', hint: 'Find your next plan' },
@@ -99,7 +98,7 @@ export default function App() {
     else if (step === 'welcome') setOnboardingStep('tour');
     else {
       setOnboardingStep(null);
-      if (explore) setSection('Home');
+      if (explore) setSection('Confessions');
     }
     setOnboardingBusy(false);
   }
