@@ -373,102 +373,145 @@ function MessagesFeature({ userId }: { userId: string }) {
 }
 
 
+type CrushResultRow = { nominee_id: string; display_name: string; kind: string; emoji: string; blurb: string; vote_count: number; media_url: string; media_type: string; mine: boolean };
+type CrushReactionRow = { reaction: string; reaction_count: number; mine: boolean };
+function localWeekStart() {
+  const date = new Date();
+  const day = date.getDay();
+  date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
 function CrushFeature({ userId, initialKind, onKindChange }: { userId: string; initialKind: CrushKind; onKindChange: (kind: CrushKind) => void }) {
   const [kind, setKind] = useState<CrushKind>(initialKind);
-  const [cycle, setCycle] = useState<CrushCycleRow | null>(null);
-  const [nominees, setNominees] = useState<CrushNomineeRow[]>([]);
-  const [names, setNames] = useState<Record<string,string>>({});
-  const [voteCounts, setVoteCounts] = useState<Record<string,number>>({});
+  const [entries, setEntries] = useState<CrushResultRow[]>([]);
+  const [reactions, setReactions] = useState<Record<string,CrushReactionRow[]>>({});
   const [freeVotesUsed, setFreeVotesUsed] = useState(0);
-  const [adCredits, setAdCredits] = useState(0);
+  const [gender, setGender] = useState('');
+  const [mySubmission, setMySubmission] = useState<CrushResultRow|null>(null);
   const [caption, setCaption] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<File|null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [reporting, setReporting] = useState<string|null>(null);
+  const [reportReason, setReportReason] = useState('Inappropriate content');
 
   async function load(selectedKind: CrushKind = kind) {
     if (!supabase) return;
     setLoading(true); setNotice('');
-    const { data: cycleData, error: cycleError } = await supabase.rpc('get_or_create_crush_cycle', { p_kind: selectedKind });
-    if (cycleError || !cycleData) { setNotice(cycleError?.message || 'Could not load this crush round. Apply the WCW/MCM database migration first.'); setLoading(false); return; }
-    const currentCycle = cycleData as CrushCycleRow;
-    setCycle(currentCycle);
-    const [nomineeResult, countsResult, usageResult] = await Promise.all([
-      supabase.from('crush_nominees').select('id,cycle_id,user_id,photo_url,caption,created_at').eq('cycle_id', currentCycle.id).order('created_at', { ascending: false }),
-      supabase.from('crush_vote_counts').select('nominee_id,vote_count'),
-      supabase.from('crush_vote_usage').select('free_votes_used,ad_vote_credits').eq('user_id', userId).eq('cycle_id', currentCycle.id).maybeSingle(),
+    const [results, voteStatus, profile] = await Promise.all([
+      supabase.rpc('get_crush_results', { p_week_start: localWeekStart() }),
+      supabase.rpc('get_crush_vote_status_secure'),
+      supabase.from('profiles').select('gender').eq('id',userId).maybeSingle(),
     ]);
-    if (nomineeResult.error) setNotice(nomineeResult.error.message);
-    const rows = (nomineeResult.data ?? []) as CrushNomineeRow[];
-    setNominees(rows);
-    const countMap: Record<string,number> = {};
-    (countsResult.data ?? []).forEach((row: { nominee_id: string; vote_count: number }) => { countMap[row.nominee_id] = Number(row.vote_count); });
-    setVoteCounts(countMap);
-    setFreeVotesUsed(Number(usageResult.data?.free_votes_used ?? 0));
-    setAdCredits(Number(usageResult.data?.ad_vote_credits ?? 0));
-    const ids = [...new Set(rows.map(row => row.user_id))];
-    if (ids.length) {
-      const { data: profiles } = await supabase.from('profiles').select('id,display_name,username').in('id', ids);
-      const nameMap: Record<string,string> = {};
-      (profiles ?? []).forEach((p: { id: string; display_name: string | null; username: string | null }) => { nameMap[p.id] = p.display_name || p.username || 'Panda'; });
-      setNames(nameMap);
-    } else setNames({});
+    if (results.error) { setNotice(results.error.message); setLoading(false); return; }
+    if (voteStatus.error) setNotice(voteStatus.error.message);
+    const rows = ((results.data ?? []) as CrushResultRow[]).filter(row => row.kind?.toLowerCase() === selectedKind).slice(0,60);
+    setEntries(rows);
+    const mine = rows.find(row => row.mine) ?? null;
+    setMySubmission(mine);
+    setGender(String(profile.data?.gender ?? '').toLowerCase());
+    const status = (voteStatus.data ?? {}) as {free_votes_used?:number;free_votes_remaining?:number};
+    setFreeVotesUsed(Number(status.free_votes_used ?? Math.max(0,3-Number(status.free_votes_remaining ?? 3))));
+    const reactionPairs = await Promise.all(rows.map(async row => {
+      const { data } = await supabase.rpc('get_crush_reactions',{p_nominee_id:row.nominee_id});
+      return [row.nominee_id,(data ?? []) as CrushReactionRow[]] as const;
+    }));
+    setReactions(Object.fromEntries(reactionPairs));
     setLoading(false);
   }
 
-  useEffect(() => { setKind(initialKind); void load(initialKind); }, [initialKind, userId]);
+  useEffect(() => { setKind(initialKind); void load(initialKind); }, [initialKind,userId]);
 
   async function submitPhoto(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !cycle || !photo) { setNotice('Choose a photo before submitting.'); return; }
-    if (!photo.type.startsWith('image/') || !['image/jpeg','image/png','image/webp'].includes(photo.type)) { setNotice('Use a JPG, PNG or WebP photo.'); return; }
-    if (photo.size > 10 * 1024 * 1024) { setNotice('Photo must be 10 MB or smaller.'); return; }
+    if (!supabase || !photo) { setNotice('Choose a photo before submitting.'); return; }
+    if (gender !== 'male' && gender !== 'female') { setNotice('Set your gender to Male or Female in your profile before submitting WCW/MCM.'); return; }
+    const expectedKind: CrushKind = gender === 'male' ? 'mcm' : 'wcw';
+    if (expectedKind !== kind) { setNotice(`Your profile is eligible to submit to ${expectedKind.toUpperCase()}, not ${kind.toUpperCase()}.`); return; }
+    if (!['image/jpeg','image/png','image/webp'].includes(photo.type)) { setNotice('Use a JPG, PNG or WebP photo.'); return; }
+    if (photo.size > 5 * 1024 * 1024) { setNotice('Photo must be 5 MB or smaller.'); return; }
     setBusy(true); setNotice('');
+    let uploadedPath = '';
     try {
-      const safeName = photo.name.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
-      const path = userId + '/' + cycle.id + '/' + crypto.randomUUID() + '-' + safeName;
-      const upload = await supabase.storage.from('circle-panda-crush').upload(path, photo, { contentType: photo.type, upsert: false });
+      const safeName = photo.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-');
+      uploadedPath = `${userId}/${crypto.randomUUID()}-${safeName}`;
+      const upload = await supabase.storage.from('crush-post-photos').upload(uploadedPath,photo,{contentType:photo.type,upsert:false});
       if (upload.error) throw upload.error;
-      const photoUrl = supabase.storage.from('circle-panda-crush').getPublicUrl(path).data.publicUrl;
-      const { error } = await supabase.from('crush_nominees').insert({ cycle_id: cycle.id, user_id: userId, photo_url: photoUrl, caption: caption.trim() });
+      const mediaUrl = supabase.storage.from('crush-post-photos').getPublicUrl(uploadedPath).data.publicUrl;
+      const { error } = await supabase.rpc('submit_crush_media_secure',{p_media_url:mediaUrl,p_media_type:'image',p_caption:caption.trim(),p_emoji:'🐼'});
       if (error) {
-        await supabase.storage.from('circle-panda-crush').remove([path]);
+        await supabase.storage.from('crush-post-photos').remove([uploadedPath]);
+        uploadedPath = '';
         throw error;
       }
-      setPhoto(null); setCaption('');
-      const input = document.getElementById('crush-photo-input') as HTMLInputElement | null;
+      setCaption(''); setPhoto(null);
+      const input = document.getElementById('crush-photo-input') as HTMLInputElement|null;
       if (input) input.value = '';
-      setNotice('Your photo is submitted for this round. You cannot vote for your own photo.');
+      setNotice('Your photo has been submitted and will appear when its scheduled spotlight goes live.');
       await load(kind);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not submit your photo. Please try again.');
     } finally { setBusy(false); }
   }
 
-  async function vote(nominee: CrushNomineeRow) {
-    if (!supabase || busy) return;
+  async function vote(entry: CrushResultRow) {
+    if (!supabase || busy || entry.mine) return;
     setBusy(true); setNotice('');
-    const { error } = await supabase.rpc('cast_crush_vote', { p_nominee_id: nominee.id });
+    const free = freeVotesUsed < 3;
+    const { error } = free
+      ? await supabase.rpc('cast_crush_vote_secure',{p_post_id:entry.nominee_id})
+      : await supabase.rpc('cast_crush_vote_paid_secure',{p_nominee_id:entry.nominee_id});
     if (error) setNotice(error.message);
-    else { setNotice('Your vote has been recorded.'); await load(kind); }
+    else { setNotice(free?'Your free vote has been recorded.':'Your vote has been recorded and the extra-vote cost has been charged.'); await load(kind); }
     setBusy(false);
   }
 
-  const mySubmission = nominees.find(item => item.user_id === userId);
-  const remainingFree = Math.max(0, 3 - freeVotesUsed);
+  async function react(entry: CrushResultRow, emoji: string) {
+    if (!supabase || busy) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('react_to_crush_secure',{p_nominee_id:entry.nominee_id,p_reaction:emoji});
+    if (error) setNotice(error.message);
+    else {
+      const { data } = await supabase.rpc('get_crush_reactions',{p_nominee_id:entry.nominee_id});
+      setReactions(prev=>({...prev,[entry.nominee_id]:(data??[]) as CrushReactionRow[]}));
+    }
+    setBusy(false);
+  }
+
+  async function deleteSubmission() {
+    if (!supabase || !mySubmission || busy) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('delete_crush_submission',{p_nominee_id:mySubmission.nominee_id});
+    if (error) setNotice(error.message);
+    else { setNotice('Your submission was removed.'); await load(kind); }
+    setBusy(false);
+  }
+
+  async function report(entry: CrushResultRow) {
+    if (!supabase || busy) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('report_crush_secure',{p_nominee_id:entry.nominee_id,p_reason:reportReason,p_details:''});
+    if (error) setNotice(error.message);
+    else { setNotice('Thank you. The submission has been reported for review.'); setReporting(null); }
+    setBusy(false);
+  }
+
   const isWcw = kind === 'wcw';
+  const canSubmitHere = (gender==='female' && kind==='wcw') || (gender==='male' && kind==='mcm');
+  const remainingFree = Math.max(0,3-freeVotesUsed);
   return <div className="crush-page">
-    <section className="crush-hero"><div><p className="eyebrow">THE WEEKLY SPOTLIGHT</p><h2>{isWcw ? 'Woman Crush Wednesday' : 'Man Crush Monday'}</h2><p>{isWcw ? 'Celebrate the women who brighten your circle.' : 'Celebrate the men who make your circle special.'} Upload a photo, vote for other members, and share the round before it closes.</p><div className="crush-hero-meta"><span>♡ {remainingFree} free votes left</span><span>◷ Round closes {cycle ? new Date(cycle.ends_at).toLocaleDateString() : 'weekly'}</span></div></div><div className="crush-hero-icon">{isWcw ? '♡' : '♛'}</div></section>
+    <section className="crush-hero"><div><p className="eyebrow">THE WEEKLY SPOTLIGHT</p><h2>{isWcw?'Woman Crush Wednesday':'Man Crush Monday'}</h2><p>{isWcw?'Celebrate the women who brighten your circle.':'Celebrate the men who make your circle special.'} Share a photo, react to entries and vote for other members before the weekly round closes.</p><div className="crush-hero-meta"><span>♡ {remainingFree} free votes left</span><span>◷ Weekly spotlight · 10 AM local schedule</span></div></div><div className="crush-hero-icon">{isWcw?'♡':'♛'}</div></section>
     <div className="crush-tabs"><button className={kind==='wcw'?'active':''} onClick={()=>{setKind('wcw');onKindChange('wcw');void load('wcw');}}>♡ WCW <small>Woman Crush Wednesday</small></button><button className={kind==='mcm'?'active':''} onClick={()=>{setKind('mcm');onKindChange('mcm');void load('mcm');}}>♛ MCM <small>Man Crush Monday</small></button></div>
-    {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
-    {!mySubmission && <section className="feature-panel crush-submit-panel"><div className="feature-icon">{isWcw?'♡':'♛'}</div><p className="eyebrow">TAKE YOUR SPOTLIGHT</p><h2>Submit your {isWcw?'WCW':'MCM'} photo</h2><p className="feature-copy">One photo submission per member in each weekly round. You can delete your own submission later; self-voting is not allowed.</p><form className="feature-form" onSubmit={submitPhoto}><label>Choose a photo<input id="crush-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setPhoto(e.target.files?.[0] ?? null)} required /></label><label>Caption (optional)<input value={caption} onChange={e=>setCaption(e.target.value)} maxLength={180} placeholder="A short line about yourself" /></label><div className="form-submit-row"><span className="draft-state">JPG, PNG or WebP · Max 10 MB</span><button className="primary-button" disabled={busy||loading||!photo}>{busy?'Submitting…':'Submit photo ↗'}</button></div></form></section>}
-    {mySubmission && <div className="crush-own-submission"><span>✓ Your photo is submitted for this round.</span><button className="text-action" disabled={busy} onClick={async()=>{if(!supabase||!mySubmission)return;setBusy(true);const {error}=await supabase.from('crush_nominees').delete().eq('id',mySubmission.id).eq('user_id',userId);if(error)setNotice(error.message);else{setNotice('Your submission was removed.');await load(kind);}setBusy(false);}}>Remove my photo ×</button></div>}
-    <div className="crush-vote-info"><strong>{remainingFree} of 3 free votes remaining</strong><span>{freeVotesUsed>=3&&adCredits===0?'Extra votes cost 50 BC each.':'Your free votes refresh with the weekly round.'}</span>{adCredits>0&&<span>{adCredits} rewarded-ad vote credits available</span>}</div>
-    <section className="crush-directory"><div className="section-title-row"><div><h2>Vote for your favourites</h2><p>Be kind. You cannot vote for your own photo.</p></div><span className="count-pill">{nominees.length} ENTRIES</span></div>
-      {loading?<div className="empty-state">Loading this week’s spotlight…</div>:nominees.length?<div className="crush-grid">{nominees.map(item=><article className="crush-card" key={item.id}><img src={item.photo_url} alt={isWcw?'Woman Crush Wednesday submission':'Man Crush Monday submission'} loading="lazy"/><div className="crush-card-content"><div className="crush-card-heading"><strong>{item.user_id===userId?'Your photo':names[item.user_id]||'Panda'}</strong><span>♡ {voteCounts[item.id]||0}</span></div>{item.caption&&<p>{item.caption}</p>}{item.user_id===userId?<span className="crush-self-label">Your entry · voting disabled</span>:<button className="primary-button crush-vote-button" disabled={busy||loading} onClick={()=>void vote(item)}>{busy?'Please wait…':freeVotesUsed<3?'Vote · Free':adCredits>0?'Vote · Ad credit':'Vote · 50 BC'}</button>}</div></article>)}</div>:<div className="empty-state"><span>{isWcw?'♡':'♛'}</span><h3>Be the first in this round.</h3><p>Submit a photo above to start the weekly spotlight.</p></div>}
+    {notice&&<div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
+    {canSubmitHere&&!mySubmission&&<section className="feature-panel crush-submit-panel"><div className="feature-icon">{isWcw?'♡':'♛'}</div><p className="eyebrow">TAKE YOUR SPOTLIGHT</p><h2>Submit your {isWcw?'WCW':'MCM'} photo</h2><p className="feature-copy">Upload one photo for the weekly round. The app uses your profile gender to place the submission in the correct spotlight.</p><form className="feature-form" onSubmit={submitPhoto}><label>Choose a photo<input id="crush-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setPhoto(e.target.files?.[0]??null)} required /></label><label>Caption (optional)<input value={caption} onChange={e=>setCaption(e.target.value)} maxLength={500} placeholder="Add a short caption" /></label><div className="form-submit-row"><span className="draft-state">JPG, PNG or WebP · Max 5 MB</span><button className="primary-button" disabled={busy||loading||!photo}>{busy?'Submitting…':'Submit photo ↗'}</button></div></form></section>}
+    {gender!==''&&!canSubmitHere&&!mySubmission&&<div className="crush-own-submission"><span>{gender==='male'||gender==='female'? `Your profile is set for ${gender==='male'?'MCM':'WCW'}. You can still browse and vote in both spotlights.`:'Set your gender to Male or Female to submit a WCW/MCM photo.'}</span></div>}
+    {mySubmission&&<div className="crush-own-submission"><span>✓ Your photo is submitted for this round.</span><button className="text-action" disabled={busy} onClick={()=>void deleteSubmission()}>Remove my photo ×</button></div>}
+    <div className="crush-vote-info"><strong>{remainingFree} of 3 free votes remaining</strong><span>{freeVotesUsed>=3?'Extra votes are charged at the admin-configured BC rate.':'Free votes refresh weekly across WCW and MCM.'}</span></div>
+    <section className="crush-directory"><div className="section-title-row"><div><h2>Vote for your favourites</h2><p>Vote for other members, react with an emoji, or report a concern.</p></div><span className="count-pill">{entries.length} ENTRIES</span></div>
+      {loading?<div className="empty-state">Loading this week’s spotlight…</div>:entries.length?<div className="crush-grid">{entries.map(entry=><article className="crush-card" key={entry.nominee_id}><img src={entry.media_url} alt={isWcw?'Woman Crush Wednesday photo':'Man Crush Monday photo'} loading="lazy"/><div className="crush-card-content"><div className="crush-card-heading"><strong>{entry.mine?'Your photo':entry.display_name||'Panda'}</strong><span>♡ {entry.vote_count||0}</span></div>{entry.blurb&&<p>{entry.blurb}</p>}{entry.mine?<span className="crush-self-label">Your entry · voting disabled</span>:<button className="primary-button crush-vote-button" disabled={busy||loading} onClick={()=>void vote(entry)}>{busy?'Please wait…':freeVotesUsed<3?'Vote · Free':'Vote · Extra BC'}</button>}<div className="crush-reactions">{['❤️','😂','😮','😡','🐼'].map(emoji=>{const item=(reactions[entry.nominee_id]??[]).find(r=>r.reaction===emoji);return <button key={emoji} className={item?.mine?'selected':''} disabled={busy} onClick={()=>void react(entry,emoji)} title={`React ${emoji}`}>{emoji}<small>{item?.reaction_count||0}</small></button>;})}</div><div className="crush-card-tools">{reporting===entry.nominee_id?<><select value={reportReason} onChange={e=>setReportReason(e.target.value)}><option>Inappropriate content</option><option>Harassment</option><option>Fake profile</option><option>Other</option></select><button className="text-action" disabled={busy} onClick={()=>void report(entry)}>Send report</button><button className="text-action" onClick={()=>setReporting(null)}>Cancel</button></>:<button className="text-action" disabled={entry.mine} onClick={()=>setReporting(entry.nominee_id)}>⚑ Report</button>}</div></div></article>)}</div>:<div className="empty-state"><span>{isWcw?'♡':'♛'}</span><h3>Be the first in this round.</h3><p>Entries appear here when the weekly spotlight goes live at the scheduled time.</p></div>}
     </section>
-    <p className="crush-share-note">Share the WCW/MCM round with your friends before the weekly round closes.</p>
+    <p className="crush-share-note">Share the WCW/MCM page with friends before the weekly round closes.</p>
   </div>;
 }
 
