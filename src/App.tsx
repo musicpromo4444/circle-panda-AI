@@ -412,12 +412,13 @@ function MessagesFeature({ userId }: { userId: string }) {
   async function respond(requestId: string, accept: boolean) {
     if (!supabase) return;
     setBusyId(requestId); setMessageNotice('');
-    const { data, error } = await supabase.rpc('respond_message_request', { p_request_id: requestId, p_accept: accept });
+    const { data, error } = await supabase.rpc('respond_direct_message_request_secure', { p_request_id: requestId, p_accept: accept });
     if (error) setMessageNotice(error.message);
     else {
-      if (accept && typeof data === 'string') await loadMessages(data);
+      const result = data as {thread_id?: string|null;status?: string}|null;
+      if (accept && result?.thread_id) await loadMessages(result.thread_id);
       await loadRequests();
-      setMessageNotice(accept ? 'Request accepted. Your chat is ready.' : 'Request declined.');
+      setMessageNotice(accept ? (result?.status === 'matched' ? 'Dating match accepted. Your 72-hour free chat is ready.' : 'Request accepted. Your chat is ready.') : 'Request declined.');
     }
     setBusyId('');
   }
@@ -461,7 +462,7 @@ function MessagesFeature({ userId }: { userId: string }) {
 }
 
 
-function DatingFeature({ userId }: { userId: string }) {
+function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessages: () => void }) {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterLocation, setFilterLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
@@ -494,6 +495,9 @@ function DatingFeature({ userId }: { userId: string }) {
   const [photoPreview, setPhotoPreview] = useState('');
   const [photoPath, setPhotoPath] = useState('');
   const [blurredPhotoPath, setBlurredPhotoPath] = useState('');
+  const [datingMatches, setDatingMatches] = useState<any[]>([]);
+  const [matchPeople, setMatchPeople] = useState<Record<string,{name:string;headline:string;photoUrl:string;revealed:boolean}>>({});
+  const [clock, setClock] = useState(Date.now());
 
   const relationshipOptions = [
     'Long-distance relationship','Something casual','Long-term relationship','Something that leads to marriage',
@@ -608,6 +612,41 @@ function DatingFeature({ userId }: { userId: string }) {
       (requests ?? []).filter((r: {sender_id:string;recipient_id:string}) => r.sender_id === userId)
         .forEach((r: {id:string;recipient_id:string;status:string}) => { requestMap[r.recipient_id] = {status:r.status,id:r.id}; });
       setSentRequests(requestMap);
+
+      const { data: matchRows, error: matchError } = await supabase.rpc('get_my_dating_matches_secure');
+      if (matchError) {
+        setNotice(matchError.message);
+      } else {
+        const activeMatches = ((matchRows ?? []) as any[]).filter(match => match.status === 'matched');
+        setDatingMatches(activeMatches);
+        const otherIds = [...new Set(activeMatches.map(match => match.user_a === userId ? match.user_b : match.user_a))];
+        if (otherIds.length) {
+          const { data: datingRows } = await supabase.from('dating_profiles')
+            .select('user_id,name,headline,photo_path,blurred_photo_path').in('user_id', otherIds);
+          const { data: peopleRows } = await supabase.from('profiles')
+            .select('id,display_name,username').in('id', otherIds);
+          const profileNames: Record<string,string> = {};
+          (peopleRows ?? []).forEach((person: {id:string;display_name:string|null;username:string|null}) => {
+            profileNames[person.id] = person.display_name || person.username || 'Panda';
+          });
+          const people: Record<string,{name:string;headline:string;photoUrl:string;revealed:boolean}> = {};
+          await Promise.all((datingRows ?? []).map(async (person: {user_id:string;name:string|null;headline:string|null;photo_path:string|null;blurred_photo_path:string|null}) => {
+            const match = activeMatches.find(item => (item.user_a === userId ? item.user_b : item.user_a) === person.user_id);
+            const revealed = Boolean(match?.photos_revealed);
+            const path = revealed ? person.photo_path : person.blurred_photo_path;
+            let photoUrl = '';
+            if (path) {
+              const bucket = revealed ? 'dating-photos' : 'dating-photo-blur';
+              const { data: signed } = await supabase!.storage.from(bucket).createSignedUrl(path, 10 * 60);
+              photoUrl = signed?.signedUrl || '';
+            }
+            people[person.user_id] = {name:person.name || profileNames[person.user_id] || 'Panda',headline:person.headline || '',photoUrl,revealed};
+          }));
+          setMatchPeople(people);
+        } else {
+          setMatchPeople({});
+        }
+      }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not load dating profiles.');
     } finally {
@@ -616,6 +655,10 @@ function DatingFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void load(); }, [userId]);
+  useEffect(() => {
+    const interval = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
   useEffect(() => {
     if (!profilePhoto) { setPhotoPreview(''); return; }
     const url = URL.createObjectURL(profilePhoto);
@@ -722,6 +765,19 @@ function DatingFeature({ userId }: { userId: string }) {
     }
   }
 
+  async function confirmDatingMatch(matchId: string) {
+    if (!supabase || busy) return;
+    setBusy(true); setNotice('');
+    const { data, error } = await supabase.rpc('decide_dating_match_secure', { p_match_id: matchId, p_decision: 'continue' });
+    if (error) setNotice(error.message);
+    else {
+      const result = data as {status?:string}|null;
+      setNotice(result?.status === 'matched' ? 'Both people confirmed. Dating photos are now revealed.' : 'Your confirmation is saved. The other person must also confirm to reveal photos.');
+      await load();
+    }
+    setBusy(false);
+  }
+
   async function requestChat(profile: DatingProfileRow) {
     if (!supabase || profile.user_id === userId) return;
     const previous = sentRequests[profile.user_id];
@@ -730,14 +786,13 @@ function DatingFeature({ userId }: { userId: string }) {
       return;
     }
     setBusy(true); setNotice('');
-    const { error } = await supabase.rpc('send_message_request', {
-      p_recipient_id: profile.user_id, p_source_type: 'dating', p_source_id: profile.id,
-      p_greeting: 'Hi! I saw your dating profile and would like to get to know you.',
-    });
+    const { data, error } = await supabase.rpc('request_dating_match_secure', { p_recipient_id: profile.user_id });
     if (error) setNotice(error.message);
     else {
-      setNotice('Dating message request sent. You can track it in Messages.');
+      const result = data as {status?:string;request_id?:string;thread_id?:string}|null;
+      setNotice(result?.status === 'matched' ? 'It is a mutual match 💗. Your free 72-hour Dating chat is ready.' : 'Dating message request sent. You can track it in Messages.');
       await load();
+      if (result?.status === 'matched') onOpenMessages();
     }
     setBusy(false);
   }
@@ -830,6 +885,26 @@ function DatingFeature({ userId }: { userId: string }) {
       {notice && <div className="notice">{notice}</div>}
     </section>}
     {notice && !registerOpen && <div className="notice">{notice}</div>}
+    {datingMatches.length > 0 && <section className="directory-section dating-connections-section">
+      <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first 72 hours. After that, both people must continue before photos are revealed.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
+      <div className="dating-directory">{datingMatches.map(match => {
+        const otherId = match.user_a === userId ? match.user_b : match.user_a;
+        const person = matchPeople[otherId];
+        const remaining = Math.max(0,new Date(match.free_until).getTime()-clock);
+        const hours = Math.floor(remaining/3600000);
+        const minutes = Math.floor((remaining%3600000)/60000);
+        const seconds = Math.floor((remaining%60000)/1000);
+        return <article className="dating-card dating-match-card" key={match.id}>
+          <div className="dating-card-top"><div className="dating-avatar">💗</div><div><strong>{person?.name || 'Your match'}</strong><p>{match.photos_revealed ? 'Photos revealed' : remaining > 0 ? 'Free Dating chat active' : 'Waiting for mutual confirmation'}</p></div></div>
+          {person?.photoUrl ? <img className="dating-match-photo" src={person.photoUrl} alt={match.photos_revealed ? 'Dating match photo' : 'Blurred dating photo'} /> : <div className="dating-photo-preview match-photo-placeholder">🐼</div>}
+          {person?.headline && <p className="dating-about">{person.headline}</p>}
+          {remaining > 0 ? <p className="dating-match-countdown">Free chat · {String(hours).padStart(2,'0')}:{String(minutes).padStart(2,'0')}:{String(seconds).padStart(2,'0')} remaining</p>
+            : match.photos_revealed ? <p className="published-state">● Both people continued. Photos are revealed.</p>
+            : <><p className="draft-state">The 72-hour period is complete. Confirm that you want to continue.</p><button className="primary-button" disabled={busy} onClick={()=>void confirmDatingMatch(match.id)}>Continue & reveal ↗</button></>}
+          <button className="secondary-button" type="button" onClick={onOpenMessages}>Open chat in Messages ↗</button>
+        </article>;
+      })}</div>
+    </section>}
     <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Adult profiles from the Circle Panda community.</p></div><span className="count-pill">{filteredDirectory.length} PROFILES</span></div>
       {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => {
         const row = profile as DatingProfileRow & {relationship_goal?:string;interests?:string[];personality_tags?:string[];occupation?:string;children?:string;smoking?:string;drinking?:string;sexual_experience?:string;looking_for?:string[];age?:number;gender?:string};
@@ -841,8 +916,8 @@ function DatingFeature({ userId }: { userId: string }) {
           {Array.isArray(row.personality_tags) && row.personality_tags.length > 0 && <div className="dating-tag-list">{row.personality_tags.slice(0,5).map(tag=><span className="personality-tag" key={tag}>{tag}</span>)}</div>}
           {Array.isArray(row.interests) && row.interests.length > 0 && <p className="dating-about"><strong>Interests:</strong> {row.interests.slice(0,5).join(' · ')}</p>}
           <div className="dating-card-bottom"><span>{request ? 'Request: ' + request.status : '18+ · Dating'}</span>
-            <button className="primary-button" disabled={busy || Boolean(request && ['pending','accepted'].includes(request.status))} onClick={()=>void requestChat(profile)}>
-              {request?.status === 'accepted' ? 'Open conversation in Messages' : request?.status === 'pending' ? 'Request sent ✓' : request?.status === 'declined' ? 'Send again ↗' : 'Send message request ↗'}
+            <button className="primary-button" disabled={busy || Boolean(request && request.status === 'pending')} onClick={()=>request?.status === 'accepted' ? onOpenMessages() : void requestChat(profile)}>
+              {request?.status === 'accepted' ? 'Open chat ↗' : request?.status === 'pending' ? 'Request sent ✓' : request?.status === 'declined' ? 'Send again ↗' : 'Send message request ↗'}
             </button>
           </div>
         </article>;
