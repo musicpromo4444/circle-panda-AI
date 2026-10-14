@@ -703,7 +703,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     if (!supabase || submitLock.current) return;
     const calculatedAge = ageFromDate(dateOfBirth);
     const effectiveAge = calculatedAge ?? mainProfile.age;
-    if (publishNow && (effectiveAge == null || effectiveAge < 18)) {
+    if (publishNow && (!dateOfBirth || effectiveAge == null || effectiveAge < 18)) {
       setNotice(effectiveAge != null && effectiveAge < 18 ? 'Dating is only available to adults aged 18 and over.' : 'Add your date of birth to your main profile before publishing Dating.');
       return;
     }
@@ -845,7 +845,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         {formStep === 0 && <section className="dating-form-step">
           <h3>Your Circle Panda profile</h3>
           <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Complete your Circle Panda profile'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? 'Add date of birth' : effectiveAge}</strong></div><div><span>Gender</span><strong>{mainProfile.gender || 'Not set'}</strong></div></div>
-          <label>Date of birth<input type="date" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} required={!mainProfile.age} /></label>
+          <label>Date of birth<input type="date" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} required /></label>
           <LocationFields value={location} onChange={setLocation} required />
           <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
