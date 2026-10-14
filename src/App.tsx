@@ -322,7 +322,7 @@ export default function App() {
 
 function FeaturePanel({ section, userId }: { section: Section; userId: string }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
-  if (section === 'Dating') return <DatingFeature userId={userId} />;
+  if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={() => setSection('Messages')} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
