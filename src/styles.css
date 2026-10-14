@@ -798,3 +798,77 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
     padding-bottom:calc(82px + env(safe-area-inset-bottom))!important;
   }
 }
+
+
+/* Reference-app behaviour: keep the mobile header and dock anchored; only page content scrolls. */
+@media (max-width:760px) {
+  html, body, #root {
+    min-height:100%;
+    width:100%;
+    overflow-x:hidden!important;
+  }
+  .app-shell {
+    position:relative!important;
+    min-height:100dvh!important;
+    transform:none!important;
+    overflow:visible!important;
+  }
+  .app-shell > .main-area {
+    position:relative!important;
+    min-height:100dvh!important;
+    overflow:visible!important;
+    transform:none!important;
+    padding-bottom:calc(90px + env(safe-area-inset-bottom))!important;
+  }
+  .topbar {
+    position:sticky!important;
+    top:0!important;
+    z-index:1000!important;
+    width:100%!important;
+    transform:none!important;
+    animation:none!important;
+    transition:none!important;
+    will-change:auto!important;
+    flex-shrink:0!important;
+  }
+  .mobile-bottom-nav {
+    position:fixed!important;
+    inset-inline:0!important;
+    inset-block-end:0!important;
+    inset-block-start:auto!important;
+    transform:none!important;
+    animation:none!important;
+    transition:none!important;
+    will-change:auto!important;
+    z-index:2147483000!important;
+    touch-action:manipulation!important;
+  }
+  .mobile-bottom-nav *,
+  .mobile-bottom-nav *::before,
+  .mobile-bottom-nav *::after,
+  .topbar .mobile-brand,
+  .topbar .mobile-brand *,
+  .topbar .top-actions,
+  .topbar .top-actions * {
+    animation:none!important;
+    transition:none!important;
+    will-change:auto!important;
+  }
+  .mobile-nav-item,
+  .mobile-nav-icon,
+  .mobile-nav-label {
+    position:relative!important;
+    transform:none!important;
+    animation:none!important;
+    transition:none!important;
+    will-change:auto!important;
+  }
+  .mobile-nav-dating .mobile-nav-icon {
+    transform:translateY(-12px)!important;
+    animation:none!important;
+  }
+  .mobile-nav-dating::before {
+    animation:none!important;
+    transition:none!important;
+  }
+}
