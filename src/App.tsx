@@ -14,6 +14,9 @@ type ChatConversation = { conversation_id: string; user_id: string; joined_at: s
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string | null; sexual_experience: string | null; looking_for: string | null; is_published: boolean; created_at: string };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
+type CrushKind = 'wcw' | 'mcm';
+type CrushNomineeRow = { id: string; cycle_id: string; user_id: string; photo_url: string; caption: string; created_at: string };
+type CrushCycleRow = { id: string; kind: CrushKind; cycle_week_start: string; starts_at: string; ends_at: string; status: string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Home', icon: '⌂', hint: 'Your circle at a glance' },
@@ -31,6 +34,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [section, setSection] = useState<Section>('Confessions');
+  const [crushKind, setCrushKind] = useState<CrushKind>('wcw');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -235,22 +239,23 @@ export default function App() {
         <div className="welcome-row"><div><p className="eyebrow">WELCOME BACK TO YOUR WORLD</p><h1>{section === 'Confessions' || section === 'Home' ? 'Secret Confession' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{active.hint}</p></div><div className="date-pill"><span className="pulse" /> YOUR SPACE IS LIVE</div></div>
         {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
         {(section === 'Home' || section === 'Confessions') && <>
-          <section className="confession-shortcuts" aria-label="Quick actions"><button className="shortcut-card shortcut-upload" onClick={() => document.querySelector<HTMLTextAreaElement>('.feed-composer textarea')?.focus()}><span className="shortcut-orb">＋</span><strong>Upload</strong><small>Share your moment</small><span className="shortcut-view">Write now ↗</span></button><button className="shortcut-card shortcut-wcw" onClick={() => setSection('Crush')}><span className="shortcut-orb">♡</span><strong>WCW</strong><small>Woman Crush Wednesday</small><span className="shortcut-view">View ↗</span></button><button className="shortcut-card shortcut-mcm" onClick={() => setSection('Crush')}><span className="shortcut-orb">♛</span><strong>MCM</strong><small>Man Crush Monday</small><span className="shortcut-view">View ↗</span></button></section>
+          <section className="confession-shortcuts" aria-label="Quick actions"><button className="shortcut-card shortcut-upload" onClick={() => document.querySelector<HTMLTextAreaElement>('.feed-composer textarea')?.focus()}><span className="shortcut-orb">＋</span><strong>Upload</strong><small>Share your moment</small><span className="shortcut-view">Write now ↗</span></button><button className="shortcut-card shortcut-wcw" onClick={() => { setCrushKind('wcw'); setSection('Crush'); }}><span className="shortcut-orb">♡</span><strong>WCW</strong><small>Woman Crush Wednesday</small><span className="shortcut-view">View ↗</span></button><button className="shortcut-card shortcut-mcm" onClick={() => { setCrushKind('mcm'); setSection('Crush'); }}><span className="shortcut-orb">♛</span><strong>MCM</strong><small>Man Crush Monday</small><span className="shortcut-view">View ↗</span></button></section>
           <div className="section-title-row"><div><h2>{'Secret Confession'}</h2><p>Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.</p></div><span className="count-pill">{posts.length} POSTS</span></div>
           <section className="feed-composer"><div className="composer-avatar">🐼</div><form onSubmit={publishPost}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder={section === 'Confessions' ? 'Share what is on your mind — anonymously…' : 'What would you like to share with your circle?'} maxLength={5000} required /><div className="composer-footer"><span>{section === 'Confessions' ? '☁ Posted anonymously' : '✦ Be kind, be real'}</span><button className="primary-button" disabled={posting || !draft.trim()}>{posting ? 'Posting…' : 'Share post'} <span>↗</span></button></div></form></section>
           {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className="post-card" key={post.id}><div className="post-top"><div className="post-avatar">{post.is_anonymous ? '🐼' : '✦'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : (post.author_name || 'Panda')}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><span className="post-menu">•••</span></div><p className="post-body">{post.body}</p><div className="post-actions"><button className={myReactions[post.id] ? 'react-active' : ''} onClick={() => setReactionPickerPost(reactionPickerPost === post.id ? null : post.id)}>♡ React {reactionsByPost[post.id]?.length ? `(${reactionsByPost[post.id].length})` : ''}</button><button onClick={() => setExpandedComments(prev => ({...prev,[post.id]:!prev[post.id]}))}>▢ Comment {commentsByPost[post.id]?.length ? `(${commentsByPost[post.id].length})` : ''}</button><button onClick={() => void messagePostAuthor(post.id)}>↗ Message</button></div>
               {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
               {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className="comment-row" key={comment.id}><span className="comment-avatar">🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
-        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel section={section} userId={session.user.id} />}
+        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel section={section} userId={session.user.id} crushKind={crushKind} setCrushKind={setCrushKind} />}
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
   </div>;
 }
 
-function FeaturePanel({ section, userId }: { section: Section; userId: string }) {
+function FeaturePanel({ section, userId, crushKind, setCrushKind }: { section: Section; userId: string; crushKind: CrushKind; setCrushKind: (kind: CrushKind) => void }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
+  if (section === 'Crush') return <CrushFeature userId={userId} initialKind={crushKind} onKindChange={setCrushKind} />;
   if (section === 'Dating') return <DatingFeature userId={userId} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
@@ -367,6 +372,105 @@ function MessagesFeature({ userId }: { userId: string }) {
   </section>;
 }
 
+
+function CrushFeature({ userId, initialKind, onKindChange }: { userId: string; initialKind: CrushKind; onKindChange: (kind: CrushKind) => void }) {
+  const [kind, setKind] = useState<CrushKind>(initialKind);
+  const [cycle, setCycle] = useState<CrushCycleRow | null>(null);
+  const [nominees, setNominees] = useState<CrushNomineeRow[]>([]);
+  const [names, setNames] = useState<Record<string,string>>({});
+  const [voteCounts, setVoteCounts] = useState<Record<string,number>>({});
+  const [freeVotesUsed, setFreeVotesUsed] = useState(0);
+  const [adCredits, setAdCredits] = useState(0);
+  const [caption, setCaption] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  async function load(selectedKind: CrushKind = kind) {
+    if (!supabase) return;
+    setLoading(true); setNotice('');
+    const { data: cycleData, error: cycleError } = await supabase.rpc('get_or_create_crush_cycle', { p_kind: selectedKind });
+    if (cycleError || !cycleData) { setNotice(cycleError?.message || 'Could not load this crush round. Apply the WCW/MCM database migration first.'); setLoading(false); return; }
+    const currentCycle = cycleData as CrushCycleRow;
+    setCycle(currentCycle);
+    const [nomineeResult, countsResult, usageResult] = await Promise.all([
+      supabase.from('crush_nominees').select('id,cycle_id,user_id,photo_url,caption,created_at').eq('cycle_id', currentCycle.id).order('created_at', { ascending: false }),
+      supabase.from('crush_vote_counts').select('nominee_id,vote_count'),
+      supabase.from('crush_vote_usage').select('free_votes_used,ad_vote_credits').eq('user_id', userId).eq('cycle_id', currentCycle.id).maybeSingle(),
+    ]);
+    if (nomineeResult.error) setNotice(nomineeResult.error.message);
+    const rows = (nomineeResult.data ?? []) as CrushNomineeRow[];
+    setNominees(rows);
+    const countMap: Record<string,number> = {};
+    (countsResult.data ?? []).forEach((row: { nominee_id: string; vote_count: number }) => { countMap[row.nominee_id] = Number(row.vote_count); });
+    setVoteCounts(countMap);
+    setFreeVotesUsed(Number(usageResult.data?.free_votes_used ?? 0));
+    setAdCredits(Number(usageResult.data?.ad_vote_credits ?? 0));
+    const ids = [...new Set(rows.map(row => row.user_id))];
+    if (ids.length) {
+      const { data: profiles } = await supabase.from('profiles').select('id,display_name,username').in('id', ids);
+      const nameMap: Record<string,string> = {};
+      (profiles ?? []).forEach((p: { id: string; display_name: string | null; username: string | null }) => { nameMap[p.id] = p.display_name || p.username || 'Panda'; });
+      setNames(nameMap);
+    } else setNames({});
+    setLoading(false);
+  }
+
+  useEffect(() => { setKind(initialKind); void load(initialKind); }, [initialKind, userId]);
+
+  async function submitPhoto(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !cycle || !photo) { setNotice('Choose a photo before submitting.'); return; }
+    if (!photo.type.startsWith('image/') || !['image/jpeg','image/png','image/webp'].includes(photo.type)) { setNotice('Use a JPG, PNG or WebP photo.'); return; }
+    if (photo.size > 10 * 1024 * 1024) { setNotice('Photo must be 10 MB or smaller.'); return; }
+    setBusy(true); setNotice('');
+    try {
+      const safeName = photo.name.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
+      const path = userId + '/' + cycle.id + '/' + crypto.randomUUID() + '-' + safeName;
+      const upload = await supabase.storage.from('circle-panda-crush').upload(path, photo, { contentType: photo.type, upsert: false });
+      if (upload.error) throw upload.error;
+      const photoUrl = supabase.storage.from('circle-panda-crush').getPublicUrl(path).data.publicUrl;
+      const { error } = await supabase.from('crush_nominees').insert({ cycle_id: cycle.id, user_id: userId, photo_url: photoUrl, caption: caption.trim() });
+      if (error) {
+        await supabase.storage.from('circle-panda-crush').remove([path]);
+        throw error;
+      }
+      setPhoto(null); setCaption('');
+      const input = document.getElementById('crush-photo-input') as HTMLInputElement | null;
+      if (input) input.value = '';
+      setNotice('Your photo is submitted for this round. You cannot vote for your own photo.');
+      await load(kind);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not submit your photo. Please try again.');
+    } finally { setBusy(false); }
+  }
+
+  async function vote(nominee: CrushNomineeRow) {
+    if (!supabase || busy) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('cast_crush_vote', { p_nominee_id: nominee.id });
+    if (error) setNotice(error.message);
+    else { setNotice('Your vote has been recorded.'); await load(kind); }
+    setBusy(false);
+  }
+
+  const mySubmission = nominees.find(item => item.user_id === userId);
+  const remainingFree = Math.max(0, 3 - freeVotesUsed);
+  const isWcw = kind === 'wcw';
+  return <div className="crush-page">
+    <section className="crush-hero"><div><p className="eyebrow">THE WEEKLY SPOTLIGHT</p><h2>{isWcw ? 'Woman Crush Wednesday' : 'Man Crush Monday'}</h2><p>{isWcw ? 'Celebrate the women who brighten your circle.' : 'Celebrate the men who make your circle special.'} Upload a photo, vote for other members, and share the round before it closes.</p><div className="crush-hero-meta"><span>♡ {remainingFree} free votes left</span><span>◷ Round closes {cycle ? new Date(cycle.ends_at).toLocaleDateString() : 'weekly'}</span></div></div><div className="crush-hero-icon">{isWcw ? '♡' : '♛'}</div></section>
+    <div className="crush-tabs"><button className={kind==='wcw'?'active':''} onClick={()=>{setKind('wcw');onKindChange('wcw');void load('wcw');}}>♡ WCW <small>Woman Crush Wednesday</small></button><button className={kind==='mcm'?'active':''} onClick={()=>{setKind('mcm');onKindChange('mcm');void load('mcm');}}>♛ MCM <small>Man Crush Monday</small></button></div>
+    {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
+    {!mySubmission && <section className="feature-panel crush-submit-panel"><div className="feature-icon">{isWcw?'♡':'♛'}</div><p className="eyebrow">TAKE YOUR SPOTLIGHT</p><h2>Submit your {isWcw?'WCW':'MCM'} photo</h2><p className="feature-copy">One photo submission per member in each weekly round. You can delete your own submission later; self-voting is not allowed.</p><form className="feature-form" onSubmit={submitPhoto}><label>Choose a photo<input id="crush-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setPhoto(e.target.files?.[0] ?? null)} required /></label><label>Caption (optional)<input value={caption} onChange={e=>setCaption(e.target.value)} maxLength={180} placeholder="A short line about yourself" /></label><div className="form-submit-row"><span className="draft-state">JPG, PNG or WebP · Max 10 MB</span><button className="primary-button" disabled={busy||loading||!photo}>{busy?'Submitting…':'Submit photo ↗'}</button></div></form></section>}
+    {mySubmission && <div className="crush-own-submission"><span>✓ Your photo is submitted for this round.</span><button className="text-action" disabled={busy} onClick={async()=>{if(!supabase||!mySubmission)return;setBusy(true);const {error}=await supabase.from('crush_nominees').delete().eq('id',mySubmission.id).eq('user_id',userId);if(error)setNotice(error.message);else{setNotice('Your submission was removed.');await load(kind);}setBusy(false);}}>Remove my photo ×</button></div>}
+    <div className="crush-vote-info"><strong>{remainingFree} of 3 free votes remaining</strong><span>{freeVotesUsed>=3&&adCredits===0?'Extra votes cost 50 BC each.':'Your free votes refresh with the weekly round.'}</span>{adCredits>0&&<span>{adCredits} rewarded-ad vote credits available</span>}</div>
+    <section className="crush-directory"><div className="section-title-row"><div><h2>Vote for your favourites</h2><p>Be kind. You cannot vote for your own photo.</p></div><span className="count-pill">{nominees.length} ENTRIES</span></div>
+      {loading?<div className="empty-state">Loading this week’s spotlight…</div>:nominees.length?<div className="crush-grid">{nominees.map(item=><article className="crush-card" key={item.id}><img src={item.photo_url} alt={isWcw?'Woman Crush Wednesday submission':'Man Crush Monday submission'} loading="lazy"/><div className="crush-card-content"><div className="crush-card-heading"><strong>{item.user_id===userId?'Your photo':names[item.user_id]||'Panda'}</strong><span>♡ {voteCounts[item.id]||0}</span></div>{item.caption&&<p>{item.caption}</p>}{item.user_id===userId?<span className="crush-self-label">Your entry · voting disabled</span>:<button className="primary-button crush-vote-button" disabled={busy||loading} onClick={()=>void vote(item)}>{busy?'Please wait…':freeVotesUsed<3?'Vote · Free':adCredits>0?'Vote · Ad credit':'Vote · 50 BC'}</button>}</div></article>)}</div>:<div className="empty-state"><span>{isWcw?'♡':'♛'}</span><h3>Be the first in this round.</h3><p>Submit a photo above to start the weekly spotlight.</p></div>}
+    </section>
+    <p className="crush-share-note">Share the WCW/MCM round with your friends before the weekly round closes.</p>
+  </div>;
+}
 
 function DatingFeature({ userId }: { userId: string }) {
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -741,7 +845,7 @@ function GroupsFeature({ userId }: { userId: string }) {
       <form className="feature-form" onSubmit={createGroup}>
         <label>Group name<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} minLength={2} required placeholder="Give your group a name" /></label>
         <label>About the group<textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} maxLength={2000} placeholder="What brings this group together?" /></label>
-        <label>Country restriction (optional)<input value={countryRestriction} onChange={e=>setCountryRestriction(e.target.value)} placeholder="Only allow members from this country" /></label>
+        <label>Country restriction (optional)<select value={countryRestriction} onChange={e=>setCountryRestriction(e.target.value)}><option value="">Worldwide · no restriction</option>{Country.getAllCountries().map(item=><option key={item.isoCode} value={item.name}>{item.flag} {item.name}</option>)}</select></label>
         <div className="form-submit-row"><span className="draft-state">3 members to open chat</span><button className="primary-button" disabled={busy}>{busy?'Creating…':'Create group ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
