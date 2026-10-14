@@ -10,7 +10,7 @@ type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boo
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
-type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null };
+type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null; media_type?: string|null; media_path?: string|null; view_once?: boolean; mime_type?: string|null; duration_seconds?: number|null };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null };
@@ -1425,6 +1425,11 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [groupReactions, setGroupReactions] = useState<Record<string,GroupMessageReaction[]>>({});
   const [groupReactionPicker, setGroupReactionPicker] = useState<string | null>(null);
   const [groupSenderNames, setGroupSenderNames] = useState<Record<string,string>>({});
+  const [groupMediaFile, setGroupMediaFile] = useState<File|null>(null);
+  const [groupViewOnce, setGroupViewOnce] = useState(false);
+  const [groupMediaUrls, setGroupMediaUrls] = useState<Record<string,string>>({});
+  const [groupViewedOnce, setGroupViewedOnce] = useState<Record<string,boolean>>({});
+  const [groupMediaBusyId, setGroupMediaBusyId] = useState('');
 
   async function load() {
     if (!supabase) return;
@@ -1493,11 +1498,11 @@ function GroupsFeature({ userId }: { userId: string }) {
     if (error) { setNotice(error.message);return; }
     setOpenGroupId(group.id);setOpenConversationId(data as string);setNotice('');
     const { data: rows, error: messagesError } = await supabase.from('messages')
-      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
+      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once,mime_type,duration_seconds').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
     if (messagesError) setNotice(messagesError.message);
     else {
       const messages = (rows ?? []) as ChatMessage[];
-      setChatMessages(messages);
+      setChatMessages(messages); setGroupMediaUrls({}); setGroupViewedOnce({});
       const senderIds = [...new Set(messages.map(m => m.sender_id))];
       if (senderIds.length) {
         const { data: people } = await supabase.from('profiles').select('id,display_name,username').in('id', senderIds);
@@ -1517,15 +1522,73 @@ function GroupsFeature({ userId }: { userId: string }) {
 
   async function sendGroupMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !openConversationId || !chatDraft.trim()) return;
+    if (!supabase || !openConversationId || !openGroupId || (!chatDraft.trim() && !groupMediaFile)) return;
     setBusy(true);setNotice('');
-    const { error } = await supabase.from('messages').insert({conversation_id:openConversationId,sender_id:userId,body:chatDraft.trim(),reply_to_message_id:replyingTo?.id ?? null});
-    if (error) setNotice(error.message);
-    else {
-      setChatDraft(''); setReplyingTo(null);
-      const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at,reply_to_message_id')
+    let mediaPath: string|null = null;
+    let mediaType: 'image'|'video'|'audio'|null = null;
+    try {
+      if(groupMediaFile){
+        const file=groupMediaFile;
+        if(file.size>50*1024*1024)throw new Error('Group media must be 50 MB or smaller.');
+        if(file.type.startsWith('image/'))mediaType='image';
+        else if(file.type.startsWith('video/'))mediaType='video';
+        else if(file.type.startsWith('audio/'))mediaType='audio';
+        else throw new Error('Choose a photo, video or audio file.');
+        const safeName=file.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-');
+        mediaPath=`${userId}/${openGroupId}/${crypto.randomUUID()}-${safeName}`;
+        const upload=await supabase.storage.from('group-media').upload(mediaPath,file,{contentType:file.type,upsert:false});
+        if(upload.error)throw upload.error;
+      }
+      const { error } = await supabase.rpc('send_group_message',{
+        p_group_id:openGroupId,p_body:chatDraft.trim(),p_media_type:mediaType,p_media_path:mediaPath,
+        p_reply_to_id:replyingTo?.id??null,p_view_once:Boolean(groupViewOnce&&mediaType&&mediaType!=='audio'),
+        p_idempotency_key:crypto.randomUUID(),
+      });
+      if (error) {
+        if(mediaPath)await supabase.storage.from('group-media').remove([mediaPath]);
+        throw error;
+      }
+      setChatDraft(''); setReplyingTo(null); setGroupMediaFile(null); setGroupViewOnce(false);
+      const fileInput=document.getElementById('group-media-input') as HTMLInputElement|null;
+      if(fileInput)fileInput.value='';
+      const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once,mime_type,duration_seconds')
         .eq('conversation_id',openConversationId).order('created_at',{ascending:true}).limit(200);
       setChatMessages((data ?? []) as ChatMessage[]);
+    } catch(error) {
+      setNotice(error instanceof Error?error.message:'Could not send this group message.');
+    } finally { setBusy(false); }
+  }
+
+  async function openGroupMedia(message:ChatMessage) {
+    if(!supabase||!message.media_path||groupMediaBusyId)return;
+    setGroupMediaBusyId(message.id);setNotice('');
+    try {
+      if(message.view_once){
+        const {data,error}=await supabase.rpc('claim_group_media_view_once',{p_message_id:message.id});
+        if(error)throw error;
+        if(data!==true){setGroupViewedOnce(prev=>({...prev,[message.id]:true}));setNotice('This view-once media has already been opened.');return;}
+      }
+      const {data,error}=await supabase.storage.from('group-media').createSignedUrl(message.media_path,60);
+      if(error)throw error;
+      setGroupMediaUrls(prev=>({...prev,[message.id]:data.signedUrl}));
+    } catch(error) {
+      setNotice(error instanceof Error?error.message:'Could not open this group media.');
+    } finally {setGroupMediaBusyId('');}
+  }
+
+  function hideGroupMedia(message:ChatMessage) {
+    setGroupMediaUrls(prev=>{const next={...prev};delete next[message.id];return next;});
+    if(message.view_once)setGroupViewedOnce(prev=>({...prev,[message.id]:true}));
+  }
+
+  async function deleteGroupMessage(message:ChatMessage) {
+    if(!supabase||message.sender_id!==userId||busy)return;
+    setBusy(true);setNotice('');
+    const {error}=await supabase.rpc('delete_group_message',{p_message_id:message.id});
+    if(error)setNotice(error.message);
+    else {
+      setChatMessages(prev=>prev.filter(item=>item.id!==message.id));
+      setNotice('Your message was deleted.');
     }
     setBusy(false);
   }
