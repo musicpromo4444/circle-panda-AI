@@ -20,7 +20,6 @@ type WalletTransactionRow = { id: string; currency: string; amount: number; reas
 const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Home', icon: '⌂', hint: 'Your circle at a glance' },
   { name: 'Confessions', icon: '☁', hint: 'Say what is on your mind' },
-  { name: 'Crush', icon: '♛', hint: 'Monday MCM · Wednesday WCW' },
   { name: 'Dating', icon: '♡', hint: 'Meet someone new' },
   { name: 'Events', icon: '▦', hint: 'Find your next plan' },
   { name: 'Groups', icon: '◉', hint: 'Your people, your conversations' },
@@ -275,7 +274,7 @@ export default function App() {
     </main>;
   }
 
-  const active = sections.find(item => item.name === section)!;
+  const active = sections.find(item => item.name === section) ?? { name: section, hint: 'Your circle at a glance' };
   return <div className={`app-shell theme-${theme}`}>
     <aside className="sidebar">
       <button className="brand" onClick={() => setSection('Confessions')}><span className="brand-icon">🐼</span><span>circle<span className="brand-green">panda</span><small>YOUR CIRCLE, YOUR WAY</small></span></button>
@@ -575,15 +574,14 @@ function DatingFeature({ userId }: { userId: string }) {
 
   return <div className="dating-page">
     <div className="dating-toolbar">
-      <button type="button" className="primary-button" onClick={() => setRegisterOpen(open => !open)}>{registerOpen ? 'Close registration ×' : published ? 'Edit Dating Profile' : 'Register for Dating'}</button>
+      <button type="button" className="primary-button" onClick={() => setRegisterOpen(open => !open)}>{registerOpen ? 'Close profile ×' : published ? 'Edit Your Profile' : 'Create Your Profile'}</button>
       <button type="button" className="secondary-button dating-filter-button" onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Hide filters' : '⌕ Filter dating cards'}</button>
     </div>
     {filtersOpen && <section className="dating-filter-panel">
       <div className="section-title-row"><div><h2>Filter dating cards</h2><p>Choose a location to narrow the feed.</p></div><button type="button" className="secondary-button" onClick={() => setFilterLocation({ country: '', state: '', city: '', area: '' })}>Clear</button></div>
       <LocationFields value={filterLocation} onChange={setFilterLocation} />
     </section>}
-    {registerOpen && <section className="feature-panel dating-form-panel"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>{published ? 'Update your dating profile' : 'Register for Dating'}</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
-<div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>Make room for a connection</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
+    {registerOpen && <section className="feature-panel dating-form-panel"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p><h2>{published ? 'Update your dating profile' : 'Make room for a connection'}</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         <label>Date of birth<input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} required /></label>
         <LocationFields value={location} onChange={setLocation} />
