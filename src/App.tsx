@@ -1192,12 +1192,20 @@ function EventsFeature({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [promotionStatus, setPromotionStatus] = useState<{eligible:boolean;base_reach:number;notification_cap:number;is_vip:boolean}|null>(null);
+  const [blastEventId, setBlastEventId] = useState<string|null>(null);
+  const [blastScope, setBlastScope] = useState<'worldwide'|'country'|'state'|'city'|'area'>('worldwide');
+  const [blastLocation, setBlastLocation] = useState<LocationValue>({country:'',state:'',city:'',area:''});
+  const [blastBusy, setBlastBusy] = useState(false);
+  const [eventSearch, setEventSearch] = useState('');
 
   async function load() {
     if (!supabase) return;
     const { data, error } = await supabase.from('events')
       .select('id,creator_id,title,description,venue,country,state,city,area,starts_at,cover_url,is_published')
       .eq('is_published', true).order('starts_at', { ascending: true }).limit(60);
+    const { data: promotion } = await supabase.rpc('get_event_promotion_status_secure');
+    if (promotion) setPromotionStatus(promotion as {eligible:boolean;base_reach:number;notification_cap:number;is_vip:boolean});
     if (error) setNotice(error.message);
     const rows = (data ?? []) as EventRow[];
     setEvents(rows);
@@ -1260,6 +1268,28 @@ function EventsFeature({ userId }: { userId: string }) {
     setBusy(false);
   }
 
+  async function startFreeBlast() {
+    if(!supabase||!blastEventId||blastBusy)return;
+    if(!promotionStatus?.eligible){setNotice('Your free Event Blast has already been used this month.');return;}
+    if(blastScope==='country'&&!blastLocation.country){setNotice('Choose a country for this audience.');return;}
+    if(blastScope==='state'&&(!blastLocation.country||!blastLocation.state)){setNotice('Choose a country and state for this audience.');return;}
+    if(blastScope==='city'&&(!blastLocation.country||!blastLocation.city)){setNotice('Choose a country and city for this audience.');return;}
+    if(blastScope==='area'&&(!blastLocation.country||!blastLocation.area)){setNotice('Choose a country and area for this audience.');return;}
+    setBlastBusy(true);setNotice('');
+    const {data,error}=await supabase.rpc('claim_free_event_promotion_secure',{
+      p_event_id:blastEventId,p_target_scope:blastScope,
+      p_target_country:blastLocation.country||null,p_target_state:blastLocation.state||null,
+      p_target_city:blastLocation.city||null,p_target_area:blastLocation.area||null,
+    });
+    if(error)setNotice(error.message);
+    else {
+      const result=(data??{}) as {unique_reach?:number;notification_cap?:number;ends_at?:string};
+      setNotice(`Event Blast started: ${result.unique_reach??promotionStatus?.base_reach??100} unique people targeted. Your audience will receive the event notification.`);
+      setBlastEventId(null);setBlastLocation({country:'',state:'',city:'',area:''});setBlastScope('worldwide');await load();
+    }
+    setBlastBusy(false);
+  }
+
   async function messageCreator(item: EventRow) {
     if (!supabase || item.creator_id === userId) return;
     const { error } = await supabase.rpc('send_message_request', {
@@ -1280,9 +1310,10 @@ function EventsFeature({ userId }: { userId: string }) {
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section>
-    <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
+    <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Find a plan, RSVP, or contact the host directly.</p></div><span className="count-pill">{events.length} EVENTS</span></div><div className="event-directory-tools"><input value={eventSearch} onChange={e=>setEventSearch(e.target.value)} placeholder="Search events, venues or locations…" aria-label="Search events" /></div>
+      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.filter(item=>`${item.title} ${item.description} ${item.venue??''} ${item.country??''} ${item.state??''} ${item.city??''} ${item.area??''}`.toLowerCase().includes(eventSearch.trim().toLowerCase())).map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <><span className="published-state">● Your event</span><button className="primary-button event-boost-button" disabled={!promotionStatus?.eligible||busy||!promotionStatus} onClick={()=>{setBlastEventId(item.id);setBlastScope('worldwide');setBlastLocation({country:'',state:'',city:'',area:''});}}>{promotionStatus?.eligible?'Boost Event ↗':'Free Blast Used'}</button></> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
+    {blastEventId&&<div className="onboarding-backdrop" onClick={()=>!blastBusy&&setBlastEventId(null)}><section className="feature-panel event-blast-modal" role="dialog" aria-modal="true" aria-labelledby="event-blast-title" onClick={event=>event.stopPropagation()}><button type="button" className="modal-close" aria-label="Close Event Blast" onClick={()=>setBlastEventId(null)}>×</button><p className="eyebrow">REACH YOUR COMMUNITY</p><h2 id="event-blast-title">Boost Event · Free Blast</h2><p className="feature-copy">Your monthly free blast reaches up to <strong>{promotionStatus?.base_reach??100} unique people</strong> with a notification cap of {promotionStatus?.notification_cap??200}. {promotionStatus?.is_vip?'Your VIP benefit is active.':'VIP members receive a higher monthly reach.'}</p><label className="event-blast-scope">Target audience<select value={blastScope} onChange={e=>setBlastScope(e.target.value as typeof blastScope)}><option value="worldwide">Worldwide</option><option value="country">Country</option><option value="state">State / region</option><option value="city">City</option><option value="area">Area / neighbourhood</option></select></label>{blastScope!=='worldwide'&&<LocationFields value={blastLocation} onChange={setBlastLocation} />}<div className="form-submit-row"><button type="button" className="decline-button" disabled={blastBusy} onClick={()=>setBlastEventId(null)}>Cancel</button><button type="button" className="primary-button" disabled={blastBusy||!promotionStatus?.eligible} onClick={()=>void startFreeBlast()}>{blastBusy?'Starting blast…':'Start free blast ↗'}</button></div></section></div>}
   </div>;
 }
 
