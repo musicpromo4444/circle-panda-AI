@@ -5,7 +5,7 @@ import { supabase, supabaseConfigured } from './lib/supabase';
 import LocationFields, { CountryDropdown, type LocationValue } from './components/LocationFields';
 import CrushFeature from './components/CrushFeature';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Notifications' | 'Profile' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
@@ -24,6 +24,8 @@ const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Groups', icon: '◉', hint: 'Your people, your conversations' },
   { name: 'Messages', icon: '↗', hint: 'Requests and private chats' },
   { name: 'Wallet', icon: '◈', hint: 'Your Panda Coins and activity' },
+  { name: 'Notifications', icon: '♧', hint: 'Requests, replies and activity updates' },
+  { name: 'Profile', icon: '◎', hint: 'Your public details and preferences' },
   { name: 'Admin', icon: '⚙', hint: 'Manage rewards and economy rules' },
 ];
 
@@ -59,6 +61,7 @@ export default function App() {
   const [crushPanelKey, setCrushPanelKey] = useState(0);
   const [showCrushUploadChoice, setShowCrushUploadChoice] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   useEffect(() => {
     if (!supabase) return;
@@ -112,6 +115,14 @@ export default function App() {
       .then(({ data }) => { if (alive) setCoinBalance(data ? Number(data.bc_balance) : 0); });
     return () => { alive = false; };
   }, [session]);
+
+  useEffect(() => {
+    if (!supabase || !session) { setUnreadNotificationCount(0); return; }
+    let alive = true;
+    supabase.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',session.user.id).is('read_at',null)
+      .then(({count})=>{if(alive)setUnreadNotificationCount(count??0);});
+    return ()=>{alive=false;};
+  }, [session, section]);
 
   useEffect(() => {
     if (!supabase || !session) { setIsAdmin(false); return; }
@@ -314,7 +325,7 @@ export default function App() {
       </button>)}
     </nav>
     <main className="main-area">
-      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><svg className="panda-coin-engraving" viewBox="0 0 64 64" focusable="false" role="img"><defs><linearGradient id="walletPandaFace" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff9cf"/><stop offset=".22" stopColor="#ffe58a"/><stop offset=".48" stopColor="#e9ad28"/><stop offset=".72" stopColor="#a96508"/><stop offset="1" stopColor="#ffdf70"/></linearGradient><linearGradient id="walletPandaRaised" x1="0" y1="0" x2=".25" y2="1"><stop offset="0" stopColor="#fff5b0"/><stop offset=".35" stopColor="#f8c94e"/><stop offset=".7" stopColor="#d18b13"/><stop offset="1" stopColor="#8b5106"/></linearGradient><linearGradient id="walletPandaRecess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#75430a"/><stop offset=".5" stopColor="#a5660b"/><stop offset="1" stopColor="#f5c84d"/></linearGradient></defs><g strokeLinejoin="round"><circle cx="15.5" cy="14.5" r="10.5" fill="url(#walletPandaRaised)" stroke="#8c5708" strokeWidth="2"/><circle cx="48.5" cy="14.5" r="10.5" fill="url(#walletPandaRaised)" stroke="#8c5708" strokeWidth="2"/><circle cx="13.5" cy="11.5" r="3.2" fill="#fff2a2" opacity=".85"/><circle cx="46.5" cy="11.5" r="3.2" fill="#fff2a2" opacity=".85"/><path d="M12 28 C12 16 21 10 32 10 S52 16 52 28 L54 37 C53 51 44 58 32 59 C20 58 11 51 10 37 Z" fill="#9a5c08" opacity=".75" transform="translate(0 2)"/><path d="M11 27 C12 16 21 11 32 11 S52 16 53 27 L54 36 C53 50 44 57 32 58 C20 57 11 50 10 36 Z" fill="url(#walletPandaFace)" stroke="#7f4c07" strokeWidth="2"/><path d="M14 28 C16 18 24 15 32 15 S48 18 50 28" fill="none" stroke="#fff3b1" strokeWidth="2" opacity=".9"/><path d="M15 29 C17 23 22 21 26 24 C29 27 28 33 25 37 C22 41 16 40 14 35 C13 33 14 31 15 29 Z" fill="url(#walletPandaRecess)" stroke="#8e570a" strokeWidth="1.5"/><path d="M49 29 C47 23 42 21 38 24 C35 27 36 33 39 37 C42 41 48 40 50 35 C51 33 50 31 49 29 Z" fill="url(#walletPandaRecess)" stroke="#8e570a" strokeWidth="1.5"/><ellipse cx="22" cy="31" rx="3.4" ry="4.5" fill="#5c3508"/><ellipse cx="42" cy="31" rx="3.4" ry="4.5" fill="#5c3508"/><circle cx="21" cy="29.5" r="1.15" fill="#fff0a1"/><circle cx="41" cy="29.5" r="1.15" fill="#fff0a1"/><path d="M19 42 C21 37 27 36 32 39 C37 36 43 37 45 42 C43 49 38 52 32 52 C26 52 21 49 19 42 Z" fill="url(#walletPandaRaised)" stroke="#a5680c" strokeWidth="1.5"/><path d="M27 41 Q32 38 37 41 L32 45 Z" fill="#754207" stroke="#ffe18a" strokeWidth="1"/><path d="M32 45 L32 48 M32 48 Q28 51 25 48 M32 48 Q36 51 39 48" fill="none" stroke="#8b5408" strokeWidth="1.5" strokeLinecap="round"/><path d="M16 43 Q18 47 22 47 M48 43 Q46 47 42 47" fill="none" stroke="#fff0a0" strokeWidth="1.3" strokeLinecap="round"/><path d="M15 38 Q17 42 21 42 M49 38 Q47 42 43 42" fill="none" stroke="#ffec91" strokeWidth="1.2" strokeLinecap="round"/></g></svg></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="theme-toggle" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☼' : '☾'}</button><button className="more-menu-trigger" onClick={() => setMoreOpen(value=>!value)} aria-expanded={moreOpen} aria-label="More Circle Panda pages">☰ <span>More</span></button><button className="icon-button" title="Notifications" onClick={() => setNotice('You are all caught up.')}>♧</button><button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>{moreOpen && <div className="more-menu-panel"><div className="more-menu-heading"><strong>Explore Circle Panda</strong><button type="button" onClick={()=>setMoreOpen(false)} aria-label="Close menu">×</button></div>{[{name:'Crush' as Section,icon:'♛',hint:'Monday MCM · Wednesday WCW'},...sections.filter(item=>item.name!=='Confessions'&&(item.name!=='Admin'||isAdmin))].map(item=><button type="button" key={item.name} onClick={()=>{setSection(item.name);setMoreOpen(false);setNotice('');}}><span>{item.icon}</span><span>{item.name}</span><small>{item.hint}</small></button>)}<button type="button" className="more-signout" onClick={()=>{setMoreOpen(false);void signOut();}}>↗ Sign out</button></div>}
+      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><svg className="panda-coin-engraving" viewBox="0 0 64 64" focusable="false" role="img"><defs><linearGradient id="walletPandaFace" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff9cf"/><stop offset=".22" stopColor="#ffe58a"/><stop offset=".48" stopColor="#e9ad28"/><stop offset=".72" stopColor="#a96508"/><stop offset="1" stopColor="#ffdf70"/></linearGradient><linearGradient id="walletPandaRaised" x1="0" y1="0" x2=".25" y2="1"><stop offset="0" stopColor="#fff5b0"/><stop offset=".35" stopColor="#f8c94e"/><stop offset=".7" stopColor="#d18b13"/><stop offset="1" stopColor="#8b5106"/></linearGradient><linearGradient id="walletPandaRecess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#75430a"/><stop offset=".5" stopColor="#a5660b"/><stop offset="1" stopColor="#f5c84d"/></linearGradient></defs><g strokeLinejoin="round"><circle cx="15.5" cy="14.5" r="10.5" fill="url(#walletPandaRaised)" stroke="#8c5708" strokeWidth="2"/><circle cx="48.5" cy="14.5" r="10.5" fill="url(#walletPandaRaised)" stroke="#8c5708" strokeWidth="2"/><circle cx="13.5" cy="11.5" r="3.2" fill="#fff2a2" opacity=".85"/><circle cx="46.5" cy="11.5" r="3.2" fill="#fff2a2" opacity=".85"/><path d="M12 28 C12 16 21 10 32 10 S52 16 52 28 L54 37 C53 51 44 58 32 59 C20 58 11 51 10 37 Z" fill="#9a5c08" opacity=".75" transform="translate(0 2)"/><path d="M11 27 C12 16 21 11 32 11 S52 16 53 27 L54 36 C53 50 44 57 32 58 C20 57 11 50 10 36 Z" fill="url(#walletPandaFace)" stroke="#7f4c07" strokeWidth="2"/><path d="M14 28 C16 18 24 15 32 15 S48 18 50 28" fill="none" stroke="#fff3b1" strokeWidth="2" opacity=".9"/><path d="M15 29 C17 23 22 21 26 24 C29 27 28 33 25 37 C22 41 16 40 14 35 C13 33 14 31 15 29 Z" fill="url(#walletPandaRecess)" stroke="#8e570a" strokeWidth="1.5"/><path d="M49 29 C47 23 42 21 38 24 C35 27 36 33 39 37 C42 41 48 40 50 35 C51 33 50 31 49 29 Z" fill="url(#walletPandaRecess)" stroke="#8e570a" strokeWidth="1.5"/><ellipse cx="22" cy="31" rx="3.4" ry="4.5" fill="#5c3508"/><ellipse cx="42" cy="31" rx="3.4" ry="4.5" fill="#5c3508"/><circle cx="21" cy="29.5" r="1.15" fill="#fff0a1"/><circle cx="41" cy="29.5" r="1.15" fill="#fff0a1"/><path d="M19 42 C21 37 27 36 32 39 C37 36 43 37 45 42 C43 49 38 52 32 52 C26 52 21 49 19 42 Z" fill="url(#walletPandaRaised)" stroke="#a5680c" strokeWidth="1.5"/><path d="M27 41 Q32 38 37 41 L32 45 Z" fill="#754207" stroke="#ffe18a" strokeWidth="1"/><path d="M32 45 L32 48 M32 48 Q28 51 25 48 M32 48 Q36 51 39 48" fill="none" stroke="#8b5408" strokeWidth="1.5" strokeLinecap="round"/><path d="M16 43 Q18 47 22 47 M48 43 Q46 47 42 47" fill="none" stroke="#fff0a0" strokeWidth="1.3" strokeLinecap="round"/><path d="M15 38 Q17 42 21 42 M49 38 Q47 42 43 42" fill="none" stroke="#ffec91" strokeWidth="1.2" strokeLinecap="round"/></g></svg></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="theme-toggle" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☼' : '☾'}</button><button className="more-menu-trigger" onClick={() => setMoreOpen(value=>!value)} aria-expanded={moreOpen} aria-label="More Circle Panda pages">☰ <span>More</span></button><button className="icon-button notification-button" title="Notifications" onClick={() => setSection('Notifications')}>♧{unreadNotificationCount>0&&<i className="notification-count">{unreadNotificationCount>9?'9+':unreadNotificationCount}</i>}</button><button className="profile-chip" onClick={() => setSection('Profile')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>{moreOpen && <div className="more-menu-panel"><div className="more-menu-heading"><strong>Explore Circle Panda</strong><button type="button" onClick={()=>setMoreOpen(false)} aria-label="Close menu">×</button></div>{[{name:'Crush' as Section,icon:'♛',hint:'Monday MCM · Wednesday WCW'},...sections.filter(item=>item.name!=='Confessions'&&(item.name!=='Admin'||isAdmin))].map(item=><button type="button" key={item.name} onClick={()=>{setSection(item.name);setMoreOpen(false);setNotice('');}}><span>{item.icon}</span><span>{item.name}</span><small>{item.hint}</small></button>)}<button type="button" className="more-signout" onClick={()=>{setMoreOpen(false);void signOut();}}>↗ Sign out</button></div>}
       <div className={`page-wrap page-${section.toLowerCase()}`}>
 <div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confession' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div>{section !== 'Confessions' && <div className="date-pill"><span className="pulse" /> YOUR SPACE IS LIVE</div>}</div>
                 {(section === 'Home' || section === 'Confessions') && <div className="confession-shortcuts" aria-label="Circle Panda quick actions"><button type="button" className="confession-shortcut" onClick={() => setShowCrushUploadChoice(true)}><span className="shortcut-circle upload-3d"><span className="shortcut-symbol">＋</span></span><strong>Upload</strong><small>Upload your crush picture</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','wcw'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Crush'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♡</span></span><strong className="shortcut-acronym">WCW</strong><small>Woman Crush Wednesday</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','mcm'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♛</span></span><strong className="shortcut-acronym">MCM</strong><small>Man Crush Monday</small></button></div>}
@@ -367,6 +378,8 @@ function FeaturePanel({ section, userId, onOpenMessages }: { section: Section; u
   if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={onOpenMessages} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
+  if (section === 'Notifications') return <NotificationsFeature userId={userId} onNavigate={setSection} />;
+  if (section === 'Profile') return <ProfileFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Admin') return <AdminFeature />;
@@ -511,6 +524,72 @@ function MessagesFeature({ userId }: { userId: string }) {
   </section>;
 }
 
+
+type ProfileEditorRow = { display_name: string | null; username: string | null; country: string | null; state: string | null; city: string | null; area: string | null; date_of_birth: string | null; gender: string | null; bio: string | null; timezone: string | null };
+type NotificationRow = { id: string; actor_id: string | null; notification_type: string; title: string; body: string; target_type: string | null; target_id: string | null; read_at: string | null; created_at: string };
+
+function ProfileFeature({ userId }: { userId: string }) {
+  const [profile,setProfile] = useState<ProfileEditorRow>({display_name:'',username:'',country:'',state:'',city:'',area:'',date_of_birth:'',gender:'',bio:'',timezone:''});
+  const [location,setLocation] = useState<LocationValue>({country:'',state:'',city:'',area:''});
+  const [loading,setLoading] = useState(true);
+  const [busy,setBusy] = useState(false);
+  const [notice,setNotice] = useState('');
+  async function load() {
+    if(!supabase)return;
+    const {data,error}=await supabase.from('profiles').select('display_name,username,country,state,city,area,date_of_birth,gender,bio,timezone').eq('id',userId).maybeSingle();
+    if(error){setNotice(error.message);setLoading(false);return;}
+    const row=(data??{}) as Partial<ProfileEditorRow>;
+    const next:ProfileEditorRow={display_name:row.display_name??'',username:row.username??'',country:row.country??'',state:row.state??'',city:row.city??'',area:row.area??'',date_of_birth:row.date_of_birth??'',gender:row.gender??'',bio:row.bio??'',timezone:row.timezone??''};
+    setProfile(next);setLocation({country:next.country??'',state:next.state??'',city:next.city??'',area:next.area??''});setLoading(false);
+  }
+  useEffect(()=>{void load();},[userId]);
+  async function save(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();if(!supabase||busy)return;
+    if(!profile.display_name?.trim()){setNotice('Add your display name first.');return;}
+    if(profile.date_of_birth && new Date(profile.date_of_birth).getTime()>Date.now()){setNotice('Date of birth cannot be in the future.');return;}
+    setBusy(true);setNotice('');
+    const {error}=await supabase.from('profiles').update({display_name:profile.display_name.trim(),country:location.country||null,state:location.state||null,city:location.city||null,area:location.area||null,date_of_birth:profile.date_of_birth||null,gender:profile.gender||null,bio:profile.bio?.trim()||null,updated_at:new Date().toISOString()}).eq('id',userId);
+    if(error)setNotice(error.message);else{setNotice('Your profile has been saved.');await load();}
+    setBusy(false);
+  }
+  return <section className="feature-panel profile-panel"><div className="feature-icon">◎</div><p className="eyebrow">YOUR CIRCLE PANDA PROFILE</p><h2>Your profile</h2><p className="feature-copy">Keep your details accurate so your community and location-based features work correctly. Your country is used for community matching; there are no follower or following lists here.</p>{notice&&<div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}{loading?<div className="empty-state">Loading your profile…</div>:<form className="feature-form" onSubmit={save}><label>Display name<input value={profile.display_name??''} onChange={e=>setProfile(p=>({...p,display_name:e.target.value}))} maxLength={80} required /></label><label>Username<input value={profile.username??''} readOnly aria-readonly="true" /><small className="field-help">Username changes are managed separately to protect account links.</small></label><label>Bio<textarea value={profile.bio??''} onChange={e=>setProfile(p=>({...p,bio:e.target.value}))} rows={3} maxLength={500} placeholder="A little about you…" /></label><div className="form-grid-two"><label>Gender<select value={profile.gender??''} onChange={e=>setProfile(p=>({...p,gender:e.target.value}))}><option value="">Prefer not to say</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></label><label>Date of birth<input type="date" value={profile.date_of_birth??''} onChange={e=>setProfile(p=>({...p,date_of_birth:e.target.value}))} /></label></div><div className="profile-location-heading"><strong>Location</strong><small>Choose from the lists; don't type location names manually.</small></div><LocationFields value={location} onChange={setLocation} /><div className="form-submit-row"><button className="primary-button" disabled={busy}>{busy?'Saving…':'Save profile ↗'}</button></div></form>}</section>;
+}
+
+function NotificationsFeature({ userId, onNavigate }: { userId:string; onNavigate:(section:Section)=>void }) {
+  const [items,setItems]=useState<NotificationRow[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [busyId,setBusyId]=useState('');
+  const [notice,setNotice]=useState('');
+  async function load(){
+    if(!supabase)return;
+    const {data,error}=await supabase.from('notifications').select('id,actor_id,notification_type,title,body,target_type,target_id,read_at,created_at').eq('user_id',userId).order('created_at',{ascending:false}).limit(80);
+    if(error)setNotice(error.message);
+    setItems((data??[]) as NotificationRow[]);setLoading(false);
+  }
+  useEffect(()=>{void load();},[userId]);
+  async function markRead(id:string){
+    if(!supabase)return;
+    setBusyId(id);
+    const {error}=await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',id).eq('user_id',userId);
+    if(error)setNotice(error.message);else setItems(prev=>prev.map(item=>item.id===id?{...item,read_at:new Date().toISOString()}:item));
+    setBusyId('');
+  }
+  async function markAllRead(){
+    if(!supabase)return;
+    setBusyId('all');
+    const {error}=await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',userId).is('read_at',null);
+    if(error)setNotice(error.message);else{setNotice('All notifications marked as read.');await load();}
+    setBusyId('');
+  }
+  function openNotification(item:NotificationRow){
+    const source=`${item.target_type??''} ${item.notification_type} ${item.title}`.toLowerCase();
+    const destination:Section=source.includes('crush')||source.includes('wcw')||source.includes('mcm')?'Crush':source.includes('event')?'Events':source.includes('group')?'Groups':source.includes('dating')?'Dating':source.includes('profile')?'Profile':'Messages';
+    if(!item.read_at)void markRead(item.id);
+    onNavigate(destination);
+  }
+  const unread=items.filter(item=>!item.read_at).length;
+  return <section className="notifications-page"><div className="notifications-hero"><div><p className="eyebrow">STAY IN THE LOOP</p><h2>Your notifications</h2><p>Message requests, group activity and community updates all appear here.</p></div><div className="notifications-count">{unread}<small>UNREAD</small></div></div>{notice&&<div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}<div className="notifications-toolbar"><span>{items.length} updates</span><button className="text-action" disabled={busyId==='all'||unread===0} onClick={()=>void markAllRead()}>{busyId==='all'?'Marking…':'Mark all as read'}</button></div>{loading?<div className="empty-state">Loading notifications…</div>:items.length?<div className="notification-list">{items.map(item=><article className={item.read_at?'notification-card':'notification-card unread'} key={item.id}><span className="notification-symbol">{item.notification_type.toLowerCase().includes('message')?'↗':item.notification_type.toLowerCase().includes('group')?'◉':item.notification_type.toLowerCase().includes('event')?'▦':'✦'}</span><button className="notification-main" onClick={()=>openNotification(item)}><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.created_at).toLocaleString()}</small></button>{!item.read_at&&<button className="text-action" disabled={busyId===item.id} onClick={()=>void markRead(item.id)}>{busyId===item.id?'…':'Mark read'}</button>}</article>)}</div>:<div className="empty-state"><span>♧</span><h3>You’re all caught up.</h3><p>New requests and community updates will show here.</p></div>}</section>;
+}
 
 function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessages: () => void }) {
   const [registerOpen, setRegisterOpen] = useState(false);
