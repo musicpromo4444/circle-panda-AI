@@ -531,7 +531,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     'Short hair','Long hair','Dreads','Braids','Curly hair','Straight hair','Bald',
     'Casual','Smart','Streetwear','Glamorous','Feminine','Masculine','Sexy'
   ];
-  const eyeTypeOptions = ['Black eyes','Brown eyes','Hazel eyes','Blue eyes','Green eyes','Grey eyes'];
   const bodyTypeOptions = ['Slim','Petite','Average build','Athletic','Muscular','Chubby','Curvy','Plus-size','Broad shoulders','Figure-eight'];
   const interestOptions = [
     'Social media','Content creation','Comedy','Movies & TV','Music','TikTok / Reels','Gaming','Memes',
@@ -860,7 +859,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
-  const formSteps = ['About you','Lifestyle','Personality','Looking for & appearance','Eye type','Body type','Sexual Experience','Picture upload'];
+  const formSteps = ['About you','Lifestyle','Personality','Looking for & appearance','Body type','Sexual Experience','Picture upload'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
@@ -914,10 +913,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <h3>Looking for & appearance</h3><p>Choose the relationship you want and the appearance traits you prefer.</p>
           <label>Relationship goal<SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} /></label>
           <label>Skin, hair & style<ChoiceChips values={lookingForOptions} selected={lookingFor} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} /></label>
-        </section>}
-        {formStep === 4 && <section className="dating-form-step">
-          <h3>Eye type</h3><p>Select any eye colours you prefer.</p>
-          <ChoiceChips values={eyeTypeOptions} selected={lookingFor.filter(value=>eyeTypeOptions.includes(value))} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} />
         </section>}
         {formStep === 5 && <section className="dating-form-step">
           <h3>Body type</h3><p>Select the body types you prefer.</p>
