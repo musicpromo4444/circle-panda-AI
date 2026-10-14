@@ -317,7 +317,7 @@ export default function App() {
             <button type="button" className="decline-button full" onClick={() => setShowCrushUploadChoice(false)}>Cancel</button>
           </div>
         </section></div>}
-        {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+        {notice && <div className={`notice inline-notice ${notice.toLowerCase().includes('cannot message yourself') ? 'self-message-warning' : ''}`}>{notice}<button onClick={() => setNotice('')}>×</button></div>}
         {(section === 'Home' || section === 'Confessions') && <>
           <div className="section-title-row"><div><h2>{section === 'Confessions' ? 'Anonymous confessions' : 'From your circle'}</h2><p>{section === 'Confessions' ? 'Your identity stays hidden when you share.' : 'Small moments, shared honestly.'}</p></div><span className="count-pill">{posts.length} POSTS</span></div>
           <section id="confession-composer" className="feed-composer"><div className="composer-avatar">🐼</div><form onSubmit={publishPost}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder={section === 'Confessions' ? 'Share what is on your mind — anonymously…' : 'What would you like to share with your circle?'} maxLength={5000} required /><div className="composer-footer"><span>{section === 'Confessions' ? '☁ Posted anonymously' : '✦ Be kind, be real'}</span><button className="primary-button" disabled={posting || !draft.trim()}>{posting ? 'Posting…' : 'Share post'} <span>↗</span></button></div></form></section>
