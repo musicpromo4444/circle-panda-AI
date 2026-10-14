@@ -414,7 +414,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Notifications') return <NotificationsFeature userId={userId} onNavigate={onNavigate} />;
   if (section === 'Profile') return <ProfileFeature userId={userId} />;
-  if (section === 'Groups') return <GroupsFeature userId={userId} />;
+  if (section === 'Groups') return <GroupsFeature userId={userId} onNavigate={onNavigate} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Admin') return <AdminFeature />;
   const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'Admin' | 'Notifications' | 'Profile'>, { icon: string; title: string; body: string; next: string[] }> = {
@@ -1426,11 +1426,11 @@ function WalletFeature({ userId }: { userId: string }) {
 }
 
 
-type GroupRow = { id: string; creator_id: string; name: string; description: string; limitations?: string|null; country_restriction: string | null; is_vip: boolean; created_at: string };
+type GroupRow = { id: string; creator_id: string; name: string; description: string; limitations?: string|null; country_restriction: string | null; is_vip: boolean; vip_scope?: string|null; created_at: string };
 type GroupJoinRequestRow = { id:string; group_id:string; user_id:string; status:string; created_at:string };
 type GroupSettingsMember = { user_id:string; role:string };
 type GroupEvictionRequestRow = { id:string; group_id:string; target_user_id:string; requested_by:string; reason:string; status:string; created_at:string; resolved_at:string|null; approval_count:number; rejection_count:number; my_vote:boolean|null };
-function GroupsFeature({ userId }: { userId: string }) {
+function GroupsFeature({ userId, onNavigate }: { userId: string; onNavigate: (section:Section)=>void }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
   const [myGroups, setMyGroups] = useState<Record<string,boolean>>({});
@@ -1478,7 +1478,7 @@ function GroupsFeature({ userId }: { userId: string }) {
     const { data: profile } = await supabase.from('profiles').select('is_vip,country').eq('id',userId).maybeSingle();
     setMyVip(Boolean(profile?.is_vip)); setMyCountry(profile?.country || '');
     const { data, error } = await supabase.from('chat_groups')
-      .select('id,creator_id,name,description,limitations,country_restriction,is_vip,created_at')
+      .select('id,creator_id,name,description,limitations,country_restriction,is_vip,vip_scope,created_at')
       .order('created_at',{ascending:false}).limit(100);
     if (error) setNotice(error.message);
     const rows = (data ?? []) as GroupRow[];
@@ -1539,6 +1539,22 @@ function GroupsFeature({ userId }: { userId: string }) {
       if(result.status==='pending')setMyPendingGroupRequests(prev=>({...prev,[group.id]:true}));
       await load();
     }
+    setBusy(false);
+  }
+
+  async function openVipRoom(scope:'worldwide'|'country') {
+    if(!supabase||!myVip||busy)return;
+    if(scope==='country'&&!myCountry){setNotice('Choose your country in your profile before opening the country VIP group.');onNavigate('Profile');return;}
+    setBusy(true);setNotice('');
+    const {data:groupId,error}=await supabase.rpc('ensure_vip_group',{p_scope:scope,p_country:scope==='country'?myCountry:null});
+    if(error){setNotice(error.message);setBusy(false);return;}
+    const {data,error:groupError}=await supabase.from('chat_groups').select('id,creator_id,name,description,limitations,country_restriction,is_vip,vip_scope,created_at').eq('id',groupId as string).single();
+    if(groupError||!data){setNotice(groupError?.message||'VIP group could not be loaded.');setBusy(false);return;}
+    const group=data as GroupRow;
+    setGroups(prev=>prev.some(item=>item.id===group.id)?prev.map(item=>item.id===group.id?group:item):[group,...prev]);
+    setMyGroups(prev=>({...prev,[group.id]:true}));
+    setMemberCounts(prev=>({...prev,[group.id]:Math.max(prev[group.id]||0,1)}));
+    await openChat(group);
     setBusy(false);
   }
 
@@ -1755,8 +1771,8 @@ function GroupsFeature({ userId }: { userId: string }) {
       {notice && <div className="notice">{notice}</div>}
     </section>
     <section className="group-directory"><div className="section-title-row"><div><h2>Group directory</h2><p>Join a community and help it reach three members.</p></div><span className="count-pill">{groups.length} GROUPS</span></div>
-      <div className="vip-group-banner"><div><span>✦ VIP WORLDWIDE</span><strong>Worldwide VIP Group</strong><small>Always available to VIP members</small></div>{myVip ? <span className="vip-access">VIP access</span> : <button className="vip-locked" onClick={()=>setNotice('VIP membership checkout will be connected to the admin-controlled subscription flow.')}>🔒 Become VIP</button>}</div>
-      {myCountry && <div className="vip-group-banner country-vip"><div><span>✦ VIP COUNTRY</span><strong>{myCountry} VIP Group</strong><small>Country-based VIP community</small></div>{myVip ? <span className="vip-access">VIP access</span> : <button className="vip-locked" onClick={()=>setNotice('Complete VIP membership to unlock the country group.')}>🔒 Become VIP</button>}</div>}
+       <div className="vip-group-cards"><article className="vip-group-banner"><div className="vip-card-emblem">✦</div><div><span>WORLDWIDE VIP</span><strong>Worldwide VIP Group</strong><small>Private member room · no 3-member wait</small></div>{myVip?<button className="vip-access" disabled={busy} onClick={()=>void openVipRoom('worldwide')}>{busy?'Opening…':'Enter VIP room ↗'}</button>:<button className="vip-locked" onClick={()=>onNavigate('Wallet')}>🔒 Become VIP</button>}</article>
+       {myCountry&&<article className="vip-group-banner country-vip"><div className="vip-card-emblem">✦</div><div><span>COUNTRY VIP</span><strong>{myCountry} VIP Group</strong><small>For VIP members in your country</small></div>{myVip?<button className="vip-access" disabled={busy} onClick={()=>void openVipRoom('country')}>{busy?'Opening…':'Enter VIP room ↗'}</button>:<button className="vip-locked" onClick={()=>onNavigate('Wallet')}>🔒 Become VIP</button>}</article>}</div>
       {loading ? <div className="empty-state">Loading groups…</div> : groups.length ? <div className="group-cards">{groups.filter(g=>!g.is_vip).map(group => {
         const count = memberCounts[group.id] || 0;
         const member = Boolean(myGroups[group.id]);
