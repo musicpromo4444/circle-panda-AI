@@ -600,7 +600,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         setDateOfBirth(profile.date_of_birth || '');
         const savedLocation = { country: profile.country || '', state: profile.state_province || profile.state || '', city: profile.city || '', area: profile.area || '' };
         setLocation(savedLocation);
-        if (!profile.date_of_birth || !savedLocation.country || !savedLocation.state || !savedLocation.city || !savedLocation.area) { setBasicProfileOpen(true); }
+        if (!profile.date_of_birth || !savedLocation.country || !savedLocation.city || !savedLocation.area) { setBasicProfileOpen(true); }
       } else {
         setFormStep(0);
         setBasicProfileOpen(true);
