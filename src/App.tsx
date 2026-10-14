@@ -40,7 +40,10 @@ export default function App() {
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [signupCountry, setSignupCountry] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -189,15 +192,21 @@ export default function App() {
     setAuthBusy(true); setNotice('');
     try {
       if (authMode === 'signup') {
+        if (password !== confirmPassword) throw new Error('Your passwords do not match.');
+        if (!phone.trim().startsWith('+')) throw new Error('Enter your phone number in international format, including the + country code.');
         const { data, error } = await supabase.auth.signUp({
-          email, password, options: { data: { display_name: displayName.trim() || undefined } },
+          phone: phone.trim(), password,
+          options: { data: { display_name: displayName.trim() || undefined, country: signupCountry || undefined, contact_email: email.trim() || undefined } },
         });
         if (error) throw error;
         if (data.session) setNotice('Welcome to Circle Panda. Your account is ready.');
-        else setNotice('Account created. If email confirmation is enabled in Supabase, confirm your email before signing in.');
+        else setNotice('Account created. If phone verification is enabled in Supabase, verify your number before signing in. Email confirmation is not required for this phone-based signup.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const identifier = email.trim();
+        const credentials = identifier.includes('@')
+          ? await supabase.auth.signInWithPassword({ email: identifier, password })
+          : await supabase.auth.signInWithPassword({ phone: identifier, password });
+        if (credentials.error) throw credentials.error;
         setNotice('You are signed in.');
       }
     } catch (error) {
@@ -293,9 +302,12 @@ export default function App() {
         <p className="auth-copy">Confessions, crushes, events, dating and real conversations — all in one place.</p>
         {!supabaseConfigured && <div className="notice warning">Connect this app with <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable account access.</div>}
         <form className="auth-form" onSubmit={handleAuth}>
-          {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" /></label>}
-          <label>Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" /></label>
+          {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" required /></label>}
+          {authMode === 'signup' && <label>Phone number<input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+2348012345678" autoComplete="tel" required /></label>}
+          {authMode === 'signup' && <label>Country<CountryDropdown value={signupCountry} onChange={setSignupCountry} /></label>}
+          {authMode === 'signup' ? <label>Email address (optional)<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" /></label> : <label>Phone number or email<input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="+234… or you@example.com" required autoComplete="username" /></label>}
           <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" minLength={8} required autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label>
+          {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
           <button className="primary-button full" type="submit" disabled={!supabaseConfigured || authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <span>→</span></button>
         </form>
         <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
