@@ -374,3 +374,31 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
   .dating-page .dating-form-panel{position:relative;padding:18px}
   .crush-upload-inline{padding:18px}
 }
+
+
+/* Dating registration steps and selectable profile traits. */
+.dating-stepper{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 22px}
+.dating-stepper .step{flex:1 1 105px;border:1px solid #304438;border-radius:10px;padding:9px 8px;background:#111d17;color:#9eb2a3;font-size:10px;font-weight:700;text-align:center}
+.dating-stepper .step.active{border-color:#b2ed7b;background:linear-gradient(145deg,#253c26,#17271b);color:#d9ffc0;box-shadow:inset 0 0 0 1px #b2ed7b20}
+.dating-form-step{display:grid;gap:16px;min-width:0}
+.dating-form-step h3{margin:0;font-size:19px;line-height:1.3;color:#f3f7f1}
+.dating-form-step>p{margin:-8px 0 0;color:#9daf9f;font-size:12px;line-height:1.55}
+.dating-account-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dating-account-summary>div{display:flex;flex-direction:column;gap:7px;min-width:0;padding:12px;border:1px solid #2a4031;border-radius:12px;background:#0e1913}
+.dating-account-summary span{color:#8fa595;font-size:10px;text-transform:uppercase;letter-spacing:.7px}
+.dating-account-summary strong{overflow-wrap:anywhere;color:#e9f5e8;font-size:12px}
+.choice-chips{display:flex;flex-wrap:wrap;gap:8px}
+.choice-chip{border:1px solid #33483a;border-radius:999px;padding:9px 12px;background:#111e17;color:#c6d7c9;font-size:11px;line-height:1.3;transition:background .15s,border-color .15s,color .15s}
+.choice-chip:hover{border-color:#9bdc70}
+.choice-chip.selected{border-color:#b4ee7b;background:linear-gradient(145deg,#2b4729,#1a2b1b);color:#e4ffd0;box-shadow:inset 0 0 0 1px #b4ee7b25}
+.dating-form-step label{display:grid;gap:8px;color:#e0ebe1;font-size:12px;font-weight:700}
+.dating-form-step label>input:not([type=file]),.dating-form-step label>textarea,.dating-form-step label>select,.dating-filter-panel select{width:100%;min-width:0;border:1px solid #304438;border-radius:11px;padding:12px;background:#0c1711;color:#edf6ee;font-size:13px}
+.dating-form-step input[type=file]{width:100%;color:#a9bcae;font-size:11px}
+.dating-photo-preview{display:grid;place-items:center;overflow:hidden;min-height:190px;max-height:280px;border:1px solid #304438;border-radius:16px;background:radial-gradient(circle at 50% 20%,#293f2b,#101a14 68%);color:#d8f0c7;font-size:64px}
+.dating-photo-preview img{width:100%;height:280px;object-fit:cover;filter:blur(7px)}
+.dating-tag-list{display:flex;gap:6px;flex-wrap:wrap}
+.dating-tag-list .personality-tag{display:inline-flex;margin:0}
+.dating-card-bottom{gap:10px;flex-wrap:wrap}
+.dating-card-bottom>span{color:#9db0a2;font-size:10px}
+.dating-card-bottom .primary-button{max-width:100%;white-space:normal}
+@media(max-width:520px){.dating-account-summary{grid-template-columns:1fr 1fr}.dating-stepper .step{flex-basis:90px;font-size:9px}.choice-chip{padding:8px 10px;font-size:10px}.dating-form-step h3{font-size:17px}}
