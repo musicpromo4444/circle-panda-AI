@@ -903,3 +903,28 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
  .mobile-nav-dating::before{content:""!important;position:absolute!important;top:-10px!important;left:50%!important;width:82px!important;height:41px!important;transform:translateX(-50%)!important;border-radius:82px 82px 0 0!important;background:transparent!important;border:2px solid #dca92e!important;border-bottom:0!important;box-shadow:0 -1px 4px #f5d77933!important;pointer-events:none!important}
  .mobile-nav-label{font-size:11px!important;font-weight:800!important}
 }
+
+
+/* Refine raised Dating control: larger simple outline heart, gold body, clean semicircle */
+@media (max-width:760px){
+  .mobile-nav-icon{font-size:30px!important;min-height:34px!important}
+  .mobile-nav-dating .mobile-nav-icon{
+    width:56px!important;height:56px!important;flex-basis:56px!important;
+    margin:-27px auto 0!important;border-radius:50%!important;
+    background:linear-gradient(145deg,#fff2b0 0%,#f3c64f 30%,#c88a13 67%,#ffe38a 100%)!important;
+    border:1px solid #fff0a0!important;
+    color:#fff!important;-webkit-text-stroke:0!important;
+    text-shadow:0 1px 0 #fff8d2,0 2px 0 #98620d,0 3px 5px #67400077!important;
+    box-shadow:inset 0 2px 3px #fff9,inset 0 -4px 6px #88550966,0 5px 0 #87570b,0 8px 15px #a66a1555!important;
+  }
+  .mobile-nav-dating .mobile-nav-icon svg{width:31px!important;height:31px!important;stroke:#e95b8b!important;fill:none!important;stroke-width:2.1!important}
+  .mobile-nav-dating::before{
+    content:""!important;position:absolute!important;top:-1px!important;left:50%!important;
+    width:78px!important;height:39px!important;transform:translateX(-50%)!important;
+    border-radius:78px 78px 0 0!important;
+    background:var(--background, #111)!important;
+    border:1px solid #c89527!important;border-bottom:0!important;
+    box-shadow:inset 0 1px 0 #fff2!important;pointer-events:none!important;
+  }
+  .mobile-nav-dating .mobile-nav-label{color:#e8bf53!important;font-weight:900!important}
+}
