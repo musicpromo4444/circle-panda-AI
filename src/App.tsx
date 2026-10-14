@@ -1410,6 +1410,7 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
   const [myGroups, setMyGroups] = useState<Record<string,boolean>>({});
+  const [myPendingGroupRequests, setMyPendingGroupRequests] = useState<Record<string,boolean>>({});
   const [myVip, setMyVip] = useState(false);
   const [myCountry, setMyCountry] = useState('');
   const [name, setName] = useState('');
@@ -1456,15 +1457,17 @@ function GroupsFeature({ userId }: { userId: string }) {
     setGroups(rows);
     const ids = rows.map(g => g.id);
     if (ids.length) {
-      const [membersResult, mineResult] = await Promise.all([
+      const [membersResult, mineResult, pendingResult] = await Promise.all([
         supabase.from('group_members').select('group_id,user_id,role').in('group_id',ids),
         supabase.from('group_members').select('group_id').eq('user_id',userId).in('group_id',ids),
+        supabase.from('group_join_requests').select('group_id').eq('user_id',userId).eq('status','pending').in('group_id',ids),
       ]);
       const counts: Record<string,number> = {};
       const mine: Record<string,boolean> = {};
       (membersResult.data ?? []).forEach((m: {group_id:string;user_id:string;role:string}) => { counts[m.group_id] = (counts[m.group_id] || 0) + 1; });
       (mineResult.data ?? []).forEach((m: {group_id:string}) => { mine[m.group_id] = true; });
-      setMemberCounts(counts); setMyGroups(mine);
+      const pending:Record<string,boolean>={};(pendingResult.data??[]).forEach((row:{group_id:string})=>{pending[row.group_id]=true;});
+      setMemberCounts(counts); setMyGroups(mine); setMyPendingGroupRequests(pending);
     }
     setLoading(false);
   }
@@ -1505,6 +1508,7 @@ function GroupsFeature({ userId }: { userId: string }) {
     else {
       const result=(data??{}) as {status?:string};
       setNotice(result.status==='pending'?'Your request to join was sent to the group admins.':result.status==='waiting'?'You joined. Chat opens when the group reaches three members.':'You joined the group.');
+      if(result.status==='pending')setMyPendingGroupRequests(prev=>({...prev,[group.id]:true}));
       await load();
     }
     setBusy(false);
@@ -1621,6 +1625,60 @@ function GroupsFeature({ userId }: { userId: string }) {
     const { data } = await supabase.from('group_message_reactions').select('id,message_id,user_id,reaction').eq('message_id',messageId);
     setGroupReactions(prev => ({...prev,[messageId]:(data ?? []) as GroupMessageReaction[]}));
     setGroupReactionPicker(null);
+  }
+
+  async function openGroupSettings() {
+    if(!supabase||!openGroup)return;
+    setGroupSettingsOpen(true);setGroupSettingsLoading(true);
+    setGroupNameDraft(openGroup.name);setGroupAboutDraft(openGroup.description||'');setGroupJoinRequests([]);setJoinRequestNames({});
+    const [roleResult,settingsResult]=await Promise.all([
+      supabase.from('group_members').select('role').eq('group_id',openGroup.id).eq('user_id',userId).maybeSingle(),
+      supabase.from('group_settings').select('edit_group_info,send_messages,approve_new_members').eq('group_id',openGroup.id).maybeSingle(),
+    ]);
+    const role=String(roleResult.data?.role??(openGroup.creator_id===userId?'creator':'member'));
+    setGroupMyRole(role);
+    setGroupEditInfo(settingsResult.data?.edit_group_info==='admins_members'?'admins_members':'admins');
+    setGroupSendMessages(settingsResult.data?.send_messages??true);
+    setGroupApproveMembers(settingsResult.data?.approve_new_members??false);
+    if(role==='creator'||role==='admin'){
+      const {data:requests}=await supabase.from('group_join_requests').select('id,group_id,user_id,status,created_at').eq('group_id',openGroup.id).eq('status','pending').order('created_at',{ascending:true});
+      const rows=(requests??[]) as GroupJoinRequestRow[];setGroupJoinRequests(rows);
+      const ids=[...new Set(rows.map(row=>row.user_id))];
+      if(ids.length){const {data:people}=await supabase.from('profiles').select('id,display_name,username').in('id',ids);const names:Record<string,string>={};(people??[]).forEach((p:{id:string;display_name:string|null;username:string|null})=>{names[p.id]=p.display_name||p.username||'Panda';});setJoinRequestNames(names);}
+    }
+    setGroupSettingsLoading(false);
+  }
+
+  async function saveGroupInfo(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();if(!supabase||!openGroup||groupSettingsBusy)return;
+    setGroupSettingsBusy(true);setNotice('');
+    const {error}=await supabase.rpc('update_group_info',{p_group_id:openGroup.id,p_name:groupNameDraft.trim(),p_topic:groupAboutDraft.trim()});
+    if(error)setNotice(error.message);else{setNotice('Group information saved.');await load();}
+    setGroupSettingsBusy(false);
+  }
+
+  async function saveGroupSettings() {
+    if(!supabase||!openGroup||groupSettingsBusy)return;
+    setGroupSettingsBusy(true);setNotice('');
+    const {error}=await supabase.rpc('update_group_settings',{p_group_id:openGroup.id,p_edit_group_info:groupEditInfo,p_send_messages:groupSendMessages,p_approve_new_members:groupApproveMembers});
+    if(error)setNotice(error.message);else setNotice('Group settings saved.');
+    setGroupSettingsBusy(false);
+  }
+
+  async function reviewJoinRequest(request:GroupJoinRequestRow,approve:boolean) {
+    if(!supabase||groupSettingsBusy)return;
+    setGroupSettingsBusy(true);setNotice('');
+    const {error}=await supabase.rpc('review_group_join_request',{p_request_id:request.id,p_approve:approve});
+    if(error)setNotice(error.message);else{setNotice(approve?'Member request approved.':'Member request declined.');await openGroupSettings();await load();}
+    setGroupSettingsBusy(false);
+  }
+
+  async function leaveCurrentGroup() {
+    if(!supabase||!openGroup||groupSettingsBusy)return;
+    setGroupSettingsBusy(true);setNotice('');
+    const {error}=await supabase.rpc('leave_group',{p_group_id:openGroup.id});
+    if(error)setNotice(error.message);else{setNotice('You left the group.');setGroupSettingsOpen(false);setOpenGroupId(null);setOpenConversationId(null);await load();}
+    setGroupSettingsBusy(false);
   }
 
   const openGroup = groups.find(g => g.id === openGroupId);
