@@ -580,3 +580,37 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
 .dating-toolbar-stacked .dating-create-button{order:1}
 .dating-filter-panel{position:relative;max-width:none;width:100%;margin:0 0 20px;padding:22px}
 @media(max-width:560px){.dating-toolbar-stacked{gap:9px;margin-bottom:15px}.dating-toolbar-stacked>button{min-height:48px}.dating-filter-panel{padding:18px}}
+
+
+/* Compact legacy-style profile completion popup (not a full-screen setup page). */
+.dating-basic-backdrop{position:fixed;inset:0;z-index:1300;display:grid;place-items:center;padding:18px;background:rgba(4,9,7,.68);backdrop-filter:blur(7px)}
+.dating-basic-modal{width:min(100%,520px);max-height:min(88dvh,820px);overflow-y:auto;overscroll-behavior:contain;background:var(--panel,#111d18);border:1px solid #354b3a;border-radius:22px;padding:clamp(18px,4vw,28px);box-shadow:0 28px 100px #0008;color:var(--text,#edf5ed)}
+.dating-basic-modal>header{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px}
+.dating-basic-symbol{width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;border-radius:14px;background:#243b2b;border:1px solid #52774b;color:#baf18f;font-size:25px}
+.dating-basic-modal .eyebrow{margin:0 0 5px;color:#a7d991}
+.dating-basic-modal h2{font:800 23px/1.2 Manrope,sans-serif;margin:0 0 7px;letter-spacing:-.5px}
+.dating-basic-modal header p:last-child{font-size:12px;line-height:1.55;color:#9aada0;margin:0}
+.dating-basic-summary{display:flex;flex-direction:column;gap:5px;padding:12px 14px;border:1px solid #2d4333;background:#17271d;border-radius:12px;margin-bottom:15px}
+.dating-basic-summary span{font-size:10px;color:#9bb09e}
+.dating-basic-summary strong{font-size:14px;color:#edf6ed}
+.dating-basic-modal>label{display:grid;gap:7px;font-size:12px;color:#d4e2d5;font-weight:700;margin-bottom:12px}
+.dating-basic-modal input[type="date"]{width:100%;min-height:44px;background:#0c1510;border:1px solid #34473a;border-radius:10px;padding:11px;color:#edf5ed}
+.dating-basic-age{font-size:11px;line-height:1.5;color:#9aada0;margin:0 0 14px}
+.dating-basic-age strong{color:#dff5d7}
+.dating-basic-modal .location-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.dating-basic-modal .location-hint{grid-column:1/-1}
+.dating-basic-modal .dating-basic-actions{display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:-1px;padding-top:16px;margin-top:14px;background:linear-gradient(0deg,#111d18 75%,rgba(17,29,24,0))}
+.dating-basic-modal .dating-basic-actions button{min-height:44px;min-width:100px}
+.dating-basic-modal .location-select-wrap input{width:100%;min-height:42px}
+:root[data-theme="light"] .dating-basic-modal{background:#fff;border-color:#d8e4d7;color:#1b2b20}
+:root[data-theme="light"] .dating-basic-summary{background:#f1f7ef;border-color:#d8e6d4}
+:root[data-theme="light"] .dating-basic-summary strong{color:#203326}
+:root[data-theme="light"] .dating-basic-modal>label{color:#334a37}
+:root[data-theme="light"] .dating-basic-modal input[type="date"]{background:#f8fbf7;color:#1b2b20;border-color:#cbd9c8}
+:root[data-theme="light"] .dating-basic-modal .dating-basic-actions{background:linear-gradient(0deg,#fff 75%,rgba(255,255,255,0))}
+@media(max-width:560px){.dating-basic-backdrop{padding:12px}.dating-basic-modal{width:100%;max-height:88dvh;border-radius:18px;padding:18px}.dating-basic-modal h2{font-size:21px}.dating-basic-modal .location-fields{grid-template-columns:1fr;gap:10px}.dating-basic-modal .location-hint{grid-column:auto}}
+/* Navigation stays anchored; page changes and hover never shift the bottom icons. */
+.sidebar,.sidebar nav,.sidebar .nav-item{animation:none!important}
+.sidebar .nav-item,.sidebar .nav-item:hover,.sidebar .nav-item:active{transform:none!important}
+.sidebar .nav-item{transition:background-color .15s,color .15s,border-color .15s!important}
+@media(max-width:760px){.app-shell>.sidebar{height:calc(66px + env(safe-area-inset-bottom))!important;padding-bottom:env(safe-area-inset-bottom)!important}.app-shell>.main-area{padding-bottom:calc(66px + env(safe-area-inset-bottom))!important}}
