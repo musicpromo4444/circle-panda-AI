@@ -928,3 +928,9 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
   }
   .mobile-nav-dating .mobile-nav-label{color:#e8bf53!important;font-weight:900!important}
 }
+
+
+@media (max-width:760px){
+  .mobile-nav-dating .mobile-nav-icon{color:#f06b98!important;-webkit-text-stroke:0!important;text-shadow:0 1px 0 #ffe6ef,0 2px 2px #8c1d44!important}
+  .mobile-nav-dating::before{background:var(--background,#111)!important;border-color:#c89527!important;box-shadow:none!important}
+}
