@@ -911,7 +911,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       <header><button type="button" className="secondary-button" onClick={() => { setRegisterOpen(false); setNotice('You can finish your Dating details any time from Edit Your Profile.'); }}>Cancel</button><strong>Dating profile setup</strong><span>{formStep+1}/{formSteps.length}</span></header><div className="dating-setup-intro"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
       <h2>{published ? 'Update your dating profile' : 'Create your dating profile'}</h2>
       <p className="feature-copy">Dating is for adults aged 18+. Your basic details are saved to your Circle Panda account so the rest of the app can use the same profile information.</p></div>
-      <div className="dating-stepper" aria-label="Setup progress">{formSteps.map((label,index)=><span key={label} className={index===formStep?'step active':index<formStep?'step complete':'step'}>{index+1}. {label}</span>)}</div>
+      <div className="dating-stepper" aria-label="Setup progress"><span className="dating-step-counter">STEP {formStep+1} OF {formSteps.length}</span><strong>{formSteps[formStep]}</strong><div className="dating-progress-track"><span style={{width:`${((formStep+1)/formSteps.length)*100}%`}} /></div></div>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         {formStep === 0 && <section className="dating-form-step">
           <h3>About you</h3><p>These details belong to your Circle Panda account and can be reused throughout the app.</p>
