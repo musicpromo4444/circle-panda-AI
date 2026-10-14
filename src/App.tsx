@@ -349,7 +349,7 @@ export default function App() {
               {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
               {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className="comment-row" key={comment.id}><span className="comment-avatar">🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
-        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel key={section === 'Crush' ? crushPanelKey : section} section={section} userId={session.user.id} onOpenMessages={() => setSection('Messages')} />}
+        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel key={section === 'Crush' ? crushPanelKey : section} section={section} userId={session.user.id} onOpenMessages={() => setSection('Messages')} onNavigate={setSection} />}
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
@@ -373,12 +373,12 @@ export default function App() {
   </div>;
 }
 
-function FeaturePanel({ section, userId, onOpenMessages }: { section: Section; userId: string; onOpenMessages: () => void }) {
+function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
   if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={onOpenMessages} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
-  if (section === 'Notifications') return <NotificationsFeature userId={userId} onNavigate={setSection} />;
+  if (section === 'Notifications') return <NotificationsFeature userId={userId} onNavigate={onNavigate} />;
   if (section === 'Profile') return <ProfileFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
