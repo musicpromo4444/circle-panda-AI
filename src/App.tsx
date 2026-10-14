@@ -31,6 +31,8 @@ const sections: { name: Section; icon: string; hint: string }[] = [
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [headerBcBalance, setHeaderBcBalance] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [section, setSection] = useState<Section>('Confessions');
   const [crushKind, setCrushKind] = useState<CrushKind>('wcw');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
@@ -59,6 +61,14 @@ export default function App() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!supabase || !session) { setHeaderBcBalance(0); return; }
+    let alive = true;
+    supabase.from('wallet_accounts').select('bc_balance').eq('user_id',session.user.id).maybeSingle()
+      .then(({data}) => { if (alive) setHeaderBcBalance(Number(data?.bc_balance ?? 0)); });
+    return () => { alive = false; };
+  }, [session, section]);
 
   useEffect(() => {
     if (!supabase || !session) { setIsAdmin(false); return; }
@@ -232,7 +242,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="online-mark" /> <span>Connected to your circle</span><button onClick={signOut} className="signout">Sign out ↗</button></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="icon-button" title="Notifications" onClick={() => setNotice('You are all caught up.')}>♧</button><button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>
+      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="topbar-search">⌕ <span>Search your circle</span><kbd>⌘ K</kbd></div><div className="top-actions"><button className="coin-balance-chip" onClick={() => setSection('Wallet')} title="Open your Panda wallet"><span className="top-coin">BC</span><strong>{headerBcBalance.toLocaleString()}</strong></button><button className="more-menu-trigger" onClick={() => setMoreOpen(value=>!value)} aria-expanded={moreOpen}>☰ <span>More</span></button><button className="icon-button" title="Notifications" onClick={() => setNotice('You are all caught up.')}>♧</button><button className="profile-chip" onClick={() => setSection('Wallet')}><span className="avatar">{(session.user.email ?? 'P').slice(0,1).toUpperCase()}</span><span>{session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Panda'}</span><span>⌄</span></button></div></header>{moreOpen && <div className="more-menu-panel"><div className="more-menu-heading"><strong>Explore Circle Panda</strong><button onClick={()=>setMoreOpen(false)}>×</button></div>{sections.filter(item=>item.name!=='Home'&&item.name!=='Confessions'&&(item.name!=='Admin'||isAdmin)).map(item=><button key={item.name} onClick={()=>{setSection(item.name);setMoreOpen(false);setNotice('');}}><span>{item.icon}</span><span>{item.name}</span><small>{item.hint}</small></button>)}<button className="more-signout" onClick={()=>{setMoreOpen(false);void signOut();}}>↗ Sign out</button></div>}
       <div className="page-wrap">
         <div className="welcome-row"><div><p className="eyebrow">WELCOME BACK TO YOUR WORLD</p><h1>{section === 'Confessions' || section === 'Home' ? 'Secret Confession' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{active.hint}</p></div><div className="date-pill"><span className="pulse" /> YOUR SPACE IS LIVE</div></div>
         {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
