@@ -896,7 +896,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <LocationFields value={location} onChange={setLocation} required />
           <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
-          <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label><p className="draft-state">{currentPhotoLabel}</p>
+          <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div><label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label><p className="draft-state">{currentPhotoLabel}</p>
         </section>}
         {formStep === 1 && <section className="dating-form-step">
           <h3>Lifestyle</h3><p>Quick details that help people understand your everyday preferences.</p>
