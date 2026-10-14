@@ -1542,21 +1542,28 @@ function GroupsFeature({ userId }: { userId: string }) {
 
 
 type EconomySettingRow = { setting_key: string; numeric_value: number; updated_at: string; };
+type EventBlastPlanRow = { id:string; name:string; unique_reach:number; duration_minutes:number; price_usd:number; bc_price:number|null; enabled:boolean };
 function AdminFeature() {
   const [settings, setSettings] = useState<EconomySettingRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string,string>>({});
   const [busyKey, setBusyKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [blastPlans,setBlastPlans] = useState<EventBlastPlanRow[]>([]);
+  const [planDraft,setPlanDraft] = useState({id:'starter',name:'Starter',unique_reach:'100',duration_minutes:'60',price_usd:'0',bc_price:'0',enabled:true});
 
   async function load() {
     if (!supabase) return;
-    const { data, error } = await supabase.from('economy_settings')
-      .select('setting_key,numeric_value,updated_at').order('setting_key');
+    const [{ data, error }, { data: planData, error: planError }] = await Promise.all([
+      supabase.from('economy_settings').select('setting_key,numeric_value,updated_at').order('setting_key'),
+      supabase.rpc('get_event_blast_plans_admin'),
+    ]);
     if (error) setNotice(error.message);
     const rows = (data ?? []) as EconomySettingRow[];
     setSettings(rows);
     setDrafts(Object.fromEntries(rows.map(row => [row.setting_key,String(row.numeric_value)])));
+    setBlastPlans((planData??[]) as EventBlastPlanRow[]);
+    if(planError) setNotice(planError.message);
     setLoading(false);
   }
   useEffect(() => { void load(); }, []);
@@ -1572,8 +1579,22 @@ function AdminFeature() {
     setBusyKey('');
   }
 
+  async function saveBlastPlan(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();if(!supabase||busyKey==='blast-plan')return;
+    const reach=Number(planDraft.unique_reach),duration=Number(planDraft.duration_minutes),usd=Number(planDraft.price_usd),bc=Number(planDraft.bc_price);
+    if(!planDraft.id.trim()||!planDraft.name.trim()||!Number.isInteger(reach)||reach<1||!Number.isInteger(duration)||duration<1||!Number.isFinite(usd)||usd<0||!Number.isInteger(bc)||bc<0){setNotice('Check the Event Blast plan ID, name, reach, duration and prices.');return;}
+    setBusyKey('blast-plan');setNotice('');
+    const {error}=await supabase.rpc('admin_upsert_event_blast_plan',{p_id:planDraft.id.trim(),p_name:planDraft.name.trim(),p_unique_reach:reach,p_duration_minutes:duration,p_price_usd:usd,p_bc_price:bc,p_enabled:planDraft.enabled});
+    if(error)setNotice(error.message);else{setNotice('Event Blast plan saved.');await load();}
+    setBusyKey('');
+  }
+
   return <section className="feature-panel admin-panel"><div className="feature-icon">⚙</div><p className="eyebrow">CIRCLE PANDA CONTROL ROOM</p><h2>Economy settings</h2><p className="feature-copy">Reward amounts and message costs are stored in the database, not hard-coded into the interface. Changes here require an administrator role.</p>
     {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
     {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div> : <div className="empty-state"><p>No economy settings were found.</p></div>}
+    <section className="admin-blast-plan-manager"><div className="section-title-row"><div><h2>Event Blast plans</h2><p>Plans control paid promotion reach, duration and BC cost. The monthly free blast remains separate.</p></div><span className="count-pill">{blastPlans.length} PLANS</span></div>
+      {blastPlans.length>0&&<div className="admin-blast-plan-list">{blastPlans.map(plan=><article className="admin-blast-plan-row" key={plan.id}><div><strong>{plan.name}</strong><small>{plan.id} · {plan.unique_reach.toLocaleString()} unique reach · {plan.duration_minutes} minutes</small><small>{plan.bc_price??'—'} BC · ${Number(plan.price_usd).toFixed(2)} USD · {plan.enabled?'Enabled':'Disabled'}</small></div><button type="button" className="secondary-button" onClick={()=>setPlanDraft({id:plan.id,name:plan.name,unique_reach:String(plan.unique_reach),duration_minutes:String(plan.duration_minutes),price_usd:String(plan.price_usd),bc_price:String(plan.bc_price??0),enabled:plan.enabled})}>Edit</button></article>)}</div>}
+      <form className="feature-form admin-plan-form" onSubmit={saveBlastPlan}><div className="form-grid-two"><label>Plan ID<input value={planDraft.id} onChange={e=>setPlanDraft(p=>({...p,id:e.target.value}))} maxLength={80} required /></label><label>Plan name<input value={planDraft.name} onChange={e=>setPlanDraft(p=>({...p,name:e.target.value}))} maxLength={120} required /></label><label>Unique reach<input type="number" min="1" max="10000000" step="1" value={planDraft.unique_reach} onChange={e=>setPlanDraft(p=>({...p,unique_reach:e.target.value}))} required /></label><label>Duration (minutes)<input type="number" min="1" max="525600" step="1" value={planDraft.duration_minutes} onChange={e=>setPlanDraft(p=>({...p,duration_minutes:e.target.value}))} required /></label><label>Price (USD)<input type="number" min="0" step="0.01" value={planDraft.price_usd} onChange={e=>setPlanDraft(p=>({...p,price_usd:e.target.value}))} required /></label><label>Price (BC)<input type="number" min="0" step="1" value={planDraft.bc_price} onChange={e=>setPlanDraft(p=>({...p,bc_price:e.target.value}))} required /></label></div><label className="admin-plan-enabled"><input type="checkbox" checked={planDraft.enabled} onChange={e=>setPlanDraft(p=>({...p,enabled:e.target.checked}))} /> Plan enabled for users</label><div className="form-submit-row"><button className="primary-button" disabled={busyKey==='blast-plan'}>{busyKey==='blast-plan'?'Saving plan…':'Save Event Blast plan'}</button></div></form>
+    </section>
   </section>;
 }
