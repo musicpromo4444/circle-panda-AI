@@ -385,6 +385,9 @@ function DatingFeature({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [directoryQuery, setDirectoryQuery] = useState('');
 
   async function load() {
     if (!supabase) return;
@@ -457,8 +460,12 @@ function DatingFeature({ userId }: { userId: string }) {
     setNotice(error ? error.message : 'Message request sent. You can track it in Messages.');
   }
 
+  const filteredDirectory = directory.filter(profile => `${names[profile.user_id] || ''} ${locations[profile.user_id] || ''} ${profile.headline || ''} ${profile.about || ''}`.toLowerCase().includes(directoryQuery.trim().toLowerCase()));
+
   return <div className="dating-page">
-    <section className="feature-panel dating-form-panel"><div className="feature-icon">♡</div><p className="eyebrow">MEET WITH INTENTION</p><h2>Your dating profile</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
+    <div className="dating-actions"><div><p className="eyebrow">FIND YOUR CONNECTION</p><h2>Dating in Circle Panda</h2><p>Discover adults in your community and start with a respectful message request.</p></div><div className="dating-action-buttons"><button className="primary-button" onClick={() => setRegistrationOpen(value => !value)}>{registrationOpen ? 'Close registration' : published ? 'Edit dating profile' : 'Register for Dating'} <span>♡</span></button><button className="filter-button" onClick={() => setFilterOpen(value => !value)}>☷ Filter</button></div></div>
+    {filterOpen && <div className="dating-filter"><label>Search profiles<input value={directoryQuery} onChange={e => setDirectoryQuery(e.target.value)} placeholder="Name, location or interests…" /></label><button className="filter-button" onClick={() => setDirectoryQuery('')}>Clear</button></div>}
+    {registrationOpen && <section className="feature-panel dating-form-panel"><div className="feature-icon">♡</div><p className="eyebrow">MEET WITH INTENTION</p><h2>Your dating profile</h2><p className="feature-copy">Keep it honest and respectful. Only adults aged 18+ can publish or browse dating profiles.</p>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         <label>Date of birth<input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} required /></label>
         <div className="form-grid-three"><label>Country<select value={country} onChange={e => { setCountry(e.target.value); setStateName(''); setArea(''); }}><option value="">Select country</option>{Country.getAllCountries().map(item => <option key={item.isoCode} value={item.name}>{item.flag} {item.name}</option>)}</select></label><label>State / Region<select value={stateName} onChange={e => { setStateName(e.target.value); setArea(''); }} disabled={!country}><option value="">Select state</option>{State.getStatesOfCountry(Country.getAllCountries().find(item => item.name === country)?.isoCode || '').map(item => <option key={item.isoCode} value={item.name}>{item.name}</option>)}</select></label><label>Area / City<select value={area} onChange={e => setArea(e.target.value)} disabled={!stateName}><option value="">Select area</option>{City.getCitiesOfState(Country.getAllCountries().find(item => item.name === country)?.isoCode || '', State.getStatesOfCountry(Country.getAllCountries().find(item => item.name === country)?.isoCode || '').find(item => item.name === stateName)?.isoCode || '').map(item => <option key={`${item.name}-${item.latitude}`} value={item.name}>{item.name}</option>)}</select></label></div>
@@ -469,9 +476,9 @@ function DatingFeature({ userId }: { userId: string }) {
         <div className="form-submit-row"><span className={published ? 'published-state' : 'draft-state'}>{published ? '● Published' : '○ Draft'}</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save draft'}</button><button className="primary-button" type="button" disabled={busy} onClick={e => { const form = e.currentTarget.form; if (form) void saveProfile({ preventDefault: () => {}, currentTarget: form } as FormEvent<HTMLFormElement>, true); }}>Publish profile ↗</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </section>
+    </section>}
     <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Published profiles from adults in the community.</p></div><span className="count-pill">{directory.length} PROFILES</span></div>
-      {loading ? <div className="empty-state">Loading dating profiles…</div> : directory.length ? <div className="dating-directory">{directory.map(profile => <article className="dating-card" key={profile.id}><div className="dating-card-top"><div className="dating-avatar">🐼</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div><span className="heart-mark">♡</span></div><h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>{profile.personality && <div className="personality-tag">{profile.personality}</div>}<div className="dating-card-bottom"><span>Looking for: {profile.looking_for || 'Connection'}</span><button className="primary-button" onClick={() => void requestChat(profile)}>Message request ↗</button></div></article>)}</div> : <div className="empty-state"><span>♡</span><h3>Your next connection starts here.</h3><p>When adult members publish dating profiles, they will appear here.</p></div>}
+      {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => <article className="dating-card" key={profile.id}><div className="dating-card-top"><div className="dating-avatar">🐼</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div><span className="heart-mark">♡</span></div><h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>{profile.personality && <div className="personality-tag">{profile.personality}</div>}<div className="dating-card-bottom"><span>Looking for: {profile.looking_for || 'Connection'}</span><button className="primary-button" onClick={() => void requestChat(profile)}>Message request ↗</button></div></article>)}</div> : <div className="empty-state"><span>♡</span><h3>Your next connection starts here.</h3><p>When adult members publish dating profiles, they will appear here.</p></div>}
     </section>
   </div>;
 }
