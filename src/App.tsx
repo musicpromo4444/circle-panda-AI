@@ -527,12 +527,12 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   ];
   const lookingForOptions = [
     'Very fair','Fair','Light brown','Brown','Dark brown','Deep dark',
-    'Slim','Petite','Average build','Athletic','Muscular','Chubby','Curvy','Plus-size','Broad shoulders','Figure-eight',
     'Black hair','Brown hair','Blonde hair','Red hair','Grey hair','Other',
     'Short hair','Long hair','Dreads','Braids','Curly hair','Straight hair','Bald',
-    'Black eyes','Brown eyes','Hazel eyes','Blue eyes','Green eyes','Grey eyes',
     'Casual','Smart','Streetwear','Glamorous','Feminine','Masculine','Sexy'
   ];
+  const eyeTypeOptions = ['Black eyes','Brown eyes','Hazel eyes','Blue eyes','Green eyes','Grey eyes'];
+  const bodyTypeOptions = ['Slim','Petite','Average build','Athletic','Muscular','Chubby','Curvy','Plus-size','Broad shoulders','Figure-eight'];
   const interestOptions = [
     'Social media','Content creation','Comedy','Movies & TV','Music','TikTok / Reels','Gaming','Memes',
     'Football','Sports','Travel','Food','Fitness','Photography','Dancing','Fashion','Podcasts','Live music',
@@ -573,12 +573,12 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       if (profile) {
         setMainProfile({ name: profile.display_name || profile.username || 'Panda', username: profile.username || '', age: profile.age == null ? null : Number(profile.age), gender: profile.gender || '' });
         setDateOfBirth(profile.date_of_birth || '');
-        setLocation({
-          country: profile.country || '',
-          state: profile.state_province || profile.state || '',
-          city: profile.city || '',
-          area: profile.area || '',
-        });
+        const savedLocation = { country: profile.country || '', state: profile.state_province || profile.state || '', city: profile.city || '', area: profile.area || '' };
+        setLocation(savedLocation);
+        if (!profile.date_of_birth || !savedLocation.country) { setFormStep(0); setRegisterOpen(true); }
+      } else {
+        setFormStep(0);
+        setRegisterOpen(true);
       }
 
       const { data: mine, error: mineError } = await supabase.from('dating_profiles')
@@ -860,7 +860,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
-  const formSteps = ['Your Panda','Relationship','Looking for','About you','Dating photo'];
+  const formSteps = ['About you','Lifestyle','Personality','Looking for & appearance','Eye type','Body type'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
@@ -883,54 +883,70 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       </div>
       <label className="dating-same-country"><input type="checkbox" checked={sameCountryOnly} onChange={e=>setSameCountryOnly(e.target.checked)} /> Only show people in my country{location.country ? ' (' + location.country + ')' : ''}</label>
     </section>}
-    {registerOpen && <section className="feature-panel dating-form-panel">
-      <div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
+    {registerOpen && <div className="dating-profile-backdrop dating-setup-backdrop" role="dialog" aria-modal="true" aria-label="Complete your dating details"><section className="dating-profile-detail dating-setup-modal">
+      <header><button type="button" className="secondary-button" onClick={() => { setRegisterOpen(false); setNotice('You can finish your Dating details any time from Edit Your Profile.'); }}>Cancel</button><strong>Dating profile setup</strong><span>{formStep+1}/6</span></header><div className="dating-setup-intro"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
       <h2>{published ? 'Update your dating profile' : 'Create your dating profile'}</h2>
-      <p className="feature-copy">Dating is for adults aged 18+. Your name, age and gender come from your Circle Panda account; your profile details help people find a genuine connection.</p>
-      <div className="dating-stepper">{formSteps.map((label,index)=><button type="button" key={label} onClick={()=>index<=formStep&&setFormStep(index)} className={index<=formStep?'step active':'step'}>{index+1}. {label}</button>)}</div>
+      <p className="feature-copy">Dating is for adults aged 18+. Your basic details are saved to your Circle Panda account so the rest of the app can use the same profile information.</p></div>
+      <div className="dating-stepper" aria-label="Setup progress">{formSteps.map((label,index)=><span key={label} className={index===formStep?'step active':index<formStep?'step complete':'step'}>{index+1}. {label}</span>)}</div>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         {formStep === 0 && <section className="dating-form-step">
-          <h3>Your Circle Panda profile</h3>
+          <h3>About you</h3><p>These details belong to your Circle Panda account and can be reused throughout the app.</p>
           <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Complete your Circle Panda profile'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? 'Add date of birth' : effectiveAge}</strong></div><div><span>Gender</span><strong>{mainProfile.gender || 'Not set'}</strong></div></div>
           <label>Date of birth<input type="date" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} required /></label>
           <LocationFields value={location} onChange={setLocation} required />
           <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
+          <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label><p className="draft-state">{currentPhotoLabel}</p>
         </section>}
         {formStep === 1 && <section className="dating-form-step">
-          <h3>What kind of relationship are you looking for?</h3>
-          <p>Choose the option that best describes what you want.</p>
-          <SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} />
+          <h3>Lifestyle</h3><p>Quick details that help people understand your everyday preferences.</p>
+          <label>Smoking<SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
+          <label>Children<SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
+          <label>Drinking<SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
+          <label>Occupation (optional)<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
         </section>}
         {formStep === 2 && <section className="dating-form-step">
-          <h3>What are you looking for?</h3><p>Select the traits you would like in a potential partner.</p>
-          <ChoiceChips values={lookingForOptions} selected={lookingFor} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} />
-        </section>}
-        {formStep === 3 && <section className="dating-form-step">
-          <h3>Your details</h3>
-          <label>Occupation<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
-          <label>Children<SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
-          <label>Smoking<SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
-          <label>Drinking<SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
-          <label>Interests<ChoiceChips values={interestOptions} selected={interests} onToggle={value=>toggleChoice(interests,value,setInterests)} /></label>
+          <h3>Personality</h3><p>Pick the traits and interests that feel most like you.</p>
           <label>Personality<ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} /></label>
+          <label>Interests<ChoiceChips values={interestOptions} selected={interests} onToggle={value=>toggleChoice(interests,value,setInterests)} /></label>
           <label>Sexual Experience<SingleChoices values={sexualExperienceOptions} value={sexualExperience} onChange={setSexualExperience} /></label>
         </section>}
+        {formStep === 3 && <section className="dating-form-step">
+          <h3>Looking for & appearance</h3><p>Choose the relationship you want and the appearance traits you prefer.</p>
+          <label>Relationship goal<SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} /></label>
+          <label>Skin, hair & style<ChoiceChips values={lookingForOptions} selected={lookingFor} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} /></label>
+        </section>}
         {formStep === 4 && <section className="dating-form-step">
-          <h3>Dating photo</h3><p>Upload a dating photo. A blurred preview is stored separately so the original can remain private until the mutual reveal rules are satisfied.</p>
-          <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : <span>🐼</span>}</div>
-          <label className="photo-upload-label">Choose dating photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label>
-          <p className="draft-state">{currentPhotoLabel}</p>
+          <h3>Eye type</h3><p>Select any eye colours you prefer.</p>
+          <ChoiceChips values={eyeTypeOptions} selected={lookingFor.filter(value=>eyeTypeOptions.includes(value))} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} />
+        </section>}
+        {formStep === 5 && <section className="dating-form-step">
+          <h3>Body type</h3><p>Select the body types you prefer.</p>
+          <ChoiceChips values={bodyTypeOptions} selected={lookingFor.filter(value=>bodyTypeOptions.includes(value))} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} />
         </section>}
         <div className="form-submit-row dating-form-actions">
           <button className="secondary-button" type="button" disabled={formStep===0 || busy} onClick={()=>setFormStep(step=>Math.max(0,step-1))}>Back</button>
           {formStep < formSteps.length-1
-            ? <button className="primary-button" type="button" disabled={busy} onClick={()=>setFormStep(step=>Math.min(formSteps.length-1,step+1))}>Continue →</button>
-            : <><button className="secondary-button" type="submit" disabled={busy}>{busy?'Saving…':'Save draft'}</button><button className="primary-button" type="button" disabled={busy} onClick={e=>{const form=e.currentTarget.form;if(form)void saveProfile({preventDefault:()=>{},currentTarget:form} as FormEvent<HTMLFormElement>,true);}}>{busy?'Publishing…':'Publish profile ↗'}</button></>}
+            ? <button className="primary-button" type="button" disabled={busy} onClick={async()=>{
+                if(formStep===0){
+                  const age=ageFromDate(dateOfBirth);
+                  if(!dateOfBirth || age===null){setNotice('Add your date of birth to continue.');return;}
+                  if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
+                  if(!location.country){setNotice('Choose your country to continue.');return;}
+                  if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
+                  setBusy(true);setNotice('');
+                  const {error}=await supabase.from('profiles').update({date_of_birth:dateOfBirth,age,country:location.country,state:location.state||null,state_province:location.state||null,city:location.city||null,area:location.area||null}).eq('id',userId);
+                  setBusy(false);
+                  if(error){setNotice(error.message);return;}
+                  setMainProfile(current=>({...current,age}));
+                }
+                setNotice('');setFormStep(step=>Math.min(formSteps.length-1,step+1));
+              }}>Next →</button>
+            : <><button className="secondary-button" type="submit" disabled={busy}>{busy?'Saving…':'Save draft'}</button><button className="primary-button" type="button" disabled={busy} onClick={e=>{const form=e.currentTarget.form;if(form)void saveProfile({preventDefault:()=>{},currentTarget:form} as FormEvent<HTMLFormElement>,true);}}>{busy?'Publishing…':'Save & publish ↗'}</button></>}
         </div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </section>}
+    </form></section></div>}
     {notice && !registerOpen && <div className="notice">{notice}</div>}
     {datingMatches.length > 0 && <section className="directory-section dating-connections-section">
       <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first 72 hours. After that, both people must continue before photos are revealed.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
