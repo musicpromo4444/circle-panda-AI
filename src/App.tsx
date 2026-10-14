@@ -946,7 +946,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         </div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </form></section></div>}
+    </section></div>}
     {notice && !registerOpen && <div className="notice">{notice}</div>}
     {datingMatches.length > 0 && <section className="directory-section dating-connections-section">
       <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first 72 hours. After that, both people must continue before photos are revealed.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
