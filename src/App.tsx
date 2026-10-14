@@ -304,7 +304,7 @@ export default function App() {
     <nav className="mobile-bottom-nav" aria-label="Main navigation">
       {[
         {name:'Confessions' as Section, icon:'☁', label:'Confession'},
-        {name:'Messages' as Section, icon:'↗', label:'Messages'},
+        {name:'Messages' as Section, icon:'▤', label:'Messages'},
         {name:'Dating' as Section, icon:'♡', label:'Dating'},
         {name:'Groups' as Section, icon:'◉', label:'Groups'},
         {name:'Events' as Section, icon:'▦', label:'Events'},
