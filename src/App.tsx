@@ -860,7 +860,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
-  const formSteps = ['About you','Lifestyle','Personality','Looking for & appearance','Eye type','Body type'];
+  const formSteps = ['About you','Lifestyle','Personality','Looking for & appearance','Eye type','Body type','Sexual Experience','Picture upload'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
@@ -884,7 +884,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       <label className="dating-same-country"><input type="checkbox" checked={sameCountryOnly} onChange={e=>setSameCountryOnly(e.target.checked)} /> Only show people in my country{location.country ? ' (' + location.country + ')' : ''}</label>
     </section>}
     {registerOpen && <div className="dating-profile-backdrop dating-setup-backdrop" role="dialog" aria-modal="true" aria-label="Complete your dating details"><section className="dating-profile-detail dating-setup-modal">
-      <header><button type="button" className="secondary-button" onClick={() => { setRegisterOpen(false); setNotice('You can finish your Dating details any time from Edit Your Profile.'); }}>Cancel</button><strong>Dating profile setup</strong><span>{formStep+1}/6</span></header><div className="dating-setup-intro"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
+      <header><button type="button" className="secondary-button" onClick={() => { setRegisterOpen(false); setNotice('You can finish your Dating details any time from Edit Your Profile.'); }}>Cancel</button><strong>Dating profile setup</strong><span>{formStep+1}/{formSteps.length}</span></header><div className="dating-setup-intro"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
       <h2>{published ? 'Update your dating profile' : 'Create your dating profile'}</h2>
       <p className="feature-copy">Dating is for adults aged 18+. Your basic details are saved to your Circle Panda account so the rest of the app can use the same profile information.</p></div>
       <div className="dating-stepper" aria-label="Setup progress">{formSteps.map((label,index)=><span key={label} className={index===formStep?'step active':index<formStep?'step complete':'step'}>{index+1}. {label}</span>)}</div>
@@ -896,7 +896,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <LocationFields value={location} onChange={setLocation} required />
           <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
-          <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div><label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label><p className="draft-state">{currentPhotoLabel}</p>
+          
         </section>}
         {formStep === 1 && <section className="dating-form-step">
           <h3>Lifestyle</h3><p>Quick details that help people understand your everyday preferences.</p>
@@ -909,7 +909,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <h3>Personality</h3><p>Pick the traits and interests that feel most like you.</p>
           <label>Personality<ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} /></label>
           <label>Interests<ChoiceChips values={interestOptions} selected={interests} onToggle={value=>toggleChoice(interests,value,setInterests)} /></label>
-          <label>Sexual Experience<SingleChoices values={sexualExperienceOptions} value={sexualExperience} onChange={setSexualExperience} /></label>
         </section>}
         {formStep === 3 && <section className="dating-form-step">
           <h3>Looking for & appearance</h3><p>Choose the relationship you want and the appearance traits you prefer.</p>
@@ -923,6 +922,14 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         {formStep === 5 && <section className="dating-form-step">
           <h3>Body type</h3><p>Select the body types you prefer.</p>
           <ChoiceChips values={bodyTypeOptions} selected={lookingFor.filter(value=>bodyTypeOptions.includes(value))} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} />
+        </section>}
+        {formStep === 6 && <section className="dating-form-step">
+          <h3>Sexual Experience</h3><p>Choose the option you feel comfortable sharing. This is a personal detail, and you can choose the answer you prefer.</p>
+          <label>Sexual Experience<SingleChoices values={sexualExperienceOptions} value={sexualExperience} onChange={setSexualExperience} /></label>
+        </section>}
+        {formStep === 7 && <section className="dating-form-step">
+          <h3>Picture upload</h3><p>Add an optional dating picture to finish setting up your profile.</p>
+          <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div><label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label><p className="draft-state">{currentPhotoLabel}</p>
         </section>}
         <div className="form-submit-row dating-form-actions">
           <button className="secondary-button" type="button" disabled={formStep===0 || busy} onClick={()=>setFormStep(step=>Math.max(0,step-1))}>Back</button>
