@@ -15,8 +15,6 @@ type DatingProfileRow = { id: string; user_id: string; headline: string | null; 
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 type CrushKind = 'wcw' | 'mcm';
-type CrushNomineeRow = { id: string; cycle_id: string; user_id: string; photo_url: string; caption: string; created_at: string };
-type CrushCycleRow = { id: string; kind: CrushKind; cycle_week_start: string; starts_at: string; ends_at: string; status: string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Home', icon: '⌂', hint: 'Your circle at a glance' },
@@ -414,7 +412,7 @@ function CrushFeature({ userId, initialKind, onKindChange }: { userId: string; i
     const status = (voteStatus.data ?? {}) as {free_votes_used?:number;free_votes_remaining?:number};
     setFreeVotesUsed(Number(status.free_votes_used ?? Math.max(0,3-Number(status.free_votes_remaining ?? 3))));
     const reactionPairs = await Promise.all(rows.map(async row => {
-      const { data } = await supabase.rpc('get_crush_reactions',{p_nominee_id:row.nominee_id});
+      const { data } = await supabase!.rpc('get_crush_reactions',{p_nominee_id:row.nominee_id});
       return [row.nominee_id,(data ?? []) as CrushReactionRow[]] as const;
     }));
     setReactions(Object.fromEntries(reactionPairs));
