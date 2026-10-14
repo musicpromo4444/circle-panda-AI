@@ -725,3 +725,10 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
   .mobile-nav-dating::before{width:61px}
   .mobile-nav-dating .mobile-nav-icon{width:47px;height:47px}
 }
+
+/* Keep the requested five-item bottom bar; secondary pages remain reachable from More. */
+.more-menu-trigger{display:none;align-items:center;gap:6px;padding:8px 10px;border:1px solid #34463a;border-radius:10px;background:#17241b;color:#e3f4e5;font-size:10px;font-weight:800}
+.more-menu-panel{position:fixed;top:72px;right:16px;z-index:1000;width:min(340px,calc(100vw - 24px));max-height:min(72vh,620px);overflow:auto;padding:12px;border:1px solid #39483d;border-radius:16px;background:rgba(14,22,17,.98);box-shadow:0 20px 60px #0009;backdrop-filter:blur(16px)}
+.more-menu-heading{display:flex;align-items:center;justify-content:space-between;padding:5px 5px 10px;color:#f1f7f0;font-size:13px}.more-menu-heading button{border:0;background:transparent;color:#c7d7c7;font-size:22px}
+.more-menu-panel>button:not(.more-signout){display:grid;grid-template-columns:25px 1fr;align-items:center;column-gap:9px;width:100%;padding:11px 8px;border:0;border-radius:9px;background:transparent;color:#e1ebe0;text-align:left;font-size:11px}.more-menu-panel>button:not(.more-signout):hover{background:#1c2c20}.more-menu-panel>button>span:first-child{grid-row:span 2;font-size:17px;color:#b7e39f}.more-menu-panel>button small{grid-column:2;color:#91a393;font-size:9px;margin-top:3px}.more-signout{width:100%;margin-top:7px;padding:10px;border:1px solid #4b343a;border-radius:9px;background:#21171a;color:#ffbecb;text-align:left;font-size:11px;font-weight:800}
+@media(max-width:760px){.more-menu-trigger{display:flex}.more-menu-panel{top:62px;right:8px}}
