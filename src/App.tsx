@@ -502,6 +502,7 @@ function MessagesFeature({ userId }: { userId: string }) {
 
 function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessages: () => void }) {
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [basicProfileOpen, setBasicProfileOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterLocation, setFilterLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [filterGoal, setFilterGoal] = useState('');
@@ -599,10 +600,10 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         setDateOfBirth(profile.date_of_birth || '');
         const savedLocation = { country: profile.country || '', state: profile.state_province || profile.state || '', city: profile.city || '', area: profile.area || '' };
         setLocation(savedLocation);
-        if (!profile.date_of_birth || !savedLocation.country) { setFormStep(0); setRegisterOpen(true); }
+        if (!profile.date_of_birth || !savedLocation.country || !savedLocation.state || !savedLocation.city || !savedLocation.area) { setBasicProfileOpen(true); }
       } else {
         setFormStep(0);
-        setRegisterOpen(true);
+        setBasicProfileOpen(true);
       }
 
       const { data: mine, error: mineError } = await supabase.from('dating_profiles')
@@ -884,13 +885,13 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
-  const formSteps = ['About you','Lifestyle','Personality','Looking for & appearance','Body type','Sexual Experience','Picture upload'];
+  const formSteps = ['Your introduction','Lifestyle','Personality','Looking for & appearance','Body type','Sexual Experience','Picture upload'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
     <div className="dating-toolbar dating-toolbar-stacked">
       <button type="button" className="secondary-button dating-filter-button" aria-expanded={filtersOpen} onClick={() => { setFiltersOpen(open => !open); if (!filtersOpen) setRegisterOpen(false); }}>{filtersOpen ? 'Close Filter ×' : 'Filter'}</button>
-      <button type="button" className="primary-button dating-create-button" aria-expanded={registerOpen} onClick={() => { setFormStep(0); setRegisterOpen(open => !open); if (!registerOpen) setFiltersOpen(false); }}>
+      <button type="button" className="primary-button dating-create-button" aria-expanded={registerOpen || basicProfileOpen} onClick={() => { if (basicProfileOpen) { setBasicProfileOpen(false); return; } if (registerOpen) { setRegisterOpen(false); return; } setFiltersOpen(false); const complete=Boolean(dateOfBirth && location.country && location.city && location.area && effectiveAge != null && effectiveAge >= 18); if (!complete) setBasicProfileOpen(true); else { setFormStep(0); setRegisterOpen(true); } }}>
         {registerOpen ? 'Close Dating Profile ×' : published ? 'Edit Dating Profile' : 'Create Dating Profile'}
       </button>
     </div>
@@ -907,6 +908,31 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       </div>
       <label className="dating-same-country"><input type="checkbox" checked={sameCountryOnly} onChange={e=>setSameCountryOnly(e.target.checked)} /> Only show people in my country{location.country ? ' (' + location.country + ')' : ''}</label>
     </section>}
+    {basicProfileOpen && <div className="dating-basic-backdrop" role="dialog" aria-modal="true" aria-label="Complete your basic profile"><section className="dating-basic-modal">
+      <header><span className="dating-basic-symbol">♡</span><div><p className="eyebrow">BEFORE YOU START DATING</p><h2>Complete your profile</h2><p>Confirm your name, age and location so Dating can show the right details.</p></div></header>
+      <div className="dating-basic-summary"><span>Your name</span><strong>{mainProfile.name || 'Add your name to your Circle Panda profile first'}</strong></div>
+      <label>Date of birth<input type="date" value={dateOfBirth} max={new Date().toISOString().slice(0,10)} onChange={e=>setDateOfBirth(e.target.value)} required /></label>
+      <p className="dating-basic-age">Your age: <strong>{effectiveAge == null ? 'Enter your date of birth' : effectiveAge + ' years old'}</strong> · Dating is for adults aged 18+.</p>
+      <LocationFields value={location} onChange={setLocation} required />
+      {notice && <div className="notice">{notice}</div>}
+      <div className="dating-basic-actions"><button type="button" className="secondary-button" onClick={()=>setBasicProfileOpen(false)}>Not now</button><button type="button" className="primary-button" disabled={busy} onClick={async()=>{
+        const age=ageFromDate(dateOfBirth);
+        if(!mainProfile.name || mainProfile.name === 'Panda'){setNotice('Please complete your name in your Circle Panda profile first.');return;}
+        if(!dateOfBirth || age===null){setNotice('Choose your date of birth to continue.');return;}
+        if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
+        if(!location.country){setNotice('Choose your country to continue.');return;}
+        if(location.country && !location.state && ['United States','Canada','Australia','India','Brazil','Mexico'].includes(location.country)){setNotice('Choose your state or province to continue.');return;}
+        if(!location.city){setNotice('Choose your city to continue.');return;}
+        if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
+        if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
+        setBusy(true);setNotice('');
+        const {error}=await supabase.from('profiles').update({date_of_birth:dateOfBirth,age,country:location.country,state:location.state||null,state_province:location.state||null,city:location.city||null,area:location.area||null}).eq('id',userId);
+        setBusy(false);
+        if(error){setNotice(error.message);return;}
+        setMainProfile(current=>({...current,age}));
+        setBasicProfileOpen(false);setFormStep(0);setRegisterOpen(true);
+      }}>{busy?'Saving…':'Next →'}</button></div>
+    </section></div>}
     {registerOpen && <div className="dating-profile-backdrop dating-setup-backdrop" role="dialog" aria-modal="true" aria-label="Complete your dating details"><section className="dating-profile-detail dating-setup-modal">
       <header><button type="button" className="secondary-button" onClick={() => { setRegisterOpen(false); setNotice('You can finish your Dating details any time from Edit Your Profile.'); }}>Cancel</button><strong>Dating profile setup</strong><span>{formStep+1}/{formSteps.length}</span></header><div className="dating-setup-intro"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
       <h2>{published ? 'Update your dating profile' : 'Create your dating profile'}</h2>
@@ -914,13 +940,10 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       <div className="dating-stepper" aria-label="Setup progress"><span className="dating-step-counter">STEP {formStep+1} OF {formSteps.length}</span><strong>{formSteps[formStep]}</strong><div className="dating-progress-track"><span style={{width:`${((formStep+1)/formSteps.length)*100}%`}} /></div></div>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         {formStep === 0 && <section className="dating-form-step">
-          <h3>About you</h3><p>These details belong to your Circle Panda account and can be reused throughout the app.</p>
-          <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Complete your Circle Panda profile'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? 'Add date of birth' : effectiveAge}</strong></div><div><span>Gender</span><strong>{mainProfile.gender || 'Not set'}</strong></div></div>
-          <label>Date of birth<input type="date" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} required /></label>
-          <LocationFields value={location} onChange={setLocation} required />
+          <h3>Your introduction</h3><p>Now that your basic profile is complete, introduce yourself to people in Dating.</p>
+          <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Panda'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? '—' : effectiveAge}</strong></div><div><span>Location</span><strong>{[location.area,location.city,location.state,location.country].filter(Boolean).join(', ') || '—'}</strong></div></div>
           <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
-          
         </section>}
         {formStep === 1 && <section className="dating-form-step">
           <h3>Lifestyle</h3><p>Quick details that help people understand your everyday preferences.</p>
