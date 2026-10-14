@@ -1406,6 +1406,8 @@ function WalletFeature({ userId }: { userId: string }) {
 
 type GroupRow = { id: string; creator_id: string; name: string; description: string; limitations?: string|null; country_restriction: string | null; is_vip: boolean; created_at: string };
 type GroupJoinRequestRow = { id:string; group_id:string; user_id:string; status:string; created_at:string };
+type GroupSettingsMember = { user_id:string; role:string };
+type GroupEvictionRequestRow = { id:string; group_id:string; target_user_id:string; requested_by:string; reason:string; status:string; created_at:string; resolved_at:string|null; approval_count:number; rejection_count:number; my_vote:boolean|null };
 function GroupsFeature({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
@@ -1444,6 +1446,10 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [groupMyRole,setGroupMyRole] = useState('member');
   const [groupJoinRequests,setGroupJoinRequests] = useState<GroupJoinRequestRow[]>([]);
   const [joinRequestNames,setJoinRequestNames] = useState<Record<string,string>>({});
+  const [groupSettingsMembers,setGroupSettingsMembers] = useState<GroupSettingsMember[]>([]);
+  const [groupEvictionRequests,setGroupEvictionRequests] = useState<GroupEvictionRequestRow[]>([]);
+  const [evictionTargetId,setEvictionTargetId] = useState('');
+  const [evictionReason,setEvictionReason] = useState('');
 
   async function load() {
     if (!supabase) return;
@@ -1631,21 +1637,30 @@ function GroupsFeature({ userId }: { userId: string }) {
     if(!supabase||!openGroup)return;
     setGroupSettingsOpen(true);setGroupSettingsLoading(true);
     setGroupNameDraft(openGroup.name);setGroupAboutDraft(openGroup.description||'');setGroupJoinRequests([]);setJoinRequestNames({});
-    const [roleResult,settingsResult]=await Promise.all([
+    const [roleResult,settingsResult,memberResult,evictionResult]=await Promise.all([
       supabase.from('group_members').select('role').eq('group_id',openGroup.id).eq('user_id',userId).maybeSingle(),
       supabase.from('group_settings').select('edit_group_info,send_messages,approve_new_members').eq('group_id',openGroup.id).maybeSingle(),
+      supabase.from('group_members').select('user_id,role').eq('group_id',openGroup.id).order('joined_at',{ascending:true}),
+      supabase.from('group_eviction_requests').select('id,group_id,target_user_id,requested_by,reason,status,created_at,resolved_at').eq('group_id',openGroup.id).order('created_at',{ascending:false}).limit(20),
     ]);
     const role=String(roleResult.data?.role??(openGroup.creator_id===userId?'creator':'member'));
     setGroupMyRole(role);
     setGroupEditInfo(settingsResult.data?.edit_group_info==='admins_members'?'admins_members':'admins');
     setGroupSendMessages(settingsResult.data?.send_messages??true);
     setGroupApproveMembers(settingsResult.data?.approve_new_members??false);
+    const memberRows=(memberResult.data??[]) as GroupSettingsMember[];setGroupSettingsMembers(memberRows);
+    const requestRows=(evictionResult.data??[]) as Omit<GroupEvictionRequestRow,'approval_count'|'rejection_count'|'my_vote'>[];
+    const requestIds=requestRows.map(row=>row.id);
+    const {data:votes}=requestIds.length?await supabase.from('group_eviction_votes').select('request_id,voter_id,approve').in('request_id',requestIds):{data:[] as {request_id:string;voter_id:string;approve:boolean}[]};
+    const completeRequests:GroupEvictionRequestRow[]=requestRows.map(row=>{const ownVotes=(votes??[]).filter(v=>v.request_id===row.id);return {...row,approval_count:ownVotes.filter(v=>v.approve).length,rejection_count:ownVotes.filter(v=>!v.approve).length,my_vote:ownVotes.find(v=>v.voter_id===userId)?.approve??null};});
+    setGroupEvictionRequests(completeRequests);
+    let joinRows:GroupJoinRequestRow[]=[];
     if(role==='creator'||role==='admin'){
       const {data:requests}=await supabase.from('group_join_requests').select('id,group_id,user_id,status,created_at').eq('group_id',openGroup.id).eq('status','pending').order('created_at',{ascending:true});
-      const rows=(requests??[]) as GroupJoinRequestRow[];setGroupJoinRequests(rows);
-      const ids=[...new Set(rows.map(row=>row.user_id))];
-      if(ids.length){const {data:people}=await supabase.from('profiles').select('id,display_name,username').in('id',ids);const names:Record<string,string>={};(people??[]).forEach((p:{id:string;display_name:string|null;username:string|null})=>{names[p.id]=p.display_name||p.username||'Panda';});setJoinRequestNames(names);}
-    }
+      joinRows=(requests??[]) as GroupJoinRequestRow[];setGroupJoinRequests(joinRows);
+    } else setGroupJoinRequests([]);
+    const profileIds=[...new Set([...memberRows.map(row=>row.user_id),...joinRows.map(row=>row.user_id),...requestRows.map(row=>row.target_user_id)])];
+    if(profileIds.length){const {data:people}=await supabase.from('profiles').select('id,display_name,username').in('id',profileIds);const names:Record<string,string>={};(people??[]).forEach((p:{id:string;display_name:string|null;username:string|null})=>{names[p.id]=p.display_name||p.username||'Panda';});setJoinRequestNames(names);}
     setGroupSettingsLoading(false);
   }
 
@@ -1670,6 +1685,28 @@ function GroupsFeature({ userId }: { userId: string }) {
     setGroupSettingsBusy(true);setNotice('');
     const {error}=await supabase.rpc('review_group_join_request',{p_request_id:request.id,p_approve:approve});
     if(error)setNotice(error.message);else{setNotice(approve?'Member request approved.':'Member request declined.');await openGroupSettings();await load();}
+    setGroupSettingsBusy(false);
+  }
+
+  async function submitEvictionRequest(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();if(!supabase||!openGroup||!evictionTargetId||groupSettingsBusy)return;
+    setGroupSettingsBusy(true);setNotice('');
+    const {error}=await supabase.rpc('request_group_eviction',{p_group_id:openGroup.id,p_target_user_id:evictionTargetId,p_reason:evictionReason.trim()});
+    if(error)setNotice(error.message);else{setNotice('Removal proposal created. Three member approvals are required before removal.');setEvictionTargetId('');setEvictionReason('');await openGroupSettings();}
+    setGroupSettingsBusy(false);
+  }
+
+  async function voteEviction(request:GroupEvictionRequestRow,approve:boolean) {
+    if(!supabase||groupSettingsBusy)return;
+    setGroupSettingsBusy(true);setNotice('');
+    const {data,error}=await supabase.rpc('vote_group_eviction',{p_request_id:request.id,p_approve:approve});
+    if(error)setNotice(error.message);else{
+      const result=(data??{}) as {status?:string;approvals?:number};
+      setNotice(result.status==='approved'?'Three members approved the removal. The member has been removed.':result.status==='rejected'?'The removal proposal was rejected by three members.':`Vote recorded. ${result.approvals??0} of 3 approvals received.`);
+      if(result.status==='approved'&&request.target_user_id===userId){setGroupSettingsOpen(false);setOpenGroupId(null);setOpenConversationId(null);}
+      else await openGroupSettings();
+      await load();
+    }
     setGroupSettingsBusy(false);
   }
 
