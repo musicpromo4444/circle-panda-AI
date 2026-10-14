@@ -491,6 +491,7 @@ function DatingFeature({ userId }: { userId: string }) {
   const [notice, setNotice] = useState('');
   const [formStep, setFormStep] = useState(0);
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [photoPath, setPhotoPath] = useState('');
   const [blurredPhotoPath, setBlurredPhotoPath] = useState('');
 
@@ -555,7 +556,7 @@ function DatingFeature({ userId }: { userId: string }) {
       }
 
       const { data: mine, error: mineError } = await supabase.from('dating_profiles')
-        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path')
+        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,name,age,gender,vibe,emoji,location,country,state_province')
         .eq('user_id', userId).maybeSingle();
       if (mineError) throw mineError;
       if (mine) {
@@ -615,6 +616,12 @@ function DatingFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void load(); }, [userId]);
+  useEffect(() => {
+    if (!profilePhoto) { setPhotoPreview(''); return; }
+    const url = URL.createObjectURL(profilePhoto);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [profilePhoto]);
 
   const submitLock = useRef(false);
 
@@ -809,7 +816,7 @@ function DatingFeature({ userId }: { userId: string }) {
         </section>}
         {formStep === 4 && <section className="dating-form-step">
           <h3>Dating photo</h3><p>Upload a dating photo. A blurred preview is stored separately so the original can remain private until the mutual reveal rules are satisfied.</p>
-          <div className="dating-photo-preview">{profilePhoto ? <img src={URL.createObjectURL(profilePhoto)} alt="Dating photo preview" /> : <span>🐼</span>}</div>
+          <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : <span>🐼</span>}</div>
           <label className="photo-upload-label">Choose dating photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label>
           <p className="draft-state">{currentPhotoLabel}</p>
         </section>}
