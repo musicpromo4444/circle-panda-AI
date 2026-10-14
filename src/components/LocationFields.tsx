@@ -27,6 +27,10 @@ type Props = {
 
 type Option = { label: string; value: string };
 
+function countryFlag(isoCode: string) {
+  return [...isoCode.toUpperCase()].map(char => String.fromCodePoint(127397 + char.charCodeAt(0))).join('');
+}
+
 function SearchSelect({ label, value, options, onChange, disabled, required }: {
   label: string; value: string; options: Option[]; onChange: (value: string) => void;
   disabled?: boolean; required?: boolean;
@@ -65,7 +69,7 @@ function SearchSelect({ label, value, options, onChange, disabled, required }: {
 export default function LocationFields({ value, onChange, required = false }: Props) {
   const geo = useGeoData();
   const countries = useMemo<Option[]>(() => (geo?.Country.getAllCountries() ?? [])
-    .map(country => ({ label: country.name, value: country.name }))
+    .map(country => ({ label: `${countryFlag(country.isoCode)} ${country.name}`, value: country.name }))
     .sort((a, b) => a.label.localeCompare(b.label)), [geo]);
   const country = (geo?.Country.getAllCountries() ?? []).find(item => item.name === value.country || item.isoCode === value.country);
   const states = useMemo<Option[]>(() => value.country && geo
@@ -101,7 +105,7 @@ export default function LocationFields({ value, onChange, required = false }: Pr
 export function CountryDropdown({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const geo = useGeoData();
   const countries = useMemo<Option[]>(() => (geo?.Country.getAllCountries() ?? [])
-    .map(country => ({ label: country.name, value: country.name }))
+    .map(country => ({ label: `${countryFlag(country.isoCode)} ${country.name}`, value: country.name }))
     .sort((a, b) => a.label.localeCompare(b.label)), [geo]);
   return <SearchSelect label="Country restriction (optional)" value={value} options={countries}
     onChange={onChange} />;
