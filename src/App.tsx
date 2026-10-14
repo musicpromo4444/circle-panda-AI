@@ -914,15 +914,15 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <label>Relationship goal<SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} /></label>
           <label>Skin, hair & style<ChoiceChips values={lookingForOptions} selected={lookingFor} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} /></label>
         </section>}
-        {formStep === 5 && <section className="dating-form-step">
+        {formStep === 4 && <section className="dating-form-step">
           <h3>Body type</h3><p>Select the body types you prefer.</p>
           <ChoiceChips values={bodyTypeOptions} selected={lookingFor.filter(value=>bodyTypeOptions.includes(value))} onToggle={value=>toggleChoice(lookingFor,value,setLookingFor)} />
         </section>}
-        {formStep === 6 && <section className="dating-form-step">
+        {formStep === 5 && <section className="dating-form-step">
           <h3>Sexual Experience</h3><p>Choose the option you feel comfortable sharing. This is a personal detail, and you can choose the answer you prefer.</p>
           <label>Sexual Experience<SingleChoices values={sexualExperienceOptions} value={sexualExperience} onChange={setSexualExperience} /></label>
         </section>}
-        {formStep === 7 && <section className="dating-form-step">
+        {formStep === 6 && <section className="dating-form-step">
           <h3>Picture upload</h3><p>Add an optional dating picture to finish setting up your profile.</p>
           <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div><label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label><p className="draft-state">{currentPhotoLabel}</p>
         </section>}
