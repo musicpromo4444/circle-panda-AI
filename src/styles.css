@@ -668,3 +668,60 @@ body{background:radial-gradient(ellipse at 78% -12%,#1b2942 0,transparent 40%),v
   .dating-basic-modal .location-hint{display:none}
   .dating-basic-modal .dating-basic-actions{padding-top:8px}
 }
+
+
+/* Five-item fixed mobile dock with a raised blush-red Dating centerpiece. */
+.mobile-bottom-nav{display:none}
+@media(max-width:760px){
+  .app-shell>.sidebar{display:none!important}
+  .mobile-bottom-nav{
+    position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;
+    z-index:1500!important;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));
+    align-items:end;gap:0;height:calc(70px + env(safe-area-inset-bottom))!important;
+    padding:8px 9px calc(5px + env(safe-area-inset-bottom))!important;
+    margin:0!important;border-top:1px solid #26382e;
+    background:linear-gradient(180deg,rgba(17,29,23,.96),rgba(7,14,10,.99))!important;
+    box-shadow:0 -8px 30px #0004;backdrop-filter:blur(18px);
+    transform:none!important;animation:none!important;transition:none!important;
+  }
+  .mobile-nav-item{
+    position:relative;z-index:1;align-self:stretch;min-width:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:3px;padding:8px 1px 2px;margin:0;
+    border:0!important;border-radius:12px;background:transparent;color:#93a69a;
+    font:600 9px/1.1 'DM Sans',sans-serif;cursor:pointer;
+    transform:none!important;animation:none!important;transition:color .15s!important;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mobile-nav-item:hover,.mobile-nav-item:active{transform:none!important;background:transparent;color:#d6e5d8}
+  .mobile-nav-icon{display:grid;place-items:center;width:26px;height:25px;font:400 22px/1 sans-serif;color:inherit}
+  .mobile-nav-label{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mobile-nav-item.active:not(.mobile-nav-dating){color:#c7f4ad}
+  .mobile-nav-item.active:not(.mobile-nav-dating) .mobile-nav-icon{text-shadow:0 0 12px #a4ef7866}
+  .mobile-nav-item .nav-dot{position:absolute;top:7px;right:calc(50% - 17px);margin:0;width:6px;height:6px;border:1px solid #101b14;transform:none!important}
+  .mobile-nav-dating{z-index:3;justify-content:flex-start;gap:4px;padding-top:0;color:#fff}
+  .mobile-nav-dating::before{
+    content:"";position:absolute;z-index:-1;left:50%;top:-20px;transform:translateX(-50%);
+    width:68px;height:38px;border-radius:38px 38px 0 0;
+    background:linear-gradient(180deg,#ffc0c8 0%,#ff8f9f 45%,#f26e83 100%);
+    border:1px solid #ffd5db;border-bottom:0;
+    box-shadow:inset 0 3px 4px #fff9,0 -2px 9px #ff879b45,0 4px 0 #b7475b,0 8px 15px #0007;
+  }
+  .mobile-nav-dating .mobile-nav-icon{
+    width:51px;height:51px;margin-top:-25px;position:relative;
+    border-radius:50%;font:400 33px/1 sans-serif;color:#fff;
+    background:radial-gradient(circle at 30% 18%,#ffdbe0 0%,#ffb0bd 20%,#ff8397 48%,#ed6078 76%,#c8455d 100%);
+    border:1px solid #ffd4dc;
+    box-shadow:inset 0 3px 5px #fff9,inset 0 -5px 8px #a82d4a55,0 4px 0 #a9364c,0 7px 12px #0008,0 0 0 3px #ff9dac22;
+    text-shadow:0 2px 1px #b9475b,0 4px 5px #9d2d45a6;
+  }
+  .mobile-nav-dating .mobile-nav-label{position:relative;z-index:2;margin-top:1px;color:#ffb4c0;font-size:9px;font-weight:800;letter-spacing:.15px}
+  .mobile-nav-dating.active .mobile-nav-icon{background:radial-gradient(circle at 30% 18%,#ffe5e8 0%,#ffb3bf 20%,#ff879b 48%,#f1667f 76%,#c8455d 100%);box-shadow:inset 0 3px 5px #fff9,inset 0 -5px 8px #a82d4a55,0 4px 0 #a9364c,0 7px 14px #0009,0 0 0 4px #ff9dac2c,0 0 22px #ff8da055}
+  .mobile-nav-dating.active .mobile-nav-label{color:#ffd2d9}
+  .app-shell>.main-area{padding-bottom:calc(78px + env(safe-area-inset-bottom))!important;margin-left:0!important}
+}
+@media(max-width:380px){
+  .mobile-bottom-nav{padding-left:5px!important;padding-right:5px!important}
+  .mobile-nav-label{font-size:8px}
+  .mobile-nav-dating::before{width:61px}
+  .mobile-nav-dating .mobile-nav-icon{width:47px;height:47px}
+}
