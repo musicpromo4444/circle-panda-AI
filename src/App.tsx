@@ -40,6 +40,7 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -188,8 +189,13 @@ export default function App() {
           options: { data: { display_name: displayName.trim() } },
         });
         if (error) throw error;
-        if (data.session) setNotice('Welcome to Circle Panda. Your account is ready.');
-        else setNotice('Your account request was received. Check your email for a confirmation link if required by the current account settings.');
+        if (data.session) {
+          setEmailConfirmationPending(false);
+          setNotice('Welcome to Circle Panda. Your account is ready.');
+        } else {
+          setEmailConfirmationPending(true);
+          setNotice('Your account was created. Check your inbox and spam folder for a confirmation link if email confirmation is enabled.');
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -198,6 +204,39 @@ export default function App() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Authentication failed. Please try again.');
     } finally { setAuthBusy(false); }
+  }
+
+  async function resendSignupConfirmation() {
+    if (!supabase || !email.trim() || authBusy) return;
+    setAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim().toLowerCase() });
+      if (error) throw error;
+      setNotice('If the account needs confirmation, a new confirmation email has been requested.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not resend the confirmation email.');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function sendPasswordReset() {
+    if (!supabase || !email.trim() || authBusy) {
+      setNotice('Enter your email address first, then choose Forgot password.');
+      return;
+    }
+    setAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      setNotice('If an account exists for that email, a password-reset link has been requested.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not request a password reset.');
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   async function publishPost(event: FormEvent<HTMLFormElement>) {
@@ -313,7 +352,9 @@ export default function App() {
           {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
           <button className="primary-button full" type="submit" disabled={!supabaseConfigured || authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <span>→</span></button>
         </form>
-        <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
+        <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); setEmailConfirmationPending(false); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
+        {authMode === 'login' && <button type="button" className="text-button" onClick={() => void sendPasswordReset()} disabled={authBusy}>Forgot password?</button>}
+        {emailConfirmationPending && authMode === 'signup' && <button type="button" className="text-button" onClick={() => void resendSignupConfirmation()} disabled={authBusy}>Resend confirmation email</button>}
         {notice && <p className="notice">{notice}</p>}
         <p className="fine-print">A fresh build. A better way to connect.</p>
       </section>
