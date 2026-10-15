@@ -31,6 +31,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const lock = useRef(false);
+  const voteLocks = useRef<Record<string, boolean>>({});
 
   async function load() {
     if (!supabase) return;
@@ -129,18 +130,23 @@ export default function CrushFeature({ userId }: { userId: string }) {
   }
 
   async function vote(post: CrushPost) {
-    if (!supabase || post.user_id === userId || myVotes[post.id]) return;
+    if (!supabase || post.user_id === userId || myVotes[post.id] || voteLocks.current[post.id]) return;
+    voteLocks.current[post.id] = true;
     setBusy(true); setNotice('');
-    const { data, error } = await supabase.rpc('cast_crush_vote', { p_post_id: post.id });
-    if (error) setNotice(error.message);
-    else {
+    try {
+      const { data, error } = await supabase.rpc('cast_crush_vote', { p_post_id: post.id });
+      if (error) throw error;
       const payload = data as { post_votes?: number; already_voted?: boolean } | null;
       setMyVotes(prev => ({ ...prev, [post.id]: true }));
       if (typeof payload?.post_votes === 'number') setVotes(prev => ({ ...prev, [post.id]: payload.post_votes! }));
       else await load();
       setNotice(payload?.already_voted ? 'You have already voted for this card.' : 'Your vote has been counted.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Your vote could not be submitted. Please try again.');
+    } finally {
+      delete voteLocks.current[post.id];
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function toggleReaction(post: CrushPost, reaction: string) {
@@ -186,7 +192,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
 
   async function sharePost(post: CrushPost) {
     const shareUrl = window.location.origin + window.location.pathname + '#crush-' + post.id;
-    const shareText = post.crush_type.toUpperCase() + ' · ' + (names[post.user_id] || 'A Panda') + (post.caption ? ': ' + post.caption : '');
+    const shareText = post.crush_type.toUpperCase() + ' · ' + (names[post.user_id] || 'A Panda') + (post.caption ? ': ' + post.caption : '') + ' Vote before this week’s voting closes on Circle Panda!';
     try {
       if (navigator.share) await navigator.share({ title: 'Circle Panda ' + post.crush_type.toUpperCase(), text: shareText, url: shareUrl });
       else {
@@ -210,7 +216,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
   const livePosts = posts.filter(post => post.crush_type === crushType && (!post.scheduled_for || new Date(post.scheduled_for).getTime() <= Date.now()));
   return <div className="crush-page">
     {!showUploadModal && <section className="crush-upload-launch">
-      <div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>{crushType === 'wcw' ? 'Woman Crush Wednesday' : 'Man Crush Monday'}</h2><p className="feature-copy">Share a photo and a short caption. Your published crush cards appear in the feed below.</p><div className="crush-type-tabs"><button type="button" className={crushType === 'wcw' ? 'active' : ''} onClick={() => setCrushType('wcw')}>♡ WCW</button><button type="button" className={crushType === 'mcm' ? 'active' : ''} onClick={() => setCrushType('mcm')}>♛ MCM</button></div></div>
+      <div><p className="eyebrow">MONDAY & WEDNESDAY TRADITION</p><h2>{crushType === 'wcw' ? 'Woman Crush Wednesday' : 'Man Crush Monday'}</h2><p className="feature-copy">Upload a picture, vote for your favourites, and share crush cards with friends—even outside Circle Panda. Remember to vote before the weekly voting closes.</p><div className="crush-type-tabs"><button type="button" className={crushType === 'wcw' ? 'active' : ''} onClick={() => setCrushType('wcw')}>♡ WCW</button><button type="button" className={crushType === 'mcm' ? 'active' : ''} onClick={() => setCrushType('mcm')}>♛ MCM</button></div></div>
       <button type="button" className="primary-button" onClick={() => setShowUploadModal(true)}>＋ Upload crush photo</button>
     </section>}
     {!showUploadModal && <section className="crush-feed-section"><div className="section-title-row"><div><h2>Crush cards</h2><p>Celebrate your circle without voting on your own card.</p></div><span className="count-pill">{livePosts.length} CARDS</span></div>
