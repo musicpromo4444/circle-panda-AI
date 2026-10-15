@@ -994,3 +994,12 @@ img, video, canvas, svg { max-width:100%; }
   .mobile-nav-label { font-size:clamp(8px,2.35vw,10px) !important; }
   .main-area { padding-bottom:98px !important; }
 }
+
+/* Auth recovery actions */
+.auth-panel .text-button {
+  display:inline-flex; align-items:center; justify-content:center; margin:6px 0;
+  padding:7px 10px; border:0; background:transparent; color:var(--accent,#e7c25b);
+  font:inherit; font-size:13px; font-weight:750; text-decoration:underline;
+  text-underline-offset:3px; cursor:pointer;
+}
+.auth-panel .text-button:disabled { opacity:.55; cursor:wait; }
