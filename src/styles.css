@@ -885,3 +885,11 @@ img, video, canvas, svg { max-width:100%; }
   .mobile-nav-label { font-size:clamp(9px, 2.4vw, 11px) !important; }
   .main-area { padding-bottom:96px !important; }
 }
+
+
+/* Event attendance should read as a strong, easy-to-scan status. */
+.event-attending-count {
+  display:inline-flex; align-items:center; gap:5px; color:#f7d36a;
+  font-size:11px; font-weight:900; letter-spacing:.35px;
+}
+.event-card-actions { flex-wrap:wrap; }
