@@ -46,6 +46,7 @@ export default function App() {
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
   const publishLock = useRef(false);
+  const postMessageLocks = useRef(new Set<string>());
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [commentsByPost, setCommentsByPost] = useState<Record<string,FeedComment[]>>({});
   const [reactionsByPost, setReactionsByPost] = useState<Record<string,FeedReaction[]>>({});
@@ -269,11 +270,20 @@ export default function App() {
   }
 
   async function messagePostAuthor(postId: string) {
-    if (!supabase) return;
-    const { error } = await supabase.rpc('send_post_message_request', {
-      p_post_id: postId, p_greeting: 'Hi! I saw your post and would like to connect.',
-    });
-    setNotice(error ? error.message : 'Message request sent. The author will see it in their inbox.');
+    if (!supabase || !session || postMessageLocks.current.has(postId)) return;
+    postMessageLocks.current.add(postId);
+    setNotice('');
+    try {
+      const { error } = await supabase.rpc('send_post_message_request', {
+        p_post_id: postId, p_greeting: 'Hi! I saw your post and would like to connect.',
+      });
+      if (error) throw error;
+      setNotice('Message request sent. The author will see it in their inbox.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not send the message request. Please try again.');
+    } finally {
+      postMessageLocks.current.delete(postId);
+    }
   }
 
   async function signOut() {
