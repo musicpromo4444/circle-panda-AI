@@ -32,6 +32,8 @@ export default function CrushFeature({ userId }: { userId: string }) {
   const [notice, setNotice] = useState('');
   const lock = useRef(false);
   const voteLocks = useRef<Record<string, boolean>>({});
+  const messageRequestLocks = useRef<Record<string, boolean>>({});
+  const reactionLocks = useRef<Record<string, boolean>>({});
 
   async function load() {
     if (!supabase) return;
@@ -150,15 +152,23 @@ export default function CrushFeature({ userId }: { userId: string }) {
   }
 
   async function toggleReaction(post: CrushPost, reaction: string) {
-    if (!supabase || post.user_id === userId) return;
+    if (!supabase || post.user_id === userId || reactionLocks.current[post.id]) return;
+    reactionLocks.current[post.id] = true;
     const existing = myReactions[post.id];
-    const result = existing === reaction
-      ? await supabase.from('crush_reactions').delete().eq('post_id', post.id).eq('user_id', userId)
-      : await supabase.from('crush_reactions').upsert({ post_id: post.id, user_id: userId, reaction }, { onConflict: 'post_id,user_id' });
-    if (result.error) { setNotice(result.error.message); return; }
-    const { data } = await supabase.from('crush_reactions').select('id,post_id,user_id,reaction').eq('post_id', post.id);
-    setReactions(prev => ({ ...prev, [post.id]: (data ?? []) as Reaction[] }));
-    setMyReactions(prev => { const next = { ...prev }; if (existing === reaction) delete next[post.id]; else next[post.id] = reaction; return next; });
+    try {
+      const result = existing === reaction
+        ? await supabase.from('crush_reactions').delete().eq('post_id', post.id).eq('user_id', userId)
+        : await supabase.from('crush_reactions').upsert({ post_id: post.id, user_id: userId, reaction }, { onConflict: 'post_id,user_id' });
+      if (result.error) throw result.error;
+      const { data, error } = await supabase.from('crush_reactions').select('id,post_id,user_id,reaction').eq('post_id', post.id);
+      if (error) throw error;
+      setReactions(prev => ({ ...prev, [post.id]: (data ?? []) as Reaction[] }));
+      setMyReactions(prev => { const next = { ...prev }; if (existing === reaction) delete next[post.id]; else next[post.id] = reaction; return next; });
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not update your reaction. Please try again.');
+    } finally {
+      delete reactionLocks.current[post.id];
+    }
   }
 
   async function addComment(event: FormEvent<HTMLFormElement>, post: CrushPost) {
@@ -205,12 +215,22 @@ export default function CrushFeature({ userId }: { userId: string }) {
   }
 
   async function messageOwner(post: CrushPost) {
-    if (!supabase || post.user_id === userId) return;
-    const { error } = await supabase.rpc('send_message_request', {
-      p_recipient_id: post.user_id, p_source_type: post.crush_type, p_source_id: post.id,
-      p_greeting: 'Hi! I saw your ' + post.crush_type.toUpperCase() + ' card and would like to connect.',
-    });
-    setNotice(error ? error.message : 'Message request sent. You can track it in Messages.');
+    if (!supabase || post.user_id === userId || messageRequestLocks.current[post.id]) return;
+    messageRequestLocks.current[post.id] = true;
+    setBusy(true); setNotice('');
+    try {
+      const { error } = await supabase.rpc('send_message_request', {
+        p_recipient_id: post.user_id, p_source_type: post.crush_type, p_source_id: post.id,
+        p_greeting: 'Hi! I saw your ' + post.crush_type.toUpperCase() + ' card and would like to connect.',
+      });
+      if (error) throw error;
+      setNotice('Message request sent. You can track it in Messages.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not send the message request. Please try again.');
+    } finally {
+      delete messageRequestLocks.current[post.id];
+      setBusy(false);
+    }
   }
 
   const livePosts = posts.filter(post => post.crush_type === crushType && (!post.scheduled_for || new Date(post.scheduled_for).getTime() <= Date.now()));
