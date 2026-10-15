@@ -737,6 +737,8 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }, [profilePhoto]);
 
   const submitLock = useRef(false);
+  const datingRequestLocks = useRef<Record<string, boolean>>({});
+  const datingDecisionLocks = useRef<Record<string, boolean>>({});
 
   async function createBlurredPhoto(file: File) {
     const bitmap = await createImageBitmap(file);
@@ -836,35 +838,45 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   async function confirmDatingMatch(matchId: string) {
-    if (!supabase || busy) return;
+    if (!supabase || datingDecisionLocks.current[matchId]) return;
+    datingDecisionLocks.current[matchId] = true;
     setBusy(true); setNotice('');
-    const { data, error } = await supabase.rpc('decide_dating_match_secure', { p_match_id: matchId, p_decision: 'continue' });
-    if (error) setNotice(error.message);
-    else {
+    try {
+      const { data, error } = await supabase.rpc('decide_dating_match_secure', { p_match_id: matchId, p_decision: 'continue' });
+      if (error) throw error;
       const result = data as {status?:string}|null;
       setNotice(result?.status === 'matched' ? 'Both people confirmed. Dating photos are now revealed.' : 'Your confirmation is saved. The other person must also confirm to reveal photos.');
       await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not confirm this dating match. Please try again.');
+    } finally {
+      delete datingDecisionLocks.current[matchId];
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function requestChat(profile: DatingProfileRow) {
-    if (!supabase || profile.user_id === userId) return;
+    if (!supabase || profile.user_id === userId || datingRequestLocks.current[profile.user_id]) return;
     const previous = sentRequests[profile.user_id];
     if (previous && ['pending','accepted'].includes(previous.status)) {
       setNotice(previous.status === 'accepted' ? 'You already have an accepted conversation with this person.' : 'Your message request is already waiting for a response.');
       return;
     }
+    datingRequestLocks.current[profile.user_id] = true;
     setBusy(true); setNotice('');
-    const { data, error } = await supabase.rpc('request_dating_match_secure', { p_recipient_id: profile.user_id });
-    if (error) setNotice(error.message);
-    else {
+    try {
+      const { data, error } = await supabase.rpc('request_dating_match_secure', { p_recipient_id: profile.user_id });
+      if (error) throw error;
       const result = data as {status?:string;request_id?:string;thread_id?:string}|null;
       setNotice(result?.status === 'matched' ? 'It is a mutual match 💗. Your free 72-hour Dating chat is ready.' : 'Dating message request sent. You can track it in Messages.');
       await load();
       if (result?.status === 'matched') onOpenMessages();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not send this dating request. Please try again.');
+    } finally {
+      delete datingRequestLocks.current[profile.user_id];
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   const filteredDirectory = directory.filter(profile => {
