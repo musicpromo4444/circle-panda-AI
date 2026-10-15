@@ -303,10 +303,10 @@ export default function App() {
     </aside>
     <nav className="mobile-bottom-nav" aria-label="Main navigation">
       {[
-        {name:'Confessions' as Section, icon:'▱', label:'Page'},
-        {name:'Messages' as Section, icon:'▰', label:'Chat'},
-        {name:'Dating' as Section, icon:'♥', label:'Love'},
-        {name:'Groups' as Section, icon:'♟', label:'Groups'},
+        {name:'Confessions' as Section, icon:'☁', label:'Confession'},
+        {name:'Messages' as Section, icon:'↗', label:'Messages'},
+        {name:'Dating' as Section, icon:'♥', label:'Dating'},
+        {name:'Groups' as Section, icon:'◉', label:'Groups'},
         {name:'Events' as Section, icon:'▦', label:'Events'},
       ].map((item,index)=><button type="button" key={item.name} aria-label={item.name} aria-current={section===item.name?'page':undefined} className={`mobile-nav-item${section===item.name?' active':''}${index===2?' mobile-nav-dating':''}`} onClick={()=>{setSection(item.name);setNotice('');}}>
         <span className="mobile-nav-icon" aria-hidden="true">{item.icon}</span><span className="mobile-nav-label">{item.label}</span>{item.name==='Messages'&&<i className="nav-dot" />}
