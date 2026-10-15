@@ -39,6 +39,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -179,12 +180,16 @@ export default function App() {
     setAuthBusy(true); setNotice('');
     try {
       if (authMode === 'signup') {
+        if (password.length < 8) throw new Error('Choose a password with at least 8 characters.');
+        if (password !== confirmPassword) throw new Error('Your passwords do not match.');
+        if (!displayName.trim()) throw new Error('Enter your name to create your Circle Panda account.');
         const { data, error } = await supabase.auth.signUp({
-          email, password, options: { data: { display_name: displayName.trim() || undefined } },
+          email: email.trim().toLowerCase(), password,
+          options: { data: { display_name: displayName.trim() } },
         });
         if (error) throw error;
         if (data.session) setNotice('Welcome to Circle Panda. Your account is ready.');
-        else setNotice('Account created. If email confirmation is enabled in Supabase, confirm your email before signing in.');
+        else setNotice('Your account request was received. Check your email for a confirmation link if required by the current account settings.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -305,6 +310,7 @@ export default function App() {
           {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" /></label>}
           <label>Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" /></label>
           <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" minLength={8} required autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label>
+          {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
           <button className="primary-button full" type="submit" disabled={!supabaseConfigured || authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <span>→</span></button>
         </form>
         <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
