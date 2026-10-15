@@ -827,3 +827,51 @@ img, video, canvas, svg { max-width:100%; }
   .mobile-nav-label { font-size:10px !important; }
   .main-area { padding-bottom:105px !important; }
 }
+
+
+/* Refine bottom nav: solid gold sculpted glyphs, no dating arch/semicircle. */
+.mobile-nav-icon {
+  width:auto !important; height:auto !important; min-width:0 !important; min-height:0 !important;
+  padding:0 !important; border:0 !important; border-radius:0 !important;
+  background:transparent !important;
+  color:#f3c64e !important;
+  font-size:clamp(48px, 6vw, 66px) !important;
+  line-height:1 !important; font-weight:900 !important;
+  -webkit-text-stroke:0.45px #a97514;
+  text-shadow:
+    0 -1px 0 #fff0a8,
+    1px 0 0 #f8d86e,
+    0 2px 0 #d6a52f,
+    0 4px 0 #b7831b,
+    0 6px 0 #8b5c0b,
+    0 8px 0 #644006,
+    2px 10px 7px #0009,
+    -2px 5px 7px #0007,
+    0 0 13px #f1c95b40 !important;
+  filter: drop-shadow(2px 7px 5px #0009) !important;
+}
+.mobile-nav-dating .mobile-nav-icon,
+.mobile-nav-dating .mobile-nav-icon::before,
+.mobile-nav-dating .mobile-nav-icon::after {
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; outline:0 !important;
+}
+.mobile-nav-dating .mobile-nav-icon { color:#f3c64e !important; }
+.mobile-nav-dating::before,
+.mobile-nav-dating::after { content:none !important; display:none !important; }
+.mobile-nav-item.active .mobile-nav-icon {
+  color:#ffd96a !important;
+  text-shadow:
+    0 -1px 0 #fff5c2,
+    1px 0 0 #ffe68b,
+    0 2px 0 #e5b53c,
+    0 4px 0 #bd861d,
+    0 6px 0 #93620f,
+    0 8px 0 #644006,
+    2px 11px 8px #000a,
+    -2px 6px 8px #0008 !important;
+  filter:drop-shadow(2px 9px 6px #000a) !important;
+}
+@media (max-width:600px) {
+  .mobile-nav-icon { font-size:clamp(43px, 11vw, 54px) !important; }
+}
