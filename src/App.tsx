@@ -1144,6 +1144,8 @@ function EventsFeature({ userId }: { userId: string }) {
   useEffect(() => { void load(); }, [userId]);
 
   const publishLock = useRef(false);
+  const attendanceLocks = useRef<Record<string, boolean>>({});
+  const messageRequestLocks = useRef<Record<string, boolean>>({});
 
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1169,23 +1171,41 @@ function EventsFeature({ userId }: { userId: string }) {
   }
 
   async function toggleAttendance(item: EventRow) {
-    if (!supabase || item.creator_id === userId) return;
+    if (!supabase || item.creator_id === userId || attendanceLocks.current[item.id]) return;
+    attendanceLocks.current[item.id] = true;
     setBusy(true); setNotice('');
-    const { error } = await supabase.from('event_attendees').upsert({
-      event_id: item.id, user_id: userId, status: attending[item.id] ? 'cancelled' : 'attending',
-    }, { onConflict: 'event_id,user_id' });
-    if (error) setNotice(error.message);
-    else { setNotice(attending[item.id] ? 'You are no longer attending.' : 'You are marked as attending.'); await load(); }
-    setBusy(false);
+    try {
+      const { error } = await supabase.from('event_attendees').upsert({
+        event_id: item.id, user_id: userId, status: attending[item.id] ? 'cancelled' : 'attending',
+      }, { onConflict: 'event_id,user_id' });
+      if (error) throw error;
+      setNotice(attending[item.id] ? 'You are no longer attending.' : 'You are marked as attending.');
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not update your attendance. Please try again.');
+    } finally {
+      delete attendanceLocks.current[item.id];
+      setBusy(false);
+    }
   }
 
   async function messageCreator(item: EventRow) {
-    if (!supabase || item.creator_id === userId) return;
-    const { error } = await supabase.rpc('send_message_request', {
-      p_recipient_id: item.creator_id, p_source_type: 'event', p_source_id: item.id,
-      p_greeting: `Hi! I saw your event “${item.title}” and would like to ask you something.`,
-    });
-    setNotice(error ? error.message : 'Message request sent to the event creator.');
+    if (!supabase || item.creator_id === userId || messageRequestLocks.current[item.id]) return;
+    messageRequestLocks.current[item.id] = true;
+    setBusy(true); setNotice('');
+    try {
+      const { error } = await supabase.rpc('send_message_request', {
+        p_recipient_id: item.creator_id, p_source_type: 'event', p_source_id: item.id,
+        p_greeting: `Hi! I saw your event “${item.title}” and would like to ask you something.`,
+      });
+      if (error) throw error;
+      setNotice('Message request sent to the event creator.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not send the event message request.');
+    } finally {
+      delete messageRequestLocks.current[item.id];
+      setBusy(false);
+    }
   }
 
   return <div className="events-page">
@@ -1200,7 +1220,7 @@ function EventsFeature({ userId }: { userId: string }) {
       {notice && <div className="notice">{notice}</div>}
     </section>
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><span>👤 {counts[item.id] || 0} attending</span></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
+      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
   </div>;
 }
