@@ -1469,6 +1469,24 @@ function GroupsFeature({ userId }: { userId: string }) {
     }
   }
 
+  async function openVipGroup(scope: 'worldwide' | 'country') {
+    if (!supabase || groupActionLocks.current['vip-' + scope]) return;
+    if (!myVip) { setNotice('VIP membership is required. Your account must have active VIP access before the private room can open.'); return; }
+    if (scope === 'country' && !myCountry) { setNotice('Choose your country in your profile first. Country VIP access follows your saved profile country, not GPS.'); return; }
+    groupActionLocks.current['vip-' + scope] = true;
+    setBusy(true); setNotice('');
+    try {
+      const { data: groupId, error: ensureError } = await supabase.rpc('ensure_vip_group', { p_scope: scope, p_country: scope === 'country' ? myCountry : null });
+      if (ensureError) throw ensureError;
+      const { data: group, error: groupError } = await supabase.from('chat_groups').select('id,creator_id,name,description,country_restriction,is_vip,created_at').eq('id', groupId as string).single();
+      if (groupError || !group) throw groupError || new Error('VIP room could not be loaded.');
+      await load();
+      await openChat(group as GroupRow);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not open this VIP room. Please try again.');
+    } finally { delete groupActionLocks.current['vip-' + scope]; setBusy(false); }
+  }
+
   async function openChat(group: GroupRow) {
     if (!supabase) return;
     const { data, error } = await supabase.rpc('open_group_chat',{p_group_id:group.id});
@@ -1536,8 +1554,15 @@ function GroupsFeature({ userId }: { userId: string }) {
       {notice && <div className="notice">{notice}</div>}
     </section>
     <section className="group-directory"><div className="section-title-row"><div><h2>Group directory</h2><p>Join a community and help it reach three members.</p></div><span className="count-pill">{groups.length} GROUPS</span></div>
-      <div className="vip-group-banner"><div><span>✦ VIP WORLDWIDE</span><strong>Worldwide VIP Group</strong><small>Always available to VIP members</small></div>{myVip ? <span className="vip-access">VIP access</span> : <button className="vip-locked" onClick={()=>setNotice('VIP membership checkout will be connected to the admin-controlled subscription flow.')}>🔒 Become VIP</button>}</div>
-      {myCountry && <div className="vip-group-banner country-vip"><div><span>✦ VIP COUNTRY</span><strong>{myCountry} VIP Group</strong><small>Country-based VIP community</small></div>{myVip ? <span className="vip-access">VIP access</span> : <button className="vip-locked" onClick={()=>setNotice('Complete VIP membership to unlock the country group.')}>🔒 Become VIP</button>}</div>}
+      <section className="vip-experience">
+        <div className="vip-experience-heading"><div><p className="eyebrow">THE GOLD CIRCLE</p><h2>VIP Experience</h2><p>Private rooms, member-only connections and priority access.</p></div><span className={myVip ? 'vip-status unlocked' : 'vip-status'}>{myVip ? '✦ VIP UNLOCKED' : '🔒 VIP LOCKED'}</span></div>
+        <div className="vip-room-grid">
+          <article className="vip-room-card worldwide-vip-room"><div className="vip-room-ornament">✦</div><div className="vip-room-label">WORLDWIDE VIP</div><h3>Worldwide VIP Group</h3><p>Meet VIP members across Circle Panda in a dedicated private chat.</p><div className="vip-room-bottom"><span>🌐 Global community</span><button type="button" className={myVip ? 'vip-room-button' : 'vip-room-button locked'} disabled={busy} onClick={() => void openVipGroup('worldwide')}>{myVip ? 'Enter room ↗' : '🔒 Unlock VIP'}</button></div></article>
+          {myCountry && <article className="vip-room-card country-vip-room"><div className="vip-room-ornament">♛</div><div className="vip-room-label">COUNTRY VIP</div><h3>{myCountry} VIP Group</h3><p>A country-only room for VIP members in your saved profile country. Other countries stay hidden.</p><div className="vip-room-bottom"><span>⌖ {myCountry} only</span><button type="button" className={myVip ? 'vip-room-button' : 'vip-room-button locked'} disabled={busy} onClick={() => void openVipGroup('country')}>{myVip ? 'Enter room ↗' : '🔒 Unlock VIP'}</button></div></article>}
+        </div>
+        <div className="vip-unlock-grid"><div><span>♛</span><strong>VIP-only group chat</strong><small>Membership checked by Supabase</small></div><div><span>◉</span><strong>Member connections</strong><small>Open conversations from the room</small></div><div><span>◈</span><strong>Gold-circle status</strong><small>{myVip ? 'Your profile has VIP access' : 'Membership required to unlock benefits'}</small></div></div>
+        {!myVip && <p className="vip-unlock-note">VIP room access is enforced by the backend. Live subscription checkout still requires payment-provider configuration; tapping this card will not falsely grant VIP status.</p>}
+      </section>
       {loading ? <div className="empty-state">Loading groups…</div> : groups.length ? <div className="group-cards">{groups.filter(g=>!g.is_vip).map(group => {
         const count = memberCounts[group.id] || 0;
         const member = Boolean(myGroups[group.id]);
