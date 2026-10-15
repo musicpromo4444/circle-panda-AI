@@ -1305,6 +1305,7 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [groupReactions, setGroupReactions] = useState<Record<string,GroupMessageReaction[]>>({});
   const [groupReactionPicker, setGroupReactionPicker] = useState<string | null>(null);
   const [groupSenderNames, setGroupSenderNames] = useState<Record<string,string>>({});
+  const groupActionLocks = useRef<Record<string, boolean>>({});
 
   async function load() {
     if (!supabase) return;
@@ -1348,23 +1349,37 @@ function GroupsFeature({ userId }: { userId: string }) {
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase) return;
+    if (!supabase || groupActionLocks.current.create) return;
+    groupActionLocks.current.create = true;
     setBusy(true); setNotice('');
-    const { error } = await supabase.rpc('create_chat_group',{
-      p_name:name.trim(),p_description:description.trim(),p_country_restriction:countryRestriction.trim() || null,p_is_vip:false,
-    });
-    if (error) setNotice(error.message);
-    else { setName('');setDescription('');setCountryRestriction('');setNotice('Group created. Invite people to join; chat opens at 3 members.');await load(); }
-    setBusy(false);
+    try {
+      const { error } = await supabase.rpc('create_chat_group',{
+        p_name:name.trim(),p_description:description.trim(),p_country_restriction:countryRestriction.trim() || null,p_is_vip:false,
+      });
+      if (error) throw error;
+      setName('');setDescription('');setCountryRestriction('');setNotice('Group created. Invite people to join; chat opens at 3 members.');await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not create the group. Please try again.');
+    } finally {
+      delete groupActionLocks.current.create;
+      setBusy(false);
+    }
   }
 
   async function joinGroup(group: GroupRow) {
-    if (!supabase) return;
+    if (!supabase || groupActionLocks.current[group.id]) return;
+    groupActionLocks.current[group.id] = true;
     setBusy(true);setNotice('');
-    const { error } = await supabase.rpc('join_chat_group',{p_group_id:group.id});
-    if (error) setNotice(error.message);
-    else { setNotice('You joined the group.');await load(); }
-    setBusy(false);
+    try {
+      const { error } = await supabase.rpc('join_chat_group',{p_group_id:group.id});
+      if (error) throw error;
+      setNotice('You joined the group.');await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not join this group. Please try again.');
+    } finally {
+      delete groupActionLocks.current[group.id];
+      setBusy(false);
+    }
   }
 
   async function openChat(group: GroupRow) {
