@@ -314,12 +314,12 @@ export default function App() {
     </aside>
     <nav className="mobile-bottom-nav" aria-label="Main navigation">
       {[
+        {name:'Confessions' as Section, icon:'🔒', label:'Confessions', design:'lock'},
         {name:'Messages' as Section, icon:'💬', label:'Messages', design:'chat'},
         {name:'Dating' as Section, icon:'💗', label:'Dating', design:'heart'},
         {name:'Groups' as Section, icon:'👥', label:'Groups', design:'groups'},
-        {name:'Confessions' as Section, icon:'🔒', label:'Confession', design:'lock'},
         {name:'Events' as Section, icon:'📅', label:'Events', design:'calendar'},
-      ].map((item,index)=><button type="button" key={item.name} aria-label={item.name} aria-current={section===item.name?'page':undefined} className={`mobile-nav-item nav-design-${item.design}${section===item.name?' active':''}${index===1?' mobile-nav-dating':''}`} onClick={()=>{setSection(item.name);setNotice('');}}>
+      ].map((item,index)=><button type="button" key={item.name} aria-label={item.name} aria-current={section===item.name?'page':undefined} className={`mobile-nav-item nav-design-${item.design}${section===item.name?' active':''}${item.design==='heart'?' mobile-nav-dating':''}`} onClick={()=>{setSection(item.name);setNotice('');}}>
         <span className="mobile-nav-icon" aria-hidden="true">{item.icon}</span><span className="mobile-nav-label">{item.label}</span>{item.name==='Messages'&&<i className="nav-dot" />}
       </button>)}
     </nav>
