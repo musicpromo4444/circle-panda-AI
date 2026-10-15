@@ -404,6 +404,8 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [messageNotice, setMessageNotice] = useState('');
   const [loading, setLoading] = useState(true);
+  const responseLocks = useRef<Record<string, boolean>>({});
+  const sendingLock = useRef(false);
 
   async function loadRequests() {
     if (!supabase) return;
@@ -462,29 +464,42 @@ function MessagesFeature({ userId }: { userId: string }) {
 
 
   async function respond(requestId: string, accept: boolean) {
-    if (!supabase) return;
+    if (!supabase || responseLocks.current[requestId]) return;
+    responseLocks.current[requestId] = true;
     setBusyId(requestId); setMessageNotice('');
-    const { data, error } = await supabase.rpc('respond_direct_message_request_secure', { p_request_id: requestId, p_accept: accept });
-    if (error) setMessageNotice(error.message);
-    else {
+    try {
+      const { data, error } = await supabase.rpc('respond_direct_message_request_secure', { p_request_id: requestId, p_accept: accept });
+      if (error) throw error;
       const result = data as {thread_id?: string|null;status?: string}|null;
       if (accept && result?.thread_id) await loadMessages(result.thread_id);
       await loadRequests();
       setMessageNotice(accept ? (result?.status === 'matched' ? 'Dating match accepted. Your 72-hour free chat is ready.' : 'Request accepted. Your chat is ready.') : 'Request declined.');
+    } catch (error) {
+      setMessageNotice(error instanceof Error ? error.message : 'Could not respond to this request. Please try again.');
+    } finally {
+      delete responseLocks.current[requestId];
+      setBusyId('');
     }
-    setBusyId('');
   }
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !openConversation || !draft.trim()) return;
+    if (!supabase || !openConversation || !draft.trim() || sendingLock.current) return;
+    sendingLock.current = true;
     setBusy(true); setMessageNotice('');
-    const { error } = await supabase.from('messages').insert({
-      conversation_id: openConversation, sender_id: userId, body: draft.trim(),
-    });
-    if (error) setMessageNotice(error.message);
-    else { setDraft(''); await loadMessages(openConversation); }
-    setBusy(false);
+    const body = draft.trim();
+    try {
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: openConversation, sender_id: userId, body,
+      });
+      if (error) throw error;
+      setDraft(''); await loadMessages(openConversation);
+    } catch (error) {
+      setMessageNotice(error instanceof Error ? error.message : 'Message could not be sent. Please try again.');
+    } finally {
+      sendingLock.current = false;
+      setBusy(false);
+    }
   }
 
   const incoming = requests.filter(r => r.recipient_id === userId && r.status === 'pending');
