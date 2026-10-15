@@ -839,3 +839,49 @@ img, video, canvas, svg { max-width:100%; }
   .mobile-nav-icon { width:clamp(54px,14vw,68px) !important; height:clamp(54px,14vw,68px) !important; }
   .mobile-nav-dating .mobile-nav-icon { width:clamp(66px,17vw,80px) !important; height:clamp(66px,17vw,80px) !important; }
 }
+
+
+/* Reference-inspired navigation: five large sculpted gold icons fixed at the bottom, while keeping the home content above. */
+.mobile-bottom-nav {
+  position:fixed !important; left:0 !important; right:0 !important; top:auto !important; bottom:0 !important;
+  z-index:50 !important; display:flex !important; justify-content:space-around; align-items:flex-end;
+  gap:clamp(3px, 1.2vw, 14px); width:100%; margin:0 !important;
+  padding:9px max(7px, env(safe-area-inset-left)) calc(9px + env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-right)) !important;
+  overflow:visible !important; background:linear-gradient(180deg,#071016e8,#020609f7) !important;
+  border-top:1px solid #d9b34d55 !important; box-shadow:0 -8px 24px #0008 !important; backdrop-filter:blur(16px);
+}
+.mobile-nav-item {
+  flex:1 1 0; max-width:108px; min-width:0; display:flex !important;
+  flex-direction:column; align-items:center; justify-content:flex-end; gap:3px;
+  padding:0 1px 1px !important; color:#ffdc68 !important; overflow:visible !important;
+}
+.mobile-nav-icon {
+  width:clamp(45px, 12vw, 64px) !important; height:clamp(45px, 12vw, 64px) !important;
+  display:grid !important; place-items:center; flex:0 0 auto; border-radius:0 !important;
+  font-family:Arial,sans-serif !important; font-size:clamp(36px, 9vw, 51px) !important;
+  font-weight:900 !important; line-height:1 !important; color:#ffd957 !important;
+  -webkit-text-stroke:.65px #a86b08; background:transparent !important; border:0 !important; box-shadow:none !important;
+  text-shadow:0 -1px 0 #fff4b0,1px 0 0 #fff0a0,0 2px 0 #e8ad28,0 4px 0 #b9780b,0 6px 0 #704004,2px 9px 7px #000d,-2px 5px 6px #0009 !important;
+  filter:drop-shadow(0 0 7px #ffcf4544) drop-shadow(2px 6px 3px #000b);
+  transform:translateY(-1px) !important; overflow:visible !important;
+}
+.mobile-nav-label { color:#ffdf75 !important; font-size:clamp(9px,2.7vw,12px) !important; font-weight:800 !important; text-align:center; line-height:1.2; }
+.mobile-nav-item.active .mobile-nav-icon { filter:brightness(1.13) drop-shadow(0 0 9px #ffc94399); transform:translateY(-3px) scale(1.04) !important; }
+.mobile-nav-dating .mobile-nav-icon {
+  width:clamp(56px, 15vw, 76px) !important; height:clamp(56px, 15vw, 76px) !important;
+  margin-top:-10px !important; color:#ffe36b !important; font-size:clamp(47px, 12vw, 66px) !important;
+  background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important;
+  text-shadow:0 -1px 0 #fffbd0,1px 0 0 #fff0a0,0 3px 0 #e8ad28,0 6px 0 #b9780b,0 9px 0 #704004,2px 12px 8px #000d !important;
+  filter:drop-shadow(0 0 10px #ffd34f77) drop-shadow(2px 7px 4px #000b);
+}
+.mobile-nav-dating .mobile-nav-label,.mobile-nav-dating.active .mobile-nav-label { color:#ffe58a !important; }
+.mobile-nav-dating::before,.mobile-nav-dating::after { display:none !important; content:none !important; }
+.main-area { padding-bottom:100px !important; }
+@media(max-width:600px) {
+  .mobile-bottom-nav { gap:2px; padding-top:7px !important; padding-bottom:calc(8px + env(safe-area-inset-bottom)) !important; }
+  .mobile-nav-item { max-width:none; gap:2px; }
+  .mobile-nav-icon { width:clamp(42px, 11.5vw, 58px) !important; height:clamp(42px, 11.5vw, 58px) !important; font-size:clamp(34px, 9vw, 45px) !important; }
+  .mobile-nav-dating .mobile-nav-icon { width:clamp(52px, 14vw, 70px) !important; height:clamp(52px, 14vw, 70px) !important; font-size:clamp(45px, 12vw, 60px) !important; }
+  .mobile-nav-label { font-size:clamp(9px, 2.4vw, 11px) !important; }
+  .main-area { padding-bottom:96px !important; }
+}
