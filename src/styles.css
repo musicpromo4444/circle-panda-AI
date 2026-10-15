@@ -781,97 +781,16 @@ img, video, canvas, svg { max-width:100%; }
 }
 
 
-/* Circle Panda: fixed floating metallic-gold navigation, no icon discs. */
-.mobile-bottom-nav {
-  position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important;
-  z-index:1000 !important; width:100% !important; max-width:none !important;
-  margin:0 !important; padding:12px clamp(12px, 4vw, 34px) calc(12px + env(safe-area-inset-bottom)) !important;
-  display:flex !important; align-items:flex-end !important; justify-content:space-evenly !important;
-  gap:clamp(10px, 4vw, 38px) !important; background:transparent !important;
-  border:0 !important; box-shadow:none !important; backdrop-filter:none !important;
-  overflow:visible !important;
-}
-.mobile-nav-item {
-  flex:1 1 0 !important; min-width:0 !important; max-width:120px !important;
-  display:flex !important; flex-direction:column !important; align-items:center !important;
-  justify-content:flex-end !important; gap:5px !important; padding:0 2px 3px !important;
-  background:transparent !important; border:0 !important; border-radius:0 !important;
-  box-shadow:none !important; color:#c8a64c !important; overflow:visible !important;
-}
-.mobile-nav-icon {
-  width:auto !important; height:auto !important; min-width:0 !important; min-height:0 !important;
-  display:block !important; border:0 !important; border-radius:0 !important;
-  padding:0 !important; background:transparent !important;
-  color:#f3d36e !important; font-size:clamp(39px, 5.2vw, 55px) !important;
-  line-height:1 !important; font-weight:900 !important;
-  text-shadow: 0 1px 0 #fff1b2, 0 2px 0 #b88722, 0 3px 0 #8a6114,
-    0 5px 0 #68470c, 0 7px 8px #0009, 0 0 16px #e8c45b50 !important;
-  filter: drop-shadow(0 7px 5px #0008) !important;
-  transition:none !important; transform:none !important;
-}
-.mobile-nav-item.active { color:#ffe49a !important; }
-.mobile-nav-item.active .mobile-nav-icon {
-  color:#ffdf83 !important;
-  text-shadow: 0 1px 0 #fff7d0, 0 2px 0 #d7a83e, 0 4px 0 #916514,
-    0 7px 0 #68470c, 0 10px 12px #000a, 0 0 18px #ffdb715e !important;
-  filter: drop-shadow(0 9px 7px #0009) !important;
-}
-.mobile-nav-dating .mobile-nav-icon { color:#f5cf68 !important; background:transparent !important; border:0 !important; }
-.mobile-nav-label { font-size:clamp(10px, 1.4vw, 12px) !important; color:#e6d5a3 !important; font-weight:700 !important; }
-.mobile-nav-item.active .mobile-nav-label { color:#ffe49a !important; }
-.main-area { padding-bottom:120px !important; }
-@media (max-width:600px) {
-  .mobile-bottom-nav { gap:clamp(4px, 2vw, 14px) !important; padding:10px 8px calc(10px + env(safe-area-inset-bottom)) !important; }
-  .mobile-nav-item { max-width:none !important; gap:5px !important; }
-  .mobile-nav-icon { font-size:clamp(34px, 9vw, 45px) !important; }
-  .mobile-nav-label { font-size:10px !important; }
-  .main-area { padding-bottom:105px !important; }
-}
-
-
-/* Refine bottom nav: solid gold sculpted glyphs, no dating arch/semicircle. */
-.mobile-nav-icon {
-  width:auto !important; height:auto !important; min-width:0 !important; min-height:0 !important;
-  padding:0 !important; border:0 !important; border-radius:0 !important;
-  background:transparent !important;
-  color:#f3c64e !important;
-  font-size:clamp(48px, 6vw, 66px) !important;
-  line-height:1 !important; font-weight:900 !important;
-  -webkit-text-stroke:0.45px #a97514;
-  text-shadow:
-    0 -1px 0 #fff0a8,
-    1px 0 0 #f8d86e,
-    0 2px 0 #d6a52f,
-    0 4px 0 #b7831b,
-    0 6px 0 #8b5c0b,
-    0 8px 0 #644006,
-    2px 10px 7px #0009,
-    -2px 5px 7px #0007,
-    0 0 13px #f1c95b40 !important;
-  filter: drop-shadow(2px 7px 5px #0009) !important;
-}
-.mobile-nav-dating .mobile-nav-icon,
-.mobile-nav-dating .mobile-nav-icon::before,
-.mobile-nav-dating .mobile-nav-icon::after {
-  background:transparent !important; border:0 !important; border-radius:0 !important;
-  box-shadow:none !important; outline:0 !important;
-}
-.mobile-nav-dating .mobile-nav-icon { color:#f3c64e !important; }
-.mobile-nav-dating::before,
-.mobile-nav-dating::after { content:none !important; display:none !important; }
-.mobile-nav-item.active .mobile-nav-icon {
-  color:#ffd96a !important;
-  text-shadow:
-    0 -1px 0 #fff5c2,
-    1px 0 0 #ffe68b,
-    0 2px 0 #e5b53c,
-    0 4px 0 #bd861d,
-    0 6px 0 #93620f,
-    0 8px 0 #644006,
-    2px 11px 8px #000a,
-    -2px 6px 8px #0008 !important;
-  filter:drop-shadow(2px 9px 6px #000a) !important;
-}
-@media (max-width:600px) {
-  .mobile-nav-icon { font-size:clamp(43px, 11vw, 54px) !important; }
+/* Only requested change: make the Dating heart larger, solid gold, and sculpted. */
+@media (max-width:760px) {
+  .mobile-nav-dating .mobile-nav-icon {
+    color:#f5c84b !important;
+    font-size:clamp(54px, 13vw, 68px) !important;
+    font-weight:900 !important;
+    -webkit-text-stroke:0.6px #9b680c;
+    text-shadow:0 -1px 0 #fff4b0, 1px 0 0 #f8df83, 0 2px 0 #d9a52c, 0 4px 0 #ad7817, 0 6px 0 #71470a, 2px 9px 7px #0009, -2px 5px 6px #0007 !important;
+    filter:drop-shadow(2px 7px 5px #0009) !important;
+    background:transparent !important; border:0 !important; border-radius:0 !important;
+  }
+  .mobile-nav-dating::before,.mobile-nav-dating::after { content:none !important; display:none !important; }
 }
