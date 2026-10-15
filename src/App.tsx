@@ -42,6 +42,7 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [signupCountry, setSignupCountry] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -186,7 +187,7 @@ export default function App() {
         if (!displayName.trim()) throw new Error('Enter your name to create your Circle Panda account.');
         const { data, error } = await supabase.auth.signUp({
           email: email.trim().toLowerCase(), password,
-          options: { data: { display_name: displayName.trim() } },
+          options: { data: { display_name: displayName.trim(), country: signupCountry || undefined } },
         });
         if (error) throw error;
         if (data.session) {
@@ -346,7 +347,8 @@ export default function App() {
         <p className="auth-copy">Confessions, crushes, events, dating and real conversations — all in one place.</p>
         {!supabaseConfigured && <div className="notice warning">Connect this app with <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable account access.</div>}
         <form className="auth-form" onSubmit={handleAuth}>
-          {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" /></label>}
+          {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" required /></label>}
+          {authMode === 'signup' && <label>Country <CountryDropdown value={signupCountry} onChange={setSignupCountry} /></label>}
           <label>Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" /></label>
           <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" minLength={8} required autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label>
           {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
