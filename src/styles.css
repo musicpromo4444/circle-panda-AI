@@ -794,3 +794,48 @@ img, video, canvas, svg { max-width:100%; }
   }
   .mobile-nav-dating::before,.mobile-nav-dating::after { content:none !important; display:none !important; }
 }
+
+
+/* Navigation refresh: keep the five main icons at the top and give every icon a raised, solid-gold finish. */
+.mobile-bottom-nav {
+  position:relative !important; inset:auto !important; top:auto !important; bottom:auto !important;
+  display:flex !important; justify-content:center; align-items:flex-start;
+  gap:clamp(8px, 2.5vw, 26px); width:100%; margin:10px auto 14px !important;
+  padding:10px 10px 6px !important; overflow:visible !important;
+  background:transparent !important; border:0 !important; box-shadow:none !important;
+}
+.mobile-nav-item {
+  flex:1 1 0; max-width:108px; min-width:0; display:flex !important;
+  flex-direction:column; align-items:center; justify-content:flex-start; gap:7px;
+  padding:0 2px 6px !important; color:#f6d56c !important; overflow:visible !important;
+}
+.mobile-nav-icon {
+  width:clamp(58px, 15vw, 78px) !important; height:clamp(58px, 15vw, 78px) !important;
+  display:grid !important; place-items:center; flex:0 0 auto; border-radius:22px !important;
+  font-family:Arial, sans-serif !important; font-size:clamp(36px, 9vw, 48px) !important;
+  font-weight:900 !important; line-height:1 !important; color:#ffdf69 !important;
+  -webkit-text-stroke:.35px #a86b08;
+  background:radial-gradient(circle at 28% 14%,#fff4b0 0%,#ffe783 15%,#f4bd36 42%,#c98212 72%,#754004 100%) !important;
+  border:1px solid #fff0a0 !important;
+  box-shadow:inset 0 3px 4px #fff9,inset 0 -7px 9px #75400099,0 3px 0 #8a5007,0 7px 0 #573005,0 10px 14px #0009,0 0 18px #ffc94355 !important;
+  text-shadow:0 1px 0 #fff3a7,0 2px 0 #e6a72a,0 4px 0 #9a5a05,0 7px 5px #4b2a06 !important;
+  transform:translateY(-2px) !important; overflow:visible !important;
+}
+.mobile-nav-label { color:#f8d979 !important; font-size:clamp(10px,2.7vw,12px) !important; font-weight:800 !important; text-align:center; }
+.mobile-nav-item.active .mobile-nav-icon { filter:brightness(1.12) drop-shadow(0 0 8px #ffc94388); transform:translateY(-4px) scale(1.04) !important; }
+.mobile-nav-dating .mobile-nav-icon {
+  width:clamp(72px, 18vw, 90px) !important; height:clamp(72px, 18vw, 90px) !important;
+  margin-top:-7px !important; border-radius:26px !important; color:#fff0a0 !important;
+  font-size:clamp(48px, 12vw, 64px) !important; background:radial-gradient(circle at 28% 12%,#fffbd0 0%,#ffe76b 18%,#f6bc26 45%,#bf7808 75%,#6c3b02 100%) !important;
+  border:1px solid #fff4b5 !important;
+  box-shadow:inset 0 4px 5px #fff,inset 0 -8px 10px #70400099,0 4px 0 #8c5105,0 9px 0 #543004,0 13px 18px #000b,0 0 25px #ffd34f88 !important;
+  text-shadow:0 1px 0 #fffbd0,0 3px 0 #d99b16,0 6px 0 #8d5003,0 9px 7px #4b2804 !important;
+}
+.mobile-nav-dating .mobile-nav-label,.mobile-nav-dating.active .mobile-nav-label { color:#ffe58a !important; }
+.mobile-nav-dating::before,.mobile-nav-dating::after { display:none !important; content:none !important; }
+@media(max-width:600px){
+  .mobile-bottom-nav { gap:clamp(3px,1vw,8px); padding-inline:5px !important; margin-top:8px !important; }
+  .mobile-nav-item { max-width:none; gap:6px; }
+  .mobile-nav-icon { width:clamp(54px,14vw,68px) !important; height:clamp(54px,14vw,68px) !important; }
+  .mobile-nav-dating .mobile-nav-icon { width:clamp(66px,17vw,80px) !important; height:clamp(66px,17vw,80px) !important; }
+}
