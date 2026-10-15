@@ -18,13 +18,13 @@ type EventRow = { id: string; creator_id: string; title: string; description: st
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
-  { name: 'Confessions', icon: '☁', hint: 'Say what is on your mind' },
-  { name: 'Dating', icon: '♡', hint: 'Meet someone new' },
-  { name: 'Events', icon: '▦', hint: 'Find your next plan' },
-  { name: 'Groups', icon: '◉', hint: 'Your people, your conversations' },
-  { name: 'Messages', icon: '↗', hint: 'Requests and private chats' },
-  { name: 'Wallet', icon: '◈', hint: 'Your Panda Coins and activity' },
-  { name: 'Admin', icon: '⚙', hint: 'Manage rewards and economy rules' },
+  { name: 'Confessions', icon: '🔒', hint: 'Say what is on your mind' },
+  { name: 'Dating', icon: '💗', hint: 'Meet someone new' },
+  { name: 'Events', icon: '📅', hint: 'Find your next plan' },
+  { name: 'Groups', icon: '👥', hint: 'Your people, your conversations' },
+  { name: 'Messages', icon: '💬', hint: 'Requests and private chats' },
+  { name: 'Wallet', icon: '👛', hint: 'Your Panda Coins and activity' },
+  { name: 'Admin', icon: '🛡️', hint: 'Manage rewards and economy rules' },
 ];
 
 export default function App() {
@@ -314,12 +314,12 @@ export default function App() {
     </aside>
     <nav className="mobile-bottom-nav" aria-label="Main navigation">
       {[
-        {name:'Confessions' as Section, icon:'☁', label:'Confession'},
-        {name:'Messages' as Section, icon:'✉', label:'Messages'},
-        {name:'Dating' as Section, icon:'♥', label:'Dating'},
-        {name:'Groups' as Section, icon:'♟', label:'Groups'},
-        {name:'Events' as Section, icon:'▣', label:'Events'},
-      ].map((item,index)=><button type="button" key={item.name} aria-label={item.name} aria-current={section===item.name?'page':undefined} className={`mobile-nav-item${section===item.name?' active':''}${index===2?' mobile-nav-dating':''}`} onClick={()=>{setSection(item.name);setNotice('');}}>
+        {name:'Messages' as Section, icon:'💬', label:'Messages', design:'chat'},
+        {name:'Dating' as Section, icon:'💗', label:'Dating', design:'heart'},
+        {name:'Groups' as Section, icon:'👥', label:'Groups', design:'groups'},
+        {name:'Confessions' as Section, icon:'🔒', label:'Confession', design:'lock'},
+        {name:'Events' as Section, icon:'📅', label:'Events', design:'calendar'},
+      ].map((item,index)=><button type="button" key={item.name} aria-label={item.name} aria-current={section===item.name?'page':undefined} className={`mobile-nav-item nav-design-${item.design}${section===item.name?' active':''}${index===1?' mobile-nav-dating':''}`} onClick={()=>{setSection(item.name);setNotice('');}}>
         <span className="mobile-nav-icon" aria-hidden="true">{item.icon}</span><span className="mobile-nav-label">{item.label}</span>{item.name==='Messages'&&<i className="nav-dot" />}
       </button>)}
     </nav>
