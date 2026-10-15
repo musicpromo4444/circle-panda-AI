@@ -45,6 +45,7 @@ export default function App() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
+  const publishLock = useRef(false);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [commentsByPost, setCommentsByPost] = useState<Record<string,FeedComment[]>>({});
   const [reactionsByPost, setReactionsByPost] = useState<Record<string,FeedReaction[]>>({});
@@ -195,21 +196,31 @@ export default function App() {
 
   async function publishPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !session || !draft.trim()) return;
+    const body = draft.trim();
+    if (!supabase || !session || !body || publishLock.current) return;
+    publishLock.current = true;
     setPosting(true); setNotice('');
-    const { error } = await supabase.from('feed_posts').insert({
-      author_id: session.user.id, post_type: section === 'Confessions' ? 'confession' : 'status',
-      body: draft.trim(), is_anonymous: section === 'Confessions',
-    });
-    if (error) setNotice(error.message);
-    else {
+    try {
+      const postType = section === 'Confessions' ? 'confession' : 'status';
+      const { error } = await supabase.from('feed_posts').insert({
+        author_id: session.user.id, post_type: postType,
+        body, is_anonymous: section === 'Confessions',
+      });
+      if (error) throw error;
       setDraft('');
-      const { data } = await supabase.from('feed_posts_public').select('id,body,post_type,is_anonymous,author_name,created_at')
+      const { data, error: refreshError } = await supabase.from('feed_posts_public')
+        .select('id,body,post_type,is_anonymous,author_name,created_at')
+        .eq('post_type', 'confession')
         .order('created_at', { ascending: false }).limit(30);
+      if (refreshError) throw refreshError;
       setPosts((data ?? []) as FeedPost[]);
-      setNotice('Posted to your circle.');
+      setNotice(section === 'Confessions' ? 'Your confession was posted anonymously.' : 'Posted to your circle.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not publish your post. Please try again.');
+    } finally {
+      publishLock.current = false;
+      setPosting(false);
     }
-    setPosting(false);
   }
 
   async function toggleReaction(postId: string, reaction: string) {
