@@ -1138,6 +1138,7 @@ function EventsFeature({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [publishedOnce, setPublishedOnce] = useState(false);
 
   async function load() {
     if (!supabase) return;
@@ -1188,7 +1189,7 @@ function EventsFeature({ userId }: { userId: string }) {
       });
       if (error) throw error;
       setTitle(''); setDescription(''); setVenue(''); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
-      setNotice('Event published successfully.'); await load();
+      setPublishedOnce(true); setNotice('Event published successfully.'); await load();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not publish this event. Please try again.');
     } finally {
@@ -1238,11 +1239,11 @@ function EventsFeature({ userId }: { userId: string }) {
   return <div className="events-page">
     <section className="feature-panel event-create-panel"><div className="feature-icon">▦</div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><h2>Publish an event</h2><p className="feature-copy">Create a real plan for your community. Your event is published once the form succeeds.</p>
       <form className="feature-form" onSubmit={publish}>
-        <label>Event title<input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} required placeholder="What are we getting together for?" /></label>
-        <label>Description<textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} maxLength={4000} placeholder="Tell people what to expect…" /></label>
-        <label>Venue or meeting point<input value={venue} onChange={e => setVenue(e.target.value)} maxLength={250} placeholder="Venue, online or meeting point" /></label>
-        <LocationFields value={location} onChange={setLocation} /><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => setStartsAt(e.target.value)} required /></label>
-        <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Publishing…' : 'Publish event ↗'}</button></div>
+        <label>Event title<input value={title} onChange={e => { setTitle(e.target.value); setPublishedOnce(false); }} maxLength={160} required placeholder="What are we getting together for?" /></label>
+        <label>Description<textarea value={description} onChange={e => { setDescription(e.target.value); setPublishedOnce(false); }} rows={3} maxLength={4000} placeholder="Tell people what to expect…" /></label>
+        <label>Venue or meeting point<input value={venue} onChange={e => { setVenue(e.target.value); setPublishedOnce(false); }} maxLength={250} placeholder="Venue, online or meeting point" /></label>
+        <LocationFields value={location} onChange={value => { setLocation(value); setPublishedOnce(false); }} /><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => { setStartsAt(e.target.value); setPublishedOnce(false); }} required /></label>
+        <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy || publishedOnce}>{busy ? 'Publishing…' : publishedOnce ? 'Event published ✓' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section>
