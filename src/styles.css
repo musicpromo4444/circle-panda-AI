@@ -1058,3 +1058,56 @@ img, video, canvas, svg { max-width:100%; }
   .profile-chip .avatar { width:29px !important; height:29px !important; }
   .profile-chip>span:not(.avatar) { display:none !important; }
 }
+
+
+/* Reference-matched metallic gold navigation and simplified mobile header. */
+:root { --gold-main:#f6d46f; --gold-light:#fff0ae; --gold-deep:#9b6817; }
+.brand-green,.mobile-brand,.mobile-brand strong,.mobile-brand .brand-green {
+  color:#f4d36e !important;
+  text-shadow:0 0 10px #d9a83c44;
+}
+.mobile-brand { display:flex !important; align-items:center; gap:8px; color:#f7df91 !important; }
+.mobile-brand strong { color:#f7df91 !important; letter-spacing:-.3px; }
+.mobile-brand .brand-green { color:#f0c65a !important; }
+.topbar-search { display:none !important; }
+.topbar { justify-content:space-between !important; background:linear-gradient(100deg,#080d16,#0d1727 65%,#111a28) !important; border-bottom:1px solid #8e6927 !important; }
+.top-actions { display:flex !important; align-items:center !important; gap:10px !important; margin-left:auto !important; }
+.theme-toggle { display:none !important; }
+.coin-balance-chip { background:linear-gradient(145deg,#1c1b17,#0d1420) !important; border:1px solid #a98232 !important; box-shadow:0 0 12px #d8aa4540,inset 0 1px #fff1a655 !important; }
+.coin-balance-copy strong,.coin-balance-copy small { color:#ffe49a !important; }
+.notification-button { display:grid !important; place-items:center; color:#f5d46f !important; border:1px solid #8c692b !important; background:linear-gradient(145deg,#191a1b,#0b111b) !important; box-shadow:0 0 10px #d6aa3e25 !important; }
+.notification-button svg { width:21px; height:21px; fill:rgba(245,212,111,.16); stroke:#f7d879; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.profile-chip { border:1px solid #a17a2d !important; background:linear-gradient(145deg,#1b1b18,#0b111b) !important; color:#ffe7a1 !important; box-shadow:0 0 12px #d8aa4533 !important; }
+.profile-chip .avatar { display:grid !important; place-items:center; background:linear-gradient(145deg,#fff0a6,#e5b943 45%,#8f5e10) !important; border:1px solid #ffe49a !important; color:#352409 !important; }
+.profile-chip .avatar svg { width:22px; height:22px; fill:rgba(76,48,8,.2); stroke:#593a09; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.mobile-bottom-nav { background:linear-gradient(180deg,#101725 0%,#070b12 100%) !important; border-top:1px solid #9c752b !important; box-shadow:0 -8px 28px #000b,0 -1px 0 #ffe6a044 !important; }
+.mobile-nav-item,.mobile-nav-item.active { background:transparent !important; border:0 !important; box-shadow:none !important; }
+.mobile-nav-icon { display:grid !important; place-items:center; width:54px !important; height:54px !important; background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; filter:drop-shadow(0 0 5px #e9bd4d77) drop-shadow(0 5px 3px #000b) !important; }
+.gold-nav-svg { width:48px; height:48px; overflow:visible; fill:url(#unused-gold-gradient); fill:rgba(229,174,48,.18); stroke:#f5d36f; stroke-width:2.25; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 0 2px #ffe9a0) drop-shadow(0 2px 0 #80520c); }
+.gold-nav-svg rect,.gold-nav-svg circle { fill:rgba(218,163,40,.16); }
+.gold-nav-svg path { fill:none; }
+.gold-heart-svg { width:55px; height:55px; stroke:#fff0a3; stroke-width:2.1; fill:#e8b93d; filter:drop-shadow(0 0 8px #ffd96caa) drop-shadow(0 4px 0 #86540b); }
+.gold-heart-svg path:first-child { fill:#f4ca50; }
+.mobile-nav-item:nth-child(3) .mobile-nav-icon { width:62px !important; height:62px !important; margin-top:-12px; }
+.mobile-nav-label { color:#f0d991 !important; text-shadow:0 1px 5px #000 !important; font-weight:650 !important; }
+.mobile-nav-item.active .mobile-nav-label { color:#fff0b0 !important; }
+.mobile-nav-item.active .gold-nav-svg { stroke:#fff0a4; filter:drop-shadow(0 0 9px #ffd96cbb) drop-shadow(0 3px 0 #80520c) !important; }
+.mobile-nav-item .nav-dot { background:#ef493c !important; border:1px solid #ffe5a0 !important; }
+@media(max-width:760px) {
+  .topbar { min-height:74px !important; padding:0 10px !important; gap:6px !important; }
+  .mobile-brand { flex:1 1 auto !important; min-width:0 !important; font-size:22px !important; }
+  .mobile-brand strong { font-size:15px !important; white-space:nowrap !important; }
+  .top-actions { flex:0 0 auto !important; gap:6px !important; }
+  .coin-balance-chip { padding:4px 7px !important; gap:5px !important; }
+  .coin-token { width:34px !important; height:34px !important; }
+  .coin-balance-copy { display:flex !important; flex-direction:row !important; gap:4px !important; align-items:center !important; }
+  .coin-balance-copy strong { font-size:12px !important; }
+  .coin-balance-copy small { font-size:10px !important; }
+  .icon-button { width:32px !important; height:34px !important; padding:0 !important; }
+  .profile-chip { padding:2px !important; }
+  .profile-chip .avatar { width:34px !important; height:34px !important; }
+  .profile-chip>span:not(.avatar) { display:none !important; }
+  .mobile-nav-icon { width:48px !important; height:50px !important; }
+  .gold-nav-svg { width:45px; height:45px; }
+  .mobile-nav-label { font-size:11px !important; }
+}
