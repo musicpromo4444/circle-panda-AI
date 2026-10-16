@@ -31,7 +31,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [section, setSection] = useState<Section>('Confessions');
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+  const [theme] = useState<'dark' | 'light'>(() => {
     try { return localStorage.getItem('circle-panda-theme') === 'light' ? 'light' : 'dark'; }
     catch { return 'dark'; }
   });
