@@ -1357,7 +1357,7 @@ function EventsFeature({ userId }: { userId: string }) {
         <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy || publishedOnce}>{busy ? 'Publishing…' : publishedOnce ? 'Event published ✓' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </section></div>
+    </section></div>}
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
       {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
@@ -1656,7 +1656,7 @@ function GroupsFeature({ userId }: { userId: string }) {
         <div className="form-submit-row"><span className="draft-state">3 members to open chat</span><button className="primary-button" disabled={busy}>{busy?'Creating…':'Create group ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </section></div>
+    </section></div>}
     <section className="group-directory"><div className="section-title-row"><div><h2>Group directory</h2><p>Join a community and help it reach three members.</p></div><span className="count-pill">{groups.length} GROUPS</span></div>
       <section className="vip-experience">
         <div className="vip-experience-heading"><div><p className="eyebrow">THE GOLD CIRCLE</p><h2>VIP Experience</h2><p>Private rooms, member-only connections and priority access.</p></div><span className={myVip ? 'vip-status unlocked' : 'vip-status'}>{myVip ? '✦ VIP UNLOCKED' : '🔒 VIP LOCKED'}</span></div>
