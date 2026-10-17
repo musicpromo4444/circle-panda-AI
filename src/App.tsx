@@ -540,6 +540,7 @@ function MessagesFeature({ userId }: { userId: string }) {
   async function loadMessages(conversationId: string) {
     if (!supabase) return;
     setOpenConversation(conversationId);
+    setLastMessageSender(previous => ({ ...previous, [conversationId]: userId }));
     const { data, error } = await supabase.from('messages')
       .select('id,conversation_id,sender_id,body,created_at')
       .eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(200);
