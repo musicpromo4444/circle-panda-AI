@@ -499,6 +499,9 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [messageNotice, setMessageNotice] = useState('');
   const [loading, setLoading] = useState(true);
+  const [messageView, setMessageView] = useState<'requests' | 'messages' | 'sent'>('requests');
+  const [totalMessages, setTotalMessages] = useState(0);
+  const [lastMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
   const responseLocks = useRef<Record<string, boolean>>({});
   const sendingLock = useRef(false);
 
@@ -521,7 +524,16 @@ function MessagesFeature({ userId }: { userId: string }) {
       setNames(nextNames);
     }
     const { data: memberships } = await supabase.from('conversation_members').select('conversation_id,user_id').eq('user_id', userId);
-    setConversations((memberships ?? []) as ChatConversation[]);
+    const memberRows = (memberships ?? []) as ChatConversation[];
+    setConversations(memberRows);
+    const conversationIds = [...new Set(memberRows.map(item => item.conversation_id))];
+    if (conversationIds.length) {
+      const { data: allMessages } = await supabase.from('messages').select('id,conversation_id,sender_id,created_at').in('conversation_id', conversationIds).order('created_at', { ascending: true });
+      const latest: Record<string,string> = {};
+      (allMessages ?? []).forEach((item: {conversation_id:string;sender_id:string}) => { latest[item.conversation_id] = item.sender_id; });
+      setTotalMessages((allMessages ?? []).length);
+      setLastMessageSender(latest);
+    } else { setTotalMessages(0); setLastMessageSender({}); }
     setLoading(false);
   }
 
@@ -611,19 +623,21 @@ function MessagesFeature({ userId }: { userId: string }) {
 
   return <section className="messages-layout">
     <div className="messages-overview">
-      <div className="feature-panel messages-heading"><div className="feature-icon">↗</div><p className="eyebrow">YOUR PRIVATE SPACE</p><h2>Requests that lead to real conversations.</h2><p className="feature-copy">Accept requests to open a private chat. Declined requests are removed from your inbox.</p>
-        <div className="message-stats"><div><strong>{incoming.length}</strong><span>INBOX</span></div><div><strong>{sent.filter(r => r.status === 'pending').length}</strong><span>AWAITING</span></div><div><strong>{activeConversations.length}</strong><span>CHATS</span></div></div>
+      <div className="message-counter-strip" aria-label="Message activity counters">
+        <button type="button" className={messageView === 'requests' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('requests')}><span className="message-counter-label">Requests</span><strong>{incoming.length}</strong>{incoming.length > 0 && <i className="message-alert-dot" aria-label="Requests need attention" />}<small>Inbox</small></button>
+        <button type="button" className={messageView === 'messages' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('messages')}><span className="message-counter-label">Messages</span><strong>{totalMessages}</strong>{activeConversations.some(id => lastMessageSender[id] && lastMessageSender[id] !== userId) && <i className="message-alert-dot" aria-label="Messages need attention" />}<small>{activeConversations.length} chats</small></button>
+        <button type="button" className={messageView === 'sent' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('sent')}><span className="message-counter-label">Sent requests</span><strong>{sent.length}</strong>{sent.some(r => r.status === 'pending') && <i className="message-alert-dot" aria-label="Sent requests awaiting response" />}<small>{sent.filter(r => r.status === 'pending').length} awaiting</small></button>
       </div>
       {messageNotice && <div className="notice inline-notice">{messageNotice}<button onClick={() => setMessageNotice('')}>×</button></div>}
-      <section className="request-section"><div className="section-title-row"><div><h2>Message requests</h2><p>Requests from dating, events, groups and your feed.</p></div><span className="count-pill">{incoming.length} NEW</span></div>
+      {messageView === 'requests' && <section className="request-section"><div className="section-title-row"><div><h2>Message requests</h2><p>Requests from dating, events, groups and your feed.</p></div><span className="count-pill">{incoming.length} NEW</span></div>
         {loading ? <div className="empty-state">Loading requests…</div> : incoming.length ? incoming.map(r => <article className="request-card" key={r.id}><div className="request-avatar">🐼</div><div className="request-content"><div className="request-card-top"><strong>{names[r.sender_id] || 'Panda'}</strong><span className="source-tag">{sourceLabel(r.source_type)}</span></div><p>{r.greeting || 'Would like to start a conversation with you.'}</p><small>{new Date(r.created_at).toLocaleString()}</small><div className="request-buttons"><button className="primary-button" disabled={busyId === r.id} onClick={() => void respond(r.id, true)}>{busyId === r.id ? 'Working…' : 'Accept'}</button><button className="decline-button" disabled={busyId === r.id} onClick={() => void respond(r.id, false)}>Decline</button></div></div></article>) : <div className="empty-state compact"><span>✦</span><h3>No new requests</h3><p>When someone wants to connect, their request will show up here.</p></div>}
-      </section>
-      <section className="request-section"><div className="section-title-row"><div><h2>Sent requests</h2><p>Keep track of requests you have sent.</p></div><span className="count-pill">{sent.length} TOTAL</span></div>
+      </section>}
+      {messageView === 'sent' && <section className="request-section"><div className="section-title-row"><div><h2>Sent requests</h2><p>Keep track of requests you have sent.</p></div><span className="count-pill">{sent.length} TOTAL</span></div>
         {sent.length ? sent.map(r => <article className="sent-card" key={r.id}><div><strong>{names[r.recipient_id] || 'Panda'}</strong><p>Message request · {sourceLabel(r.source_type)}</p></div><span className={`status-tag status-${r.status}`}>{r.status}</span>{r.conversation_id && <button className="text-action" onClick={() => void loadMessages(r.conversation_id!)}>Open chat →</button>}</article>) : <div className="empty-state compact"><p>You have not sent a request yet.</p></div>}
-      </section>
-      <section className="request-section"><div className="section-title-row"><div><h2>Your chats</h2><p>Accepted message requests open private chats.</p></div><span className="count-pill">{activeConversations.length} CHATS</span></div>
+      </section>}
+      {messageView === 'messages' && <section className="request-section"><div className="section-title-row"><div><h2>Your messages</h2><p>Open a conversation to continue chatting.</p></div><span className="count-pill">{activeConversations.length} CHATS</span></div>
         {activeConversations.length ? activeConversations.map(id => <button key={id} className={openConversation === id ? 'chat-list-item selected' : 'chat-list-item'} onClick={() => void loadMessages(id)}><span className="request-avatar">🐼</span><span><strong>{conversationTitle(id)}</strong><small>Private conversation</small></span><b>→</b></button>) : <div className="empty-state compact"><p>Accept a message request to start your first chat.</p></div>}
-      </section>
+      </section>}
     </div>
     <section className="chat-panel">
       {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p></div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
@@ -733,10 +747,10 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         setDateOfBirth(profile.date_of_birth || '');
         const savedLocation = { country: profile.country || '', state: profile.state_province || profile.state || '', city: profile.city || '', area: profile.area || '' };
         setLocation(savedLocation);
-        if (!profile.date_of_birth || !savedLocation.country || !savedLocation.city || !savedLocation.area) { setBasicProfileOpen(true); }
+        if (!profile.date_of_birth || !savedLocation.country || !savedLocation.city || !savedLocation.area) { /* Open profile completion only when the user taps Create Dating Profile. */ }
       } else {
         setFormStep(0);
-        setBasicProfileOpen(true);
+        /* Keep setup closed on entry; the Create Dating Profile button opens it. */
       }
 
       const { data: mine, error: mineError } = await supabase.from('dating_profiles')
@@ -1234,6 +1248,7 @@ function EventsFeature({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [publishedOnce, setPublishedOnce] = useState(false);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
 
   async function load() {
     if (!supabase) return;
@@ -1284,7 +1299,7 @@ function EventsFeature({ userId }: { userId: string }) {
       });
       if (error) throw error;
       setTitle(''); setDescription(''); setVenue(''); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
-      setPublishedOnce(true); setNotice('Event published successfully.'); await load();
+      setPublishedOnce(true); setCreateEventOpen(false); setNotice('Event published successfully.'); await load();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not publish this event. Please try again.');
     } finally {
@@ -1332,7 +1347,8 @@ function EventsFeature({ userId }: { userId: string }) {
   }
 
   return <div className="events-page">
-    <section className="feature-panel event-create-panel"><div className="feature-icon">▦</div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><h2>Publish an event</h2><p className="feature-copy">Create a real plan for your community. Your event is published once the form succeeds.</p>
+    <div className="directory-toolbar"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><p className="feature-copy">Discover events, or create one for your community.</p></div><button type="button" className="primary-button" onClick={() => { setNotice(''); setCreateEventOpen(true); }}>＋ Create Event</button></div>
+    {createEventOpen && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create an event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><h2>Publish an event</h2></div><button type="button" className="create-modal-close" aria-label="Close create event" onClick={() => setCreateEventOpen(false)}>×</button></header><p className="feature-copy">Create a real plan for your community. Your event is published once the form succeeds.</p>
       <form className="feature-form" onSubmit={publish}>
         <label>Event title<input value={title} onChange={e => { setTitle(e.target.value); setPublishedOnce(false); }} maxLength={160} required placeholder="What are we getting together for?" /></label>
         <label>Description<textarea value={description} onChange={e => { setDescription(e.target.value); setPublishedOnce(false); }} rows={3} maxLength={4000} placeholder="Tell people what to expect…" /></label>
@@ -1341,7 +1357,7 @@ function EventsFeature({ userId }: { userId: string }) {
         <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy || publishedOnce}>{busy ? 'Publishing…' : publishedOnce ? 'Event published ✓' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </section>
+    </section></div>
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
       {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
@@ -1470,6 +1486,7 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [openGroupId, setOpenGroupId] = useState<string|null>(null);
   const [openConversationId, setOpenConversationId] = useState<string|null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -1530,7 +1547,7 @@ function GroupsFeature({ userId }: { userId: string }) {
         p_name:name.trim(),p_description:description.trim(),p_country_restriction:countryRestriction.trim() || null,p_is_vip:false,
       });
       if (error) throw error;
-      setName('');setDescription('');setCountryRestriction('');setNotice('Group created. Invite people to join; chat opens at 3 members.');await load();
+      setName('');setDescription('');setCountryRestriction('');setCreateGroupOpen(false);setNotice('Group created. Invite people to join; chat opens at 3 members.');await load();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not create the group. Please try again.');
     } finally {
@@ -1630,7 +1647,8 @@ function GroupsFeature({ userId }: { userId: string }) {
 
   const openGroup = groups.find(g => g.id === openGroupId);
   return <div className="groups-page">
-    <section className="feature-panel group-create-panel"><div className="feature-icon">◉</div><p className="eyebrow">YOUR PEOPLE, YOUR SPACE</p><h2>Create a group</h2><p className="feature-copy">Normal groups stay available without a 24-hour expiry. The group chat unlocks when at least three members have joined.</p>
+    <div className="directory-toolbar"><div><p className="eyebrow">YOUR PEOPLE, YOUR SPACE</p><p className="feature-copy">Explore normal and VIP groups across your circle.</p></div><button type="button" className="primary-button" onClick={() => setCreateGroupOpen(true)}>＋ Create Group</button></div>
+    {createGroupOpen && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create a group"><section className="create-modal-card group-create-panel"><header className="create-modal-header"><div><p className="eyebrow">YOUR PEOPLE, YOUR SPACE</p><h2>Create a group</h2></div><button type="button" className="create-modal-close" aria-label="Close create group" onClick={() => setCreateGroupOpen(false)}>×</button></header><p className="feature-copy">Normal groups stay available without a 24-hour expiry. The group chat unlocks when at least three members have joined.</p>
       <form className="feature-form" onSubmit={createGroup}>
         <label>Group name<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} minLength={2} required placeholder="Give your group a name" /></label>
         <label>About the group<textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} maxLength={2000} placeholder="What brings this group together?" /></label>
@@ -1638,7 +1656,7 @@ function GroupsFeature({ userId }: { userId: string }) {
         <div className="form-submit-row"><span className="draft-state">3 members to open chat</span><button className="primary-button" disabled={busy}>{busy?'Creating…':'Create group ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
-    </section>
+    </section></div>
     <section className="group-directory"><div className="section-title-row"><div><h2>Group directory</h2><p>Join a community and help it reach three members.</p></div><span className="count-pill">{groups.length} GROUPS</span></div>
       <section className="vip-experience">
         <div className="vip-experience-heading"><div><p className="eyebrow">THE GOLD CIRCLE</p><h2>VIP Experience</h2><p>Private rooms, member-only connections and priority access.</p></div><span className={myVip ? 'vip-status unlocked' : 'vip-status'}>{myVip ? '✦ VIP UNLOCKED' : '🔒 VIP LOCKED'}</span></div>
