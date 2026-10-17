@@ -1174,3 +1174,28 @@ img, video, canvas, svg { max-width:100%; }
 @media(min-width:761px){
   .app-shell>.topbar{position:sticky;top:0;z-index:20;background:#0b111c}
 }
+
+
+/* Circle Panda premium header + profile-led VIP effects */
+:root{--gold:#f6d36d;--gold-bright:#fff0a2;--navy:#071020;--vip-glow:rgba(255,190,49,.45)}
+body{background:radial-gradient(ellipse at 70% 0%,#13264a 0%,transparent 42%),#070d18;color:#f3f5fb}
+.topbar{background:linear-gradient(100deg,#08101fef,#101b31ef);border-bottom:1px solid #7b612c88}
+.top-actions{gap:12px}
+.coin-balance-chip{border:1px solid #b58a2c!important;background:linear-gradient(110deg,#151a27,#080e1a)!important;box-shadow:0 0 18px #eab94420;color:#ffe18a!important}
+.coin-token{filter:drop-shadow(0 0 7px #f6c84e66)}
+.icon-button{border-color:#8e7138!important;background:transparent!important;color:#ffdf82!important;border-radius:50%!important}
+.icon-button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.profile-chip-icon-only{padding:0!important;min-width:44px;min-height:44px;display:grid;place-items:center;border:0!important;background:transparent!important}
+.profile-chip-icon-only .avatar{width:42px;height:42px;background:radial-gradient(circle at 35% 25%,#fff2ad,#d99d23 48%,#63400b 78%);border:2px solid #f5d578;box-shadow:0 0 15px #e7b93d55;color:#392606}
+.profile-chip-icon-only .avatar svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.vip-avatar-frame{position:relative;isolation:isolate;border-radius:50%;border:2px solid #ffe69a;box-shadow:0 0 0 3px #e5a92a55,0 0 20px var(--vip-glow);animation:vip-aura-pulse 2.8s ease-in-out infinite}
+.vip-avatar-frame::before,.vip-avatar-frame::after{content:"";position:absolute;inset:-7px;border-radius:50%;pointer-events:none;z-index:-1}
+.vip-avatar-frame::before{background:conic-gradient(from 0deg,transparent 0 10%,#ff6a00 15%,#ffd34f 24%,transparent 33% 48%,#ff4f88 57%,transparent 66% 78%,#ffc14f 88%,transparent 100%);filter:blur(5px);opacity:.78;animation:vip-fire-rotate 8s linear infinite}
+.vip-avatar-frame::after{inset:-11px;border:1px solid #ffd97088;box-shadow:0 0 14px #ffd34f55, inset 0 0 9px #ff9c3a22;animation:vip-bubble-pulse 3.5s ease-in-out infinite}
+.vip-member-label{display:inline-flex;align-items:center;gap:4px;color:#ffda69;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 0 9px #ffba3c66}
+.vip-member-label::before{content:"✦";font-size:12px}
+.vip-effects-flame{--vip-glow:rgba(255,105,24,.6)}.vip-effects-lightning{--vip-glow:rgba(67,147,255,.65)}.vip-effects-bubbles{--vip-glow:rgba(218,102,255,.55)}
+@keyframes vip-aura-pulse{0%,100%{box-shadow:0 0 0 3px #e5a92a44,0 0 13px var(--vip-glow)}50%{box-shadow:0 0 0 5px #e5a92a66,0 0 25px var(--vip-glow)}}
+@keyframes vip-fire-rotate{to{transform:rotate(360deg)}}
+@keyframes vip-bubble-pulse{0%,100%{transform:scale(.98);opacity:.55}50%{transform:scale(1.06);opacity:1}}
+@media(max-width:760px){.topbar{background:linear-gradient(100deg,#080f1d,#101b30);border-bottom-color:#79602e77}.top-actions{gap:8px}.coin-balance-chip{padding:5px 8px!important}.profile-chip-icon-only{min-width:39px;min-height:39px}.profile-chip-icon-only .avatar{width:36px;height:36px}.vip-avatar-frame::before{filter:blur(4px)}}
