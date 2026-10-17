@@ -1199,3 +1199,11 @@ body{background:radial-gradient(ellipse at 70% 0%,#13264a 0%,transparent 42%),#0
 @keyframes vip-fire-rotate{to{transform:rotate(360deg)}}
 @keyframes vip-bubble-pulse{0%,100%{transform:scale(.98);opacity:.55}50%{transform:scale(1.06);opacity:1}}
 @media(max-width:760px){.topbar{background:linear-gradient(100deg,#080f1d,#101b30);border-bottom-color:#79602e77}.top-actions{gap:8px}.coin-balance-chip{padding:5px 8px!important}.profile-chip-icon-only{min-width:39px;min-height:39px}.profile-chip-icon-only .avatar{width:36px;height:36px}.vip-avatar-frame::before{filter:blur(4px)}}
+
+
+/* Fix the app chrome in place while the content scrolls. */
+.topbar{position:sticky!important;top:0!important;z-index:120!important;flex-shrink:0;background:rgba(7,14,27,.97)!important;backdrop-filter:blur(18px);box-shadow:0 1px 0 #9a793633}
+@media(max-width:760px){.main-area{min-width:0}.topbar{position:fixed!important;top:0!important;left:0!important;right:0!important;width:100%!important;height:61px!important;z-index:1000!important;padding-top:env(safe-area-inset-top,0px)!important}.main-area{padding-top:61px!important}.page-wrap{scroll-margin-top:70px}.mobile-bottom-nav{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:1001!important}}
+.vip-post-card{position:relative;overflow:hidden;border:1px solid #c99a3f!important;background:radial-gradient(ellipse at 0% 0%,#d9a43b20,transparent 58%),linear-gradient(135deg,#171b27,#111827 62%,#211b25)!important;box-shadow:0 0 0 1px #f6d36d1a,0 8px 30px #d99d2720!important}
+.vip-post-card::before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,transparent,#ffdc72,#fff1bd,#b98a30,transparent);pointer-events:none}
+.vip-post-card .post-body{color:#fff2d1}.vip-post-card .post-actions{border-color:#5e4a2b}.vip-post-card .post-actions button:hover,.vip-post-card .post-actions .react-active{color:#ffdc72}.vip-post-card .post-share-button{border-color:#b18a3d;background:linear-gradient(145deg,#45351a,#211e18);color:#ffe7a0}.vip-post-top .post-avatar{background:radial-gradient(circle at 30% 20%,#fff4b8,#c48b24 53%,#57370c);color:#241905}.vip-member-label{margin-left:5px;vertical-align:middle;border:1px solid #b98c36;border-radius:999px;padding:3px 7px;background:linear-gradient(120deg,#3d2e16,#211c14);box-shadow:0 0 10px #f6d36d33}
