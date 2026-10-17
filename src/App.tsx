@@ -5,7 +5,7 @@ import { supabase, supabaseConfigured } from './lib/supabase';
 import LocationFields, { CountryDropdown, type LocationValue } from './components/LocationFields';
 import CrushFeature from './components/CrushFeature';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'Wallet' | 'Admin';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'VIP' | 'Wallet' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
@@ -23,7 +23,8 @@ const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Events', icon: '📅', hint: 'Find your next plan' },
   { name: 'Groups', icon: '👥', hint: 'Your people, your conversations' },
   { name: 'Messages', icon: '💬', hint: 'Requests and private chats' },
-  { name: 'Wallet', icon: '👛', hint: 'Your Panda Coins and activity' },
+  { name: 'VIP', icon: '✦', hint: 'Your Gold Circle membership and benefits' },
+  { name: 'Wallet', icon: '👛', hint: 'Your Panda Coins and activity' }, 
   { name: 'Admin', icon: '🛡️', hint: 'Manage rewards and economy rules' },
 ];
 
@@ -407,7 +408,7 @@ export default function App() {
               {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
               {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className="comment-row" key={comment.id}><span className="comment-avatar">🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
-        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel key={section === 'Crush' ? crushPanelKey : section} section={section} userId={session.user.id} onOpenMessages={() => setSection('Messages')} />}
+        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel key={section === 'Crush' ? crushPanelKey : section} section={section} userId={session.user.id} onOpenMessages={() => setSection('Messages')} onNavigate={setSection} />}
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
@@ -431,10 +432,11 @@ export default function App() {
   </div>;
 }
 
-function FeaturePanel({ section, userId, onOpenMessages }: { section: Section; userId: string; onOpenMessages: () => void }) {
+function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
   if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={onOpenMessages} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
+  if (section === 'VIP') return <VipFeature userId={userId} onNavigate={onNavigate} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
@@ -1574,6 +1576,85 @@ function GroupsFeature({ userId }: { userId: string }) {
   </div>;
 }
 
+
+function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (section: Section) => void }) {
+  const [vip, setVip] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [country, setCountry] = useState('');
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    async function loadMembership() {
+      if (!supabase) { setLoading(false); setNotice('Connect the rebuilt app to Supabase to check VIP membership.'); return; }
+      const [profileResult, roleResult, walletResult] = await Promise.all([
+        supabase.from('profiles').select('is_vip,vip_expires_at,country').eq('id', userId).maybeSingle(),
+        supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle(),
+        supabase.from('wallet_accounts').select('bc_balance').eq('user_id', userId).maybeSingle(),
+      ]);
+      if (!alive) return;
+      if (profileResult.error) setNotice(profileResult.error.message);
+      setVip(Boolean(profileResult.data?.is_vip));
+      setExpiresAt(profileResult.data?.vip_expires_at ?? null);
+      setCountry(profileResult.data?.country ?? '');
+      setIsAdmin(Boolean(roleResult.data));
+      setBalance(walletResult.data ? Number(walletResult.data.bc_balance) : null);
+      setLoading(false);
+    }
+    void loadMembership();
+    return () => { alive = false; };
+  }, [userId]);
+
+  const permanent = vip && !expiresAt;
+  return <div className="vip-dashboard">
+    <section className="vip-dashboard-hero">
+      <div className="vip-hero-copy">
+        <p className="eyebrow">THE GOLD CIRCLE · CIRCLE PANDA</p>
+        <div className="vip-hero-title-row"><span className="vip-crown-coin" aria-hidden="true">♛</span><div><h2>Your VIP Experience</h2><p>More access. Private spaces. A golden way to connect.</p></div></div>
+        <div className="vip-member-badges">
+          <span className={vip ? 'vip-member-badge active' : 'vip-member-badge'}>{vip ? '✦ VIP ACTIVE' : '◇ VIP INACTIVE'}</span>
+          {isAdmin && <span className="vip-member-badge admin">♜ ADMIN ACCOUNT</span>}
+          {permanent && <span className="vip-member-badge permanent">∞ NO EXPIRY</span>}
+        </div>
+        <p className="vip-membership-summary">{loading ? 'Checking your membership…' : vip ? (permanent ? 'Your VIP membership is permanent. It has no expiry date.' : 'Your VIP membership is active' + (expiresAt ? ' until ' + new Date(expiresAt).toLocaleDateString() + '.' : '.')) : 'VIP membership is not active on this profile. This page will not grant membership by itself.'}</p>
+      </div>
+      <div className="vip-hero-medallion" aria-hidden="true"><span>♛</span><small>GOLD<br/>CIRCLE</small></div>
+      <div className="vip-hero-glint glint-one" /><div className="vip-hero-glint glint-two" />
+    </section>
+
+    {notice && <div className="notice inline-notice">{notice}<button type="button" onClick={() => setNotice('')}>×</button></div>}
+
+    <div className="vip-metric-grid">
+      <article className="vip-metric-card"><span className="vip-metric-icon">◈</span><small>YOUR BC BALANCE</small><strong>{balance === null ? '—' : balance.toLocaleString()}</strong><p>Coins stay in your wallet without expiring.</p><button type="button" onClick={() => onNavigate('Wallet')}>Open wallet ↗</button></article>
+      <article className="vip-metric-card"><span className="vip-metric-icon">◎</span><small>MEMBERSHIP</small><strong>{loading ? '…' : vip ? 'VIP' : 'Standard'}</strong><p>{permanent ? 'Permanent access · no expiry' : vip ? 'Active membership' : 'VIP access required for private rooms'}</p><button type="button" onClick={() => onNavigate('Groups')}>Explore VIP rooms ↗</button></article>
+      <article className="vip-metric-card"><span className="vip-metric-icon">♜</span><small>ACCOUNT ACCESS</small><strong>{isAdmin ? 'Owner / Admin' : 'Member'}</strong><p>{isAdmin ? 'Administrator role detected on this account.' : 'Your membership benefits are shown below.'}</p>{isAdmin && <button type="button" onClick={() => onNavigate('Admin')}>Open admin controls ↗</button>}</article>
+    </div>
+
+    <section className="vip-dashboard-section">
+      <div className="vip-section-heading"><div><p className="eyebrow">PRIVATE SPACES</p><h3>Enter the Gold Circle</h3><p>Two separate VIP rooms, with country access based on your saved profile country.</p></div><span className="vip-section-spark">✧</span></div>
+      <div className="vip-dashboard-room-grid">
+        <article className="vip-dashboard-room worldwide"><div className="vip-room-topline"><span>🌐 WORLDWIDE</span><span>✦ VIP ONLY</span></div><div className="vip-room-emblem">✧</div><h4>Worldwide VIP Group</h4><p>Connect with VIP members across the Circle Panda community in a dedicated private room.</p><button type="button" className="vip-gold-button" onClick={() => onNavigate('Groups')}>View worldwide room ↗</button></article>
+        <article className="vip-dashboard-room country"><div className="vip-room-topline"><span>⌖ COUNTRY ROOM</span><span>✦ VIP ONLY</span></div><div className="vip-room-emblem">♛</div><h4>{country ? country + ' VIP Group' : 'Your Country VIP Group'}</h4><p>{country ? 'A country-only room for VIP members whose saved profile country is ' + country + '.' : 'Complete the country field in your profile to reveal the matching country VIP room.'}</p><button type="button" className="vip-gold-button" onClick={() => onNavigate('Groups')}>View country room ↗</button></article>
+      </div>
+    </section>
+
+    <section className="vip-dashboard-section">
+      <div className="vip-section-heading"><div><p className="eyebrow">VIP PRIVILEGES</p><h3>What your Gold Circle unlocks</h3><p>Use these shortcuts to test the VIP experience in the rebuilt app.</p></div></div>
+      <div className="vip-benefit-grid">
+        <article><span>💬</span><div><strong>Messaging without BC fees</strong><p>VIP users are intended to send private messages without the normal per-message BC charge.</p><small>Verify in live chat flow</small></div></article>
+        <article><span>💗</span><div><strong>Dating access</strong><p>Explore dating profiles and request-to-chat flows. The planned VIP experience avoids ad gates after the initial free period.</p><button type="button" onClick={() => onNavigate('Dating')}>Open dating ↗</button></div></article>
+        <article><span>◉</span><div><strong>Private VIP groups</strong><p>Worldwide and country VIP rooms are separate from regular groups and do not need three members to open.</p><button type="button" onClick={() => onNavigate('Groups')}>Open groups ↗</button></div></article>
+        <article><span>▣</span><div><strong>VIP-to-VIP calls</strong><p>Calls and admin-controlled call permissions are part of the planned VIP experience; this shortcut does not start a call yet.</p><small>Connection still required</small></div></article>
+        <article><span>◈</span><div><strong>Non-expiring BC wallet</strong><p>Review your balance and wallet transactions. VIP status does not silently change the stored coin balance.</p><button type="button" onClick={() => onNavigate('Wallet')}>View wallet ↗</button></div></article>
+        <article><span>⚙</span><div><strong>Owner controls</strong><p>Administrators can adjust economy settings from the admin area. Access is role-checked by the backend.</p>{isAdmin ? <button type="button" onClick={() => onNavigate('Admin')}>Open admin ↗</button> : <small>Admin role required</small>}</div></article>
+      </div>
+    </section>
+    <p className="vip-dashboard-footnote">Membership is read from the new Circle Panda database. A visible VIP badge is not a substitute for server-side permission checks; payment, calls, and any privilege not connected end-to-end must be tested separately.</p>
+  </div>;
+}
 
 type EconomySettingRow = { setting_key: string; numeric_value: number; updated_at: string; };
 function AdminFeature() {
