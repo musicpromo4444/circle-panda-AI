@@ -516,8 +516,14 @@ function MessagesFeature({ userId }: { userId: string }) {
     if (error) { setMessageNotice(error.message); setLoading(false); return; }
     const rows = (data ?? []) as MessageRequestRow[];
     setRequests(rows);
-    const { data: datingMatchRows } = await supabase.rpc('get_my_dating_matches_secure');
-    setDatingMatches(((datingMatchRows ?? []) as Array<{id:string;thread_id:string|null;free_until:string;status:string}>).filter(match => match.status === 'matched' && Boolean(match.thread_id)));
+    const { data: datingMatchRows, error: datingMatchError } = await supabase.rpc('get_my_dating_matches_secure');
+    if (datingMatchError) {
+      setDatingMatches([]);
+      setMessageNotice(`Message requests loaded, but Dating chats could not be refreshed: ${datingMatchError.message}`);
+    } else {
+      setDatingMatches(((datingMatchRows ?? []) as Array<{id:string;thread_id:string|null;free_until:string;status:string}>)
+        .filter(match => match.status === 'matched' && Boolean(match.thread_id)));
+    }
     const ids = [...new Set(rows.flatMap(r => [r.sender_id, r.recipient_id]))];
     if (ids.length) {
       const { data: profiles } = await supabase.from('profiles').select('id,display_name,username').in('id', ids);
