@@ -859,7 +859,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
             const path = revealed ? person.photo_path : person.blurred_photo_path;
             let photoUrl = '';
             if (path) {
-              const bucket = revealed ? 'dating-photos' : 'dating-photo-blur';
+              const bucket = 'dating-profile-photos';
               const { data: signed } = await supabase!.storage.from(bucket).createSignedUrl(path, 10 * 60);
               photoUrl = signed?.signedUrl || '';
             }
@@ -916,9 +916,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     const originalPath = base + '.' + extension;
     const blurredPath = base + '-blurred.webp';
     const blurredFile = await createBlurredPhoto(profilePhoto);
-    const { error: originalError } = await supabase.storage.from('dating-photos').upload(originalPath, profilePhoto, {upsert:true,contentType:profilePhoto.type});
+    const { error: originalError } = await supabase.storage.from('dating-profile-photos').upload(originalPath, profilePhoto, {upsert:true,contentType:profilePhoto.type});
     if (originalError) throw originalError;
-    const { error: blurredError } = await supabase.storage.from('dating-photo-blur').upload(blurredPath, blurredFile, {upsert:true,contentType:'image/webp'});
+    const { error: blurredError } = await supabase.storage.from('dating-profile-photos').upload(blurredPath, blurredFile, {upsert:true,contentType:'image/webp'});
     if (blurredError) throw blurredError;
     return {photo_path:originalPath,blurred_photo_path:blurredPath};
   }
@@ -1080,7 +1080,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     setDetailPhotoUrl('');
     const row = profile as DatingProfileRow & {blurred_photo_path?:string|null};
     if (supabase && row.blurred_photo_path) {
-      const { data } = await supabase.storage.from('dating-photo-blur').createSignedUrl(row.blurred_photo_path, 10 * 60);
+      const { data } = await supabase.storage.from('dating-profile-photos').createSignedUrl(row.blurred_photo_path, 10 * 60);
       setDetailPhotoUrl(data?.signedUrl || '');
     }
   }
@@ -1098,7 +1098,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
-  const formSteps = ['Your introduction','Connection goals','Age & distance','Personality','Lifestyle','Interests','Relationship values','Conversation starters','Sexual experience','Photos & publish'];
+  const formSteps = ['Your introduction','Connection goals','Age & distance','Personality & lifestyle','Interests','Relationship values','Conversation starters','Sexual experience','Photos & publish'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
@@ -1171,37 +1171,38 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <div className="dating-age-range"><label>Minimum age<select value={preferredAgeMin} onChange={e=>{setPreferredAgeMin(e.target.value);if(Number(e.target.value)>Number(preferredAgeMax))setPreferredAgeMax(e.target.value);}}>{Array.from({length:83},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label><label>Maximum age<select value={preferredAgeMax} onChange={e=>setPreferredAgeMax(e.target.value)}>{Array.from({length:103},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label></div>
           <label className="dating-inline-check"><input type="checkbox" checked={longDistanceOk} onChange={e=>setLongDistanceOk(e.target.checked)} /> I am open to long-distance relationships</label>
         </section>}
-        {formStep === 3 && <section className="dating-form-step">
-          <h3>Your personality</h3><p>Pick the traits that best describe you. Choose as many or as few as you like.</p>
-          <ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} />
+        {formStep === 3 && <section className="dating-form-step dating-personality-lifestyle-step">
+          <h3>Your personality & lifestyle</h3><p>Choose the traits that feel like you. Lifestyle answers are optional.</p>
+          <div className="dating-personality-lifestyle-grid">
+            <div className="dating-personality-panel"><label>Personality</label><ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} /></div>
+            <div className="dating-lifestyle-panel">
+              <label>Smoking <SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
+              <label>Drinking <SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
+              <label>Children <SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
+              <label>Occupation (optional)<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
+            </div>
+          </div>
         </section>}
         {formStep === 4 && <section className="dating-form-step">
-          <h3>Your lifestyle</h3><p>These details are optional and can be left unanswered.</p>
-          <label>Smoking <SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
-          <label>Drinking <SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
-          <label>Children <SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
-          <label>Occupation (optional)<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
-        </section>}
-        {formStep === 5 && <section className="dating-form-step">
           <h3>Your interests</h3><p>What do you enjoy doing or talking about?</p>
           <ChoiceChips values={interestOptions} selected={interests} onToggle={value=>toggleChoice(interests,value,setInterests)} />
         </section>}
-        {formStep === 6 && <section className="dating-form-step">
+        {formStep === 5 && <section className="dating-form-step">
           <h3>What matters to you?</h3><p>Choose the values you most want in a relationship.</p>
           <ChoiceChips values={['Trust','Communication','Loyalty','Affection','Shared goals','Personal space']} selected={relationshipValues} onToggle={value=>toggleChoice(relationshipValues,value,setRelationshipValues)} />
           <label>How do you prefer to communicate? <SingleChoices values={['Frequent messages','Calls & voice notes','Face-to-face','A mix']} value={communicationStyle} onChange={setCommunicationStyle} /></label>
         </section>}
-        {formStep === 7 && <section className="dating-form-step">
+        {formStep === 6 && <section className="dating-form-step">
           <h3>Conversation starters</h3><p>Optional answers that help someone start a meaningful conversation with you.</p>
           <label>My ideal weekend<select value={idealWeekend} onChange={e=>setIdealWeekend(e.target.value)}><option value="">Choose (optional)</option><option>Relaxing at home</option><option>Going out and exploring</option><option>Time with friends</option><option>Family time</option><option>Something spontaneous</option></select></label>
           <label>Something I could talk about for hours<input value={conversationTopic} onChange={e=>setConversationTopic(e.target.value)} maxLength={180} placeholder="Music, travel, football, books…" /></label>
           <label>One thing that makes me smile<input value={smilePrompt} onChange={e=>setSmilePrompt(e.target.value)} maxLength={180} placeholder="A little thing that makes your day" /></label>
         </section>}
-        {formStep === 8 && <section className="dating-form-step">
+        {formStep === 7 && <section className="dating-form-step">
           <h3>Sexual Experience</h3><p>This is optional. Share only what you feel comfortable including in your dating profile.</p>
           <SingleChoices values={['No experience','A little experience','Some experience','Experienced','Prefer not to say']} value={sexualExperience} onChange={setSexualExperience} />
         </section>}
-        {formStep === 9 && <section className="dating-form-step dating-photo-step">
+        {formStep === 8 && <section className="dating-form-step dating-photo-step">
           <h3>Photos & publish</h3><p>Add a dating photo, preview your profile, then publish when you are ready.</p>
           <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div>
           <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label>
