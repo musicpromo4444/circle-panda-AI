@@ -956,7 +956,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         name: mainProfile.name || 'Panda',
         age: effectiveAge,
         gender: mainProfile.gender || null,
-        location: [location.area,location.city,location.state,location.country].filter(Boolean).join(', '),
+        location: [location.area || location.city,location.state,location.country].filter(Boolean).join(', '),
         country: location.country || null,
         state_province: location.state || null,
         relationship_goal: relationshipGoal,
@@ -1159,7 +1159,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         {formStep === 0 && <section className="dating-form-step">
           <h3>Your introduction</h3><p>Now that your basic profile is complete, introduce yourself to people in Dating.</p>
-          <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Panda'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? '—' : effectiveAge}</strong></div><div><span>Location</span><strong>{[location.area,location.city,location.state,location.country].filter(Boolean).join(', ') || '—'}</strong></div></div>
+          <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Panda'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? '—' : effectiveAge}</strong></div><div><span>Location</span><strong>{[location.area || location.city,location.state,location.country].filter(Boolean).join(', ') || '—'}</strong></div></div>
           <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
         </section>}
