@@ -816,15 +816,25 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         setBlurredPhotoPath(mine.blurred_photo_path || '');
       }
 
-      const { data, error } = await supabase.from('dating_profiles')
-        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,name,age,gender,location,country,state_province,gender_preferences,preferred_age_min,preferred_age_max,long_distance_ok,communication_style,relationship_values,ideal_weekend,conversation_topic,smile_prompt')
-        .eq('is_published', true).neq('user_id', userId).order('created_at', { ascending: false }).limit(60);
+      // Use the server-side discovery RPC so adult eligibility is derived from the protected
+      // account date of birth, never from a user-editable/stale dating_profiles.age value.
+      const { data, error } = await supabase.rpc('get_dating_discovery_filters_secure', {
+        p_age_min: 18,
+        p_age_max: 120,
+      });
       if (error) throw error;
+      const rowsFromDiscovery = ((data ?? []) as Array<Partial<DatingProfileRow> & { user_id: string; updated_at?: string | null }>)
+        .map(row => ({
+          ...row,
+          id: row.user_id,
+          is_published: true,
+          created_at: row.updated_at || '',
+        })) as DatingProfileRow[];
       const { data: blockedRows, error: blockedError } = await supabase.from('user_blocks')
         .select('blocked_id').eq('blocker_id', userId);
       if (blockedError) throw blockedError;
       const blockedIds = new Set((blockedRows ?? []).map((row: {blocked_id:string}) => row.blocked_id));
-      const rows = ((data ?? []) as DatingProfileRow[]).filter(row => !blockedIds.has(row.user_id));
+      const rows = rowsFromDiscovery.filter(row => !blockedIds.has(row.user_id));
       setDirectory(rows);
       const ids = rows.map(row => row.user_id);
       if (ids.length) {
