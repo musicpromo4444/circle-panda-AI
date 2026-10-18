@@ -1514,34 +1514,8 @@ function EventsFeature({ userId }: { userId: string }) {
 
 
 function PandaCoinArtwork() {
-  return <svg className="panda-coin-engraving" viewBox="0 0 100 100" focusable="false" role="img" aria-label="Raised golden panda face">
-    <defs>
-      <linearGradient id="pandaCoinGold" x1="0" y1="0" x2=".85" y2="1"><stop offset="0" stopColor="#fffbd0"/><stop offset=".2" stopColor="#ffe783"/><stop offset=".48" stopColor="#e6a91d"/><stop offset=".72" stopColor="#a65c05"/><stop offset=".9" stopColor="#f5c744"/><stop offset="1" stopColor="#fff1a0"/></linearGradient>
-      <linearGradient id="pandaCoinLight" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stopColor="#fffbd4"/><stop offset=".42" stopColor="#fbd45a"/><stop offset=".75" stopColor="#d58b0d"/><stop offset="1" stopColor="#854500"/></linearGradient>
-      <linearGradient id="pandaCoinShadow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5c3506"/><stop offset=".55" stopColor="#8a5108"/><stop offset="1" stopColor="#d99b20"/></linearGradient>
-      <radialGradient id="pandaCoinMuzzle"><stop offset="0" stopColor="#fff1b0"/><stop offset=".7" stopColor="#eab13b"/><stop offset="1" stopColor="#a96308"/></radialGradient>
-    </defs>
-    <g strokeLinejoin="round">
-      <ellipse cx="26" cy="24" rx="15" ry="16" fill="url(#pandaCoinShadow)" stroke="#7b4707" strokeWidth="3"/>
-      <ellipse cx="74" cy="24" rx="15" ry="16" fill="url(#pandaCoinShadow)" stroke="#7b4707" strokeWidth="3"/>
-      <ellipse cx="23" cy="19" rx="5" ry="6" fill="#ffe889" opacity=".9"/>
-      <ellipse cx="71" cy="19" rx="5" ry="6" fill="#ffe889" opacity=".9"/>
-      <path d="M14 47 C12 28 28 16 50 16 C72 16 88 28 86 47 L83 66 C79 83 65 91 50 92 C35 91 21 83 17 66 Z" fill="#6e3e05" opacity=".75" transform="translate(0 3)"/>
-      <path d="M13 45 C12 27 28 15 50 15 C72 15 88 27 87 45 L83 64 C79 81 65 89 50 90 C35 89 21 81 17 64 Z" fill="url(#pandaCoinGold)" stroke="#7c4906" strokeWidth="2.8"/>
-      <path d="M20 39 C24 24 37 20 50 20 C63 20 76 24 80 39" fill="none" stroke="#fff8bd" strokeWidth="3" opacity=".9"/>
-      <path d="M20 47 C21 37 31 31 39 36 C46 41 43 53 36 59 C29 65 19 59 18 52 Z" fill="url(#pandaCoinShadow)" stroke="#714006" strokeWidth="2"/>
-      <path d="M80 47 C79 37 69 31 61 36 C54 41 57 53 64 59 C71 65 81 59 82 52 Z" fill="url(#pandaCoinShadow)" stroke="#714006" strokeWidth="2"/>
-      <ellipse cx="33" cy="47" rx="4.8" ry="6.2" fill="#3e2608"/><ellipse cx="67" cy="47" rx="4.8" ry="6.2" fill="#3e2608"/>
-      <ellipse cx="31.5" cy="44.5" rx="1.7" ry="2.1" fill="#fff3b0"/><ellipse cx="65.5" cy="44.5" rx="1.7" ry="2.1" fill="#fff3b0"/>
-      <path d="M26 65 C28 57 39 56 50 62 C61 56 72 57 74 65 C71 77 61 82 50 82 C39 82 29 77 26 65 Z" fill="url(#pandaCoinMuzzle)" stroke="#a5680c" strokeWidth="2"/>
-      <path d="M42 64 Q50 58 58 64 L50 71 Z" fill="#5c3506" stroke="#ffe78a" strokeWidth="1.6"/>
-      <path d="M50 71 V76 M50 76 Q44 81 39 76 M50 76 Q56 81 61 76" fill="none" stroke="#754507" strokeWidth="2" strokeLinecap="round"/>
-      <path d="M24 65 Q28 70 34 69 M76 65 Q72 70 66 69" fill="none" stroke="#fff0a0" strokeWidth="2" strokeLinecap="round"/>
-      <path d="M18 60 Q21 72 31 77 M82 60 Q79 72 69 77" fill="none" stroke="#fff1a0" strokeWidth="1.5" opacity=".8"/>
-    </g>
-  </svg>;
+  return <img className="panda-coin-engraving" src="/bc-panda-coin.svg" alt="Gold Circle Panda BC coin" draggable={false} />;
 }
-
 function WalletPandaCoin() { return <span className="wallet-store-coin-token"><PandaCoinArtwork /></span>; }
 
 
