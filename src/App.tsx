@@ -1084,7 +1084,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const filteredDirectory = directory.filter(profile => {
     const place = locationDetails[profile.user_id];
     const row = profile as DatingProfileRow & {relationship_goal?:string;looking_for?:string[];personality_tags?:string[];children?:string;smoking?:string;drinking?:string};
-    if (profile.age != null && (profile.age < (Number(preferredAgeMin) || 18) || profile.age > (Number(preferredAgeMax) || 120))) return false;
+    // Dating discovery is adults-only: never expose profiles with a missing or under-18 age.
+    if (profile.age == null || profile.age < 18) return false;
+    if (profile.age < (Number(preferredAgeMin) || 18) || profile.age > (Number(preferredAgeMax) || 120)) return false;
     if (effectiveAge != null && (effectiveAge < (profile.preferred_age_min ?? 18) || effectiveAge > (profile.preferred_age_max ?? 120))) return false;
     if (!genderPreferenceMatches(genderPreferences, profile.gender || '')) return false;
     if (!genderPreferenceMatches(profile.gender_preferences, mainProfile.gender || '')) return false;
