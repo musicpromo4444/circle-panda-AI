@@ -1483,3 +1483,81 @@ body{background:radial-gradient(ellipse at 70% 0%,#13264a 0%,transparent 42%),#0
   color: #b93153;
   border-color: #f3c2d1;
 }
+
+
+/* Dating setup uses centered modal cards rather than full-screen pages. Each step is compact and does not scroll internally. */
+.dating-setup-backdrop{
+  position:fixed!important;inset:0!important;z-index:1400!important;display:grid!important;place-items:center!important;
+  width:100%!important;height:100dvh!important;padding:12px!important;overflow:hidden!important;
+  background:rgba(22,8,15,.68)!important;backdrop-filter:blur(9px)!important;
+}
+.dating-setup-modal{
+  width:min(96vw,700px)!important;max-width:700px!important;height:auto!important;max-height:91dvh!important;min-height:0!important;
+  margin:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;
+  border:1px solid #efbfd0!important;border-radius:22px!important;
+  background:linear-gradient(145deg,#fff 0%,#fff6f9 72%,#effbf2 100%)!important;color:#4a2434!important;
+  box-shadow:0 24px 90px rgba(63,15,34,.32)!important;
+}
+.dating-setup-modal>header{position:relative!important;top:auto!important;min-height:48px!important;padding:10px 18px!important;background:#fff8fb!important;border-bottom:1px solid #f1d5df!important;color:#6a2c43!important}
+.dating-setup-modal>header .secondary-button{min-height:36px!important;padding:7px 12px!important}
+.dating-setup-intro{padding:13px 22px 0!important}
+.dating-setup-intro .eyebrow{color:#d74768!important;font-size:9px!important}
+.dating-setup-intro h2{font-size:clamp(19px,2.5vw,24px)!important;color:#6a2c43!important;margin:0 0 5px!important}
+.dating-setup-intro .feature-copy{color:#916d7b!important;font-size:11px!important;line-height:1.4!important}
+.dating-setup-modal .dating-stepper{margin:10px 22px 8px!important;gap:5px 12px!important}
+.dating-setup-modal .dating-step-counter{color:#d74768!important}
+.dating-setup-modal .dating-stepper>strong{color:#6a2c43!important;font-size:11px!important}
+.dating-setup-modal .dating-progress-track{height:4px!important;background:#f9dce6!important}
+.dating-setup-modal .dating-progress-track>span{background:linear-gradient(90deg,#f58aa5,#d94164)!important}
+.dating-setup-modal>.feature-form{flex:0 1 auto!important;min-height:0!important;overflow:visible!important;padding:2px 22px 16px!important;gap:10px!important}
+.dating-setup-modal .dating-form-step{gap:10px!important;max-width:100%!important}
+.dating-setup-modal .dating-form-step h3{font-size:clamp(18px,2.5vw,23px)!important;color:#6a2c43!important;margin:0!important}
+.dating-setup-modal .dating-form-step>p{margin:0!important;color:#916d7b!important;font-size:11px!important;line-height:1.4!important}
+.dating-setup-modal .dating-form-step label{gap:5px!important;color:#744256!important;font-size:11px!important}
+.dating-setup-modal .dating-form-step label>input:not([type=file]),.dating-setup-modal .dating-form-step label>textarea,.dating-setup-modal .dating-form-step label>select{
+  min-height:37px!important;padding:8px 10px!important;background:#fff!important;color:#4a2434!important;border-color:#edc5d3!important;border-radius:10px!important;font-size:12px!important
+}
+.dating-setup-modal .dating-form-step label>textarea{min-height:65px!important}
+.dating-setup-modal .choice-chips{gap:6px!important}
+.dating-setup-modal .choice-chip{padding:7px 9px!important;font-size:10px!important;background:#fff!important;color:#7b4358!important;border-color:#efc7d5!important}
+.dating-setup-modal .choice-chip.selected{background:#ffe3ec!important;border-color:#dd6684!important;color:#9f294d!important;box-shadow:inset 0 0 0 1px #dd668422!important}
+.dating-setup-modal .dating-form-actions{position:relative!important;bottom:auto!important;max-width:none!important;margin:2px 0 0!important;padding:10px 0 0!important;background:transparent!important;border-top:1px solid #f1d5df!important}
+.dating-setup-modal .dating-form-actions button{min-height:40px!important;min-width:100px!important;padding:9px 14px!important}
+.dating-setup-modal .dating-account-summary>div{background:#effaf2!important;border-color:#cdebd5!important}
+.dating-setup-modal .dating-account-summary span{color:#62836a!important}
+.dating-setup-modal .dating-account-summary strong{color:#315d3c!important}
+.dating-setup-modal .dating-photo-preview{width:88px!important;height:88px!important;min-height:88px!important;margin:0 auto!important}
+.dating-setup-modal .dating-preview-summary{display:grid;gap:4px;padding:9px 12px;border:1px solid #cdebd5;border-radius:12px;background:#effaf2;color:#41694c;font-size:11px}
+.dating-setup-modal .dating-preview-summary span{overflow-wrap:anywhere}
+.dating-setup-modal .dating-step-notice{padding:7px 10px!important;margin:0!important;font-size:10px!important}
+.dating-age-range{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dating-inline-check{display:flex!important;align-items:center;gap:9px!important;padding:9px 11px;border:1px solid #cdebd5;border-radius:10px;background:#effaf2}
+.dating-inline-check input{width:16px;height:16px;accent-color:#d74768}
+.dating-discovery-open{display:block;width:100%;padding:0;text-align:left;background:transparent;border:0;color:inherit;cursor:pointer}
+.dating-discovery-card h3{font-size:15px;color:#6a2c43;margin:12px 0 6px}
+.dating-discovery-card .dating-about{font-size:12px;line-height:1.5}
+.dating-discovery-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #f5dbe4}
+.dating-discovery-actions button{flex:1 1 auto}
+.dating-chat-timer{display:block;margin-top:5px;font-size:10px;line-height:1.4;font-weight:800}
+.dating-chat-timer.active{color:#8edb69}
+.dating-chat-timer.expired{color:#f1b0bd}
+@media(max-width:560px){
+ .dating-setup-backdrop{padding:10px!important}
+ .dating-setup-modal{width:100%!important;max-height:91dvh!important;border-radius:18px!important}
+ .dating-setup-modal>header{padding:8px 12px!important;min-height:44px!important}
+ .dating-setup-intro{padding:10px 14px 0!important}
+ .dating-setup-modal .dating-stepper{margin:8px 14px!important}
+ .dating-setup-modal>.feature-form{padding:2px 14px 12px!important}
+ .dating-setup-modal .dating-form-step{gap:8px!important}
+ .dating-setup-modal .dating-form-step h3{font-size:18px!important}
+ .dating-setup-modal .choice-chip{padding:6px 8px!important;font-size:9px!important}
+ .dating-setup-modal .dating-form-actions button{min-width:0!important;flex:1}
+ .dating-setup-modal .dating-account-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-height:700px){
+ .dating-setup-intro{padding-top:7px!important}
+ .dating-setup-modal .dating-stepper{margin-top:6px!important;margin-bottom:5px!important}
+ .dating-setup-modal>.feature-form{padding-bottom:8px!important}
+ .dating-setup-modal .dating-form-step{gap:6px!important}
+ .dating-setup-modal .dating-form-step label>input:not([type=file]),.dating-setup-modal .dating-form-step label>select{min-height:32px!important}
+}
