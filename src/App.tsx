@@ -1436,14 +1436,40 @@ function EventsFeature({ userId }: { userId: string }) {
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || publishLock.current) return;
+    if (!title.trim()) { setNotice('Add an event title.'); return; }
+    if (!description.trim()) { setNotice('Add event details so people know what to expect.'); return; }
+    if (!location.country || !location.city) { setNotice('Choose the event country and city.'); return; }
     if (!startsAt || new Date(startsAt).getTime() <= Date.now()) { setNotice('Choose a future event date and time.'); return; }
     publishLock.current = true;
     setBusy(true); setNotice('');
     try {
-      const { error } = await supabase.from('events').insert({
-        creator_id: userId, title: title.trim(), description: description.trim(),
-        venue: venue.trim() || null, country: location.country || null,
-        state: location.state || null, city: location.city || null, area: location.area || null, starts_at: new Date(startsAt).toISOString(), is_published: true,
+      const start = new Date(startsAt);
+      const end = new Date(start.getTime() + 120 * 60 * 1000);
+      const { error } = await supabase.rpc('create_event_secure', {
+        p_title: title.trim(),
+        p_description: description.trim(),
+        p_location: venue.trim() || null,
+        p_starts_at: start.toISOString(),
+        p_ends_at: end.toISOString(),
+        p_category: 'Other',
+        p_entry_fee_bc: 0,
+        p_duration_minutes: 120,
+        p_reach_scope: 'worldwide',
+        p_reach_country: null,
+        p_reach_state: null,
+        p_reach_city: null,
+        p_reach_area: null,
+        p_entry_fee_amount: 0,
+        p_entry_fee_currency: 'NGN',
+        p_venue_name: venue.trim() || null,
+        p_address_line: null,
+        p_country: location.country,
+        p_state_province: location.state || null,
+        p_city: location.city,
+        p_area: location.area || null,
+        p_latitude: null,
+        p_longitude: null,
+        p_cover_url: null,
       });
       if (error) throw error;
       setTitle(''); setDescription(''); setVenue(''); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
@@ -1499,9 +1525,9 @@ function EventsFeature({ userId }: { userId: string }) {
     {createEventOpen && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create an event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><h2>Publish an event</h2></div><button type="button" className="create-modal-close" aria-label="Close create event" onClick={() => setCreateEventOpen(false)}>×</button></header><p className="feature-copy">Create a real plan for your community. Your event is published once the form succeeds.</p>
       <form className="feature-form" onSubmit={publish}>
         <label>Event title<input value={title} onChange={e => { setTitle(e.target.value); setPublishedOnce(false); }} maxLength={160} required placeholder="What are we getting together for?" /></label>
-        <label>Description<textarea value={description} onChange={e => { setDescription(e.target.value); setPublishedOnce(false); }} rows={3} maxLength={4000} placeholder="Tell people what to expect…" /></label>
+        <label>Description<textarea value={description} onChange={e => { setDescription(e.target.value); setPublishedOnce(false); }} rows={3} maxLength={4000} required placeholder="Tell people what to expect…" /></label>
         <label>Venue or meeting point<input value={venue} onChange={e => { setVenue(e.target.value); setPublishedOnce(false); }} maxLength={250} placeholder="Venue, online or meeting point" /></label>
-        <LocationFields value={location} onChange={value => { setLocation(value); setPublishedOnce(false); }} /><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => { setStartsAt(e.target.value); setPublishedOnce(false); }} required /></label>
+        <LocationFields value={location} onChange={value => { setLocation(value); setPublishedOnce(false); }} required /><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => { setStartsAt(e.target.value); setPublishedOnce(false); }} required /></label>
         <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy || publishedOnce}>{busy ? 'Publishing…' : publishedOnce ? 'Event published ✓' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
