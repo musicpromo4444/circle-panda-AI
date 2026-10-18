@@ -1242,7 +1242,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       })}</div> : <div className="empty-state compact"><span>♡</span><h3>No profiles match yet</h3><p>Try changing your filters, or check back as more people publish their dating profiles.</p></div>}
     </section>}
     {datingMatches.length > 0 && <section className="directory-section dating-connections-section">
-      <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first 72 hours. After that, both people must continue before photos are revealed.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
+      <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first 72 hours. After 72 hours, normal BC message charges apply; both people can separately confirm to reveal dating photos.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
       <div className="dating-directory">{datingMatches.map(match => {
         const otherId = match.user_a === userId ? match.user_b : match.user_a;
         const person = matchPeople[otherId];
@@ -1256,7 +1256,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           {person?.headline && <p className="dating-about">{person.headline}</p>}
           {remaining > 0 ? <p className="dating-match-countdown">Free chat · {String(hours).padStart(2,'0')}:{String(minutes).padStart(2,'0')}:{String(seconds).padStart(2,'0')} remaining</p>
             : match.photos_revealed ? <p className="published-state">● Both people continued. Photos are revealed.</p>
-            : <><p className="draft-state">The 72-hour period is complete. Confirm that you want to continue.</p><button className="primary-button" disabled={busy} onClick={()=>void confirmDatingMatch(match.id)}>Continue & reveal ↗</button></>}
+            : <><p className="draft-state">The free period has ended. Messages now use the normal BC rate. Both people can confirm separately to reveal dating photos.</p><button className="primary-button" disabled={busy} onClick={()=>void confirmDatingMatch(match.id)}>Confirm & reveal photos ↗</button></>}
           <button className="secondary-button" type="button" onClick={onOpenMessages}>Open chat in Messages ↗</button>
         </article>;
       })}</div>
