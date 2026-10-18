@@ -1204,6 +1204,22 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       {notice && <div className="notice">{notice}</div>}
     </section></div>}
     {notice && !registerOpen && <div className="notice">{notice}</div>}
+    {published && <section className="directory-section dating-discovery-section">
+      <div className="section-title-row"><div><h2>People you may connect with</h2><p>Open a profile to learn more, then send a request if you would like to talk.</p></div><span className="count-pill">{filteredDirectory.length} PEOPLE</span></div>
+      {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => {
+        const request = sentRequests[profile.user_id];
+        const alreadyRequested = Boolean(request && ['pending','accepted'].includes(request.status));
+        return <article className="dating-card dating-discovery-card" key={profile.id}>
+          <button type="button" className="dating-discovery-open" onClick={()=>void viewDatingProfile(profile)} aria-label={'View profile for '+(names[profile.user_id] || 'Panda')}>
+            <div className="dating-card-top"><div className="dating-avatar">♡</div><div><strong>{names[profile.user_id] || 'Panda'}{profile.age ? ' · '+profile.age : ''}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div></div>
+            <h3>{profile.headline || 'Getting to know someone new'}</h3>
+            <p className="dating-about">{profile.about || 'This Panda is looking forward to meeting someone.'}</p>
+            <div className="dating-card-bottom"><span>{profile.relationship_goal || 'Open to connection'}</span><span>{(profile.personality_tags || profile.personality || []).slice(0,2).join(' · ')}</span></div>
+          </button>
+          <div className="dating-discovery-actions"><button type="button" className="secondary-button" onClick={()=>void viewDatingProfile(profile)}>View profile</button><button type="button" className="primary-button" disabled={busy || alreadyRequested} onClick={()=>void requestChat(profile)}>{request?.status === 'accepted' ? 'Request accepted' : request?.status === 'pending' ? 'Request sent' : 'Send message request'}</button></div>
+        </article>;
+      })}</div> : <div className="empty-state compact"><span>♡</span><h3>No profiles match yet</h3><p>Try changing your filters, or check back as more people publish their dating profiles.</p></div>}
+    </section>}
     {datingMatches.length > 0 && <section className="directory-section dating-connections-section">
       <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first 72 hours. After that, both people must continue before photos are revealed.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
       <div className="dating-directory">{datingMatches.map(match => {
