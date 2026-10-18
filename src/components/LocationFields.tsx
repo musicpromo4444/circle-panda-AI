@@ -93,11 +93,9 @@ export default function LocationFields({ value, onChange, required = false }: Pr
     <SearchSelect label={country?.name && ['United States','Canada','Australia','India','Brazil','Mexico'].includes(country?.name || value.country) ? 'State / province' : 'State / region'}
       value={value.state} options={states} disabled={!value.country || !hasStates}
       onChange={code => update({ state: code, city: '', area: '' })} />
-    <SearchSelect label="City" value={value.city} options={cities} disabled={!value.country}
-      onChange={city => update({ city, area: '' })} />
-    <SearchSelect label="Area / neighbourhood (listed locality)" value={value.area} options={areaOptions}
-      disabled={!value.country} onChange={area => update({ area })} />
-    {!hasStates && value.country && <p className="location-hint">This country’s location dataset does not list states or provinces; you can still select a city and area.</p>}
+    <SearchSelect label="Area / Local Government" value={value.area || value.city} options={areaOptions}
+      disabled={!value.country} onChange={area => update({ area, city: area })} />
+    {!hasStates && value.country && <p className="location-hint">This country’s location dataset does not list states or provinces; you can still select an area.</p>}
     <p className="location-hint">Start typing to search, then select a result. Location fields are selections, not free-text entries.</p>
   </div>;
 }
