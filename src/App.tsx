@@ -1531,7 +1531,6 @@ function WalletFeature({ userId }: { userId: string }) {
   const [notice, setNotice] = useState('');
   const [walletScreen, setWalletScreen] = useState<'overview' | 'buy'>('overview');
   const [selectedPackage, setSelectedPackage] = useState('1200');
-  const [adBusy, setAdBusy] = useState(false);
 
   async function load() {
     if (!supabase) return;
@@ -1563,16 +1562,10 @@ function WalletFeature({ userId }: { userId: string }) {
     setBusy(false);
   }
 
-  async function startFreeAdReward() {
-    setNotice('');
-    if (!supabase) { setNotice('Wallet service is unavailable right now.'); return; }
-    setAdBusy(true);
-    // A button click must never credit coins. Only a verified ad callback may do so.
-    const { data, error } = await supabase.rpc('start_rewarded_ad', { p_reward_key: 'wallet_free_100_bc' });
-    if (error) setNotice('Rewarded ads are not configured yet. Connect the admin-selected ad placement and verified completion callback before rewards can be claimed.');
-    else if (data && typeof data === 'object' && 'status' in data && (data as {status:string}).status === 'completed') { setNotice('100 BC reward verified.'); await load(); }
-    else setNotice('Ad placement requested. Complete the ad to receive 100 BC.');
-    setAdBusy(false);
+  function startFreeAdReward() {
+    // No rewarded-ad provider or verified completion callback is configured in this
+    // project yet. Do not call a missing RPC or ever credit coins from a button click.
+    setNotice('Free ad rewards are paused until an ad provider and its verified completion callback are configured. No coins have been added.');
   }
 
   function formatReason(reason: string) {
@@ -1581,7 +1574,7 @@ function WalletFeature({ userId }: { userId: string }) {
 
   return <div className="wallet-page">
     {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2><p>Choose a coin bundle for your Circle Panda wallet. Your BC balance never expires.</p></section><div className="coin-package-grid">{[{id:'100',name:'Mini',coins:100},{id:'300',name:'Starter',coins:300},{id:'700',name:'Value',coins:700},{id:'1200',name:'Popular',coins:1200},{id:'2500',name:'Power',coins:2500},{id:'5000',name:'Mega',coins:5000}].map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{pack.coins.toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">Price shown at checkout</span></button>)}</div><div className="wallet-checkout-note"><strong>Secure checkout setup required</strong><p>Purchases must be completed through a configured payment provider and verified server-side. No payment is taken and no coins are added until checkout is connected.</p><button type="button" className="primary-button full" onClick={() => setNotice('Payment checkout is not configured yet. Connect the payment provider before accepting real purchases.')}>Continue to secure checkout ↗</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
-    <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" disabled={adBusy} onClick={() => void startFreeAdReward()}><span aria-hidden="true">▷</span> {adBusy ? 'Loading ad…' : 'Get 100 Free BC'} <span aria-hidden="true">↗</span></button></div>
+    <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" onClick={startFreeAdReward} title="Requires a verified rewarded-ad provider"><span aria-hidden="true">▷</span> Get 100 Free BC · Setup required <span aria-hidden="true">↗</span></button></div>
     <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your activity has value.</h2><p>BC balances do not expire. Rewards and message charges are processed by the backend.</p></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
     <div className="wallet-balance-grid"><article className="balance-card primary-balance"><span>PANDA COINS</span><strong>{loading ? '—' : bcBalance.toLocaleString()}</strong><small>BC · non-expiring balance</small></article><article className="balance-card"><span>WALLET COINS</span><strong>{loading ? '—' : wcBalance.toLocaleString()}</strong><small>WC balance</small></article><article className="balance-card"><span>EXPERIENCE POINTS</span><strong>{loading ? '—' : xpTotal.toLocaleString()}</strong><small>{levelName} level</small></article></div>
