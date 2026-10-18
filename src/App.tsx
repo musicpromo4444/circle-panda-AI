@@ -502,6 +502,8 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [messageView, setMessageView] = useState<'requests' | 'messages' | 'sent'>('requests');
   const [totalMessages, setTotalMessages] = useState(0);
   const [lastMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
+  const [datingMatches, setDatingMatches] = useState<Array<{id:string;thread_id:string|null;free_until:string;status:string}>>([]);
+  const [chatClock, setChatClock] = useState(Date.now());
   const responseLocks = useRef<Record<string, boolean>>({});
   const sendingLock = useRef(false);
 
@@ -514,6 +516,8 @@ function MessagesFeature({ userId }: { userId: string }) {
     if (error) { setMessageNotice(error.message); setLoading(false); return; }
     const rows = (data ?? []) as MessageRequestRow[];
     setRequests(rows);
+    const { data: datingMatchRows } = await supabase.rpc('get_my_dating_matches_secure');
+    setDatingMatches(((datingMatchRows ?? []) as Array<{id:string;thread_id:string|null;free_until:string;status:string}>).filter(match => match.status === 'matched' && Boolean(match.thread_id)));
     const ids = [...new Set(rows.flatMap(r => [r.sender_id, r.recipient_id]))];
     if (ids.length) {
       const { data: profiles } = await supabase.from('profiles').select('id,display_name,username').in('id', ids);
@@ -549,6 +553,7 @@ function MessagesFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void loadRequests(); }, [userId]);
+  useEffect(() => { const timer = window.setInterval(() => setChatClock(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!supabase || !openConversation) return;
     const channel = supabase.channel('dm-messages-' + openConversation)
@@ -613,6 +618,12 @@ function MessagesFeature({ userId }: { userId: string }) {
   const incoming = requests.filter(r => r.recipient_id === userId && r.status === 'pending');
   const sent = requests.filter(r => r.sender_id === userId);
   const activeConversations = [...new Set(conversations.map(c => c.conversation_id))];
+  const activeDatingMatch = datingMatches.find(match => match.thread_id === openConversation);
+  const datingFreeRemaining = activeDatingMatch ? Math.max(0, new Date(activeDatingMatch.free_until).getTime() - chatClock) : 0;
+  const datingTimerLabel = activeDatingMatch ? datingFreeRemaining > 0
+    ? `Dating free period · ${String(Math.floor(datingFreeRemaining/3600000)).padStart(2,'0')}:${String(Math.floor((datingFreeRemaining%3600000)/60000)).padStart(2,'0')}:${String(Math.floor((datingFreeRemaining%60000)/1000)).padStart(2,'0')} remaining`
+    : 'The 72-hour free period has ended · normal BC message charges apply'
+    : '';
   const sourceLabels: Record<string, string> = { dating: 'Dating 💌', event: 'Event ▦', events: 'Event ▦', group: 'Group ◉', wcw: 'WCW ♛', mcm: 'MCM ♛', confession: 'Secret Confession ☁', post: 'Secret Confession ☁' };
   const sourceLabel = (source: string) => sourceLabels[source.toLowerCase()] || source.replaceAll('_', ' ');
   const conversationTitle = (id: string) => {
@@ -641,7 +652,7 @@ function MessagesFeature({ userId }: { userId: string }) {
       </section>}
     </div>
     <section className="chat-panel">
-      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p></div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
+      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p>{datingTimerLabel && <small className={datingFreeRemaining > 0 ? 'dating-chat-timer active' : 'dating-chat-timer expired'}>{datingTimerLabel}</small>}</div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
     </section>
   </section>;
 }
