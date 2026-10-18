@@ -1650,3 +1650,51 @@ body{background:radial-gradient(ellipse at 70% 0%,#13264a 0%,transparent 42%),#0
  .dating-setup-modal .dating-form-step>p{font-size:10px!important}
  .dating-setup-modal .dating-form-actions{padding-top:6px!important}
 }
+
+
+/* Final Dating wizard fit pass: centered, non-scrolling step cards on compact phones and desktop. */
+.dating-setup-backdrop{padding:clamp(8px,2vw,18px)!important}
+.dating-setup-modal{width:min(94vw,680px)!important;max-height:92dvh!important;min-height:0!important;overflow:hidden!important}
+.dating-setup-modal>.feature-form{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;gap:8px!important}
+.dating-setup-modal .dating-form-step{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;align-content:start!important}
+.dating-setup-modal .dating-form-step>label{min-width:0!important}
+.dating-setup-modal .dating-form-step textarea{resize:none!important}
+.dating-setup-modal .dating-form-actions{flex:0 0 auto!important;margin-top:auto!important}
+.dating-setup-modal .dating-step-notice{flex:0 0 auto!important;max-height:42px!important;overflow:hidden!important}
+@media(max-width:600px){
+ .dating-setup-modal{width:min(96vw,520px)!important;max-height:92dvh!important;border-radius:18px!important}
+ .dating-setup-modal>header{padding:7px 10px!important;min-height:40px!important}
+ .dating-setup-modal>header .secondary-button{min-height:32px!important;padding:5px 9px!important;font-size:11px!important}
+ .dating-setup-modal .dating-setup-intro{padding:6px 12px 0!important}
+ .dating-setup-modal .dating-setup-intro h2{font-size:18px!important}
+ .dating-setup-modal .dating-setup-intro .feature-copy{font-size:10px!important;line-height:1.25!important;margin:3px 0 0!important}
+ .dating-setup-modal .dating-stepper{padding:0 12px!important;margin:6px 0!important}
+ .dating-setup-modal>.feature-form{padding:0 12px 9px!important;gap:6px!important}
+ .dating-setup-modal .dating-form-step{gap:6px!important}
+ .dating-setup-modal .dating-form-step h3{font-size:16px!important;line-height:1.15!important}
+ .dating-setup-modal .dating-form-step>p{font-size:9px!important;line-height:1.25!important}
+ .dating-setup-modal .dating-form-step label{font-size:10px!important;gap:3px!important}
+ .dating-setup-modal .dating-form-step label>input:not([type=file]),.dating-setup-modal .dating-form-step label>textarea,.dating-setup-modal .dating-form-step label>select{min-height:30px!important;padding:6px 8px!important;font-size:11px!important}
+ .dating-setup-modal .dating-form-step label>textarea{min-height:48px!important}
+ .dating-setup-modal .choice-chips{gap:4px!important}
+ .dating-setup-modal .choice-chip{padding:5px 6px!important;font-size:9px!important;line-height:1.15!important}
+ .dating-setup-modal .dating-form-actions{gap:7px!important;padding-top:6px!important}
+ .dating-setup-modal .dating-form-actions button{min-height:36px!important;min-width:0!important;flex:1 1 0!important;padding:7px 8px!important;font-size:11px!important}
+ .dating-setup-modal .dating-account-summary{gap:5px!important}
+ .dating-setup-modal .dating-account-summary>div{padding:6px!important;min-width:0!important}
+ .dating-setup-modal .dating-account-summary strong{font-size:10px!important;overflow-wrap:anywhere!important}
+ .dating-setup-modal .dating-personality-lifestyle-grid{gap:6px!important}
+ .dating-setup-modal .dating-personality-panel,.dating-setup-modal .dating-lifestyle-panel{gap:5px!important}
+ .dating-setup-modal .dating-lifestyle-panel .choice-chip,.dating-setup-modal .dating-personality-panel .choice-chip{padding:4px 5px!important;font-size:8px!important}
+ .dating-setup-modal .dating-photo-preview{width:52px!important;height:52px!important;min-height:52px!important}
+ .dating-setup-modal .dating-preview-summary{gap:2px!important;padding:6px 8px!important;font-size:9px!important}
+}
+@media(max-height:700px){
+ .dating-setup-modal{max-height:94dvh!important}
+ .dating-setup-modal .dating-setup-intro{padding-top:4px!important}
+ .dating-setup-modal .dating-stepper{margin-top:4px!important;margin-bottom:4px!important}
+ .dating-setup-modal .dating-form-step{gap:5px!important}
+ .dating-setup-modal .dating-form-step h3{font-size:15px!important}
+ .dating-setup-modal .dating-form-step>p{font-size:9px!important}
+ .dating-setup-modal .dating-form-actions{padding-top:5px!important}
+}
