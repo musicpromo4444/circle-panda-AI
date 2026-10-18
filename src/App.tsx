@@ -803,7 +803,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       }
 
       const { data, error } = await supabase.from('dating_profiles')
-        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,gender_preferences,preferred_age_min,preferred_age_max,long_distance_ok,communication_style,relationship_values,ideal_weekend,conversation_topic,smile_prompt')
+        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,name,age,gender,location,country,state_province,gender_preferences,preferred_age_min,preferred_age_max,long_distance_ok,communication_style,relationship_values,ideal_weekend,conversation_topic,smile_prompt')
         .eq('is_published', true).neq('user_id', userId).order('created_at', { ascending: false }).limit(60);
       if (error) throw error;
       const rows = (data ?? []) as DatingProfileRow[];
