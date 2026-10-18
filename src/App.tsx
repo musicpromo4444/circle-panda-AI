@@ -1595,7 +1595,7 @@ function WalletFeature({ userId }: { userId: string }) {
 }
 
 
-type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string; closed_at?: string | null };
+type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string; closed_at?: string | null; activated_at?: string | null };
 type GroupJoinRequestRow = { id: string; group_id: string; user_id: string; status: string; created_at: string };
 function GroupsFeature({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
@@ -1632,7 +1632,7 @@ function GroupsFeature({ userId }: { userId: string }) {
     const { data: profile } = await supabase.from('profiles').select('is_vip,country').eq('id',userId).maybeSingle();
     setMyVip(Boolean(profile?.is_vip)); setMyCountry(profile?.country || '');
     const { data, error } = await supabase.from('chat_groups')
-      .select('id,creator_id,name,description,country_restriction,is_vip,created_at,closed_at')
+      .select('id,creator_id,name,description,country_restriction,is_vip,created_at,closed_at,activated_at')
       .is('closed_at', null).order('created_at',{ascending:false}).limit(100);
     if (error) setNotice(error.message);
     const rows = (data ?? []) as GroupRow[];
@@ -1875,7 +1875,7 @@ function GroupsFeature({ userId }: { userId: string }) {
       {loading ? <div className="empty-state">Loading groups…</div> : groups.length ? <div className="group-cards">{groups.filter(g=>!g.is_vip).map(group => {
         const count = memberCounts[group.id] || 0;
         const member = Boolean(myGroups[group.id]);
-        const opened = count >= 3;
+        const opened = Boolean(group.activated_at);
         return <article className="group-card" key={group.id}><div className="group-card-icon">◉</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}</div></div></article>;
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
