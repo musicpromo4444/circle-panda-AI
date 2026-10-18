@@ -13,7 +13,7 @@ type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; 
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
-type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null };
+type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 
@@ -805,7 +805,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       }
 
       const { data, error } = await supabase.from('dating_profiles')
-        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path')
+        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,gender_preferences,preferred_age_min,preferred_age_max,long_distance_ok,communication_style,relationship_values,ideal_weekend,conversation_topic,smile_prompt')
         .eq('is_published', true).neq('user_id', userId).order('created_at', { ascending: false }).limit(60);
       if (error) throw error;
       const rows = (data ?? []) as DatingProfileRow[];
@@ -1276,6 +1276,12 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
             <div><span>Occupation</span><strong>{(openProfile as DatingProfileRow & {occupation?:string}).occupation || 'Not specified'}</strong></div>
             <div><span>Children</span><strong>{(openProfile as DatingProfileRow & {children?:string}).children || 'Prefer not to say'}</strong></div>
             <div><span>Smoking / drinking</span><strong>{[(openProfile as DatingProfileRow & {smoking?:string}).smoking,(openProfile as DatingProfileRow & {drinking?:string}).drinking].filter(Boolean).join(' · ') || 'Not specified'}</strong></div>
+            <div><span>Relationship values</span><strong>{(openProfile.relationship_values || []).join(', ') || 'Not specified'}</strong></div>
+            <div><span>Communication style</span><strong>{openProfile.communication_style || 'Not specified'}</strong></div>
+            <div><span>Ideal weekend</span><strong>{openProfile.ideal_weekend || 'Not specified'}</strong></div>
+            {openProfile.conversation_topic && <div><span>Could talk about for hours</span><strong>{openProfile.conversation_topic}</strong></div>}
+            {openProfile.smile_prompt && <div><span>Something that makes me smile</span><strong>{openProfile.smile_prompt}</strong></div>}
+            <div><span>Preferred age range</span><strong>{openProfile.preferred_age_min || 18}–{openProfile.preferred_age_max || 45}</strong></div>
           </div>
           <button type="button" className="secondary-button" onClick={()=>setProfileDetailPage(0)}>← Back to overview</button>
           <button type="button" className="primary-button" disabled={busy} onClick={()=>{const selected=openProfile;setOpenProfile(null);void requestChat(selected);}}>Send message request ↗</button>
