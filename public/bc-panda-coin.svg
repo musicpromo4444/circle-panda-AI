@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">Circle Panda BC coin</title><desc id="desc">A raised golden panda face on a dark emerald medallion with ornate gold rings.</desc>
+<defs>
+ <radialGradient id="field" cx="34%" cy="26%" r="80%"><stop stop-color="#1b6b3b"/><stop offset=".52" stop-color="#073b24"/><stop offset="1" stop-color="#031b14"/></radialGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffbd2"/><stop offset=".16" stop-color="#ffe77d"/><stop offset=".34" stop-color="#c9850b"/><stop offset=".52" stop-color="#fff0a0"/><stop offset=".72" stop-color="#a75c06"/><stop offset=".88" stop-color="#f8ce49"/><stop offset="1" stop-color="#fff5b3"/></linearGradient>
+ <linearGradient id="face" x1=".15" y1="0" x2=".8" y2="1"><stop stop-color="#fff5b0"/><stop offset=".3" stop-color="#f6c84e"/><stop offset=".65" stop-color="#d88f13"/><stop offset="1" stop-color="#8c4b05"/></linearGradient>
+ <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#3c2609"/><stop offset=".55" stop-color="#76500d"/><stop offset="1" stop-color="#b77b14"/></linearGradient>
+ <radialGradient id="eye"><stop stop-color="#251806"/><stop offset=".7" stop-color="#39250a"/><stop offset="1" stop-color="#946012"/></radialGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>
+</defs>
+<circle cx="256" cy="260" r="214" fill="#000" opacity=".42" filter="url(#shadow)"/>
+<circle cx="256" cy="250" r="222" fill="url(#gold)" stroke="#fff4a5" stroke-width="5"/>
+<circle cx="256" cy="250" r="209" fill="#174b2c" stroke="#8b5909" stroke-width="7"/>
+<circle cx="256" cy="250" r="196" fill="url(#gold)" stroke="#ffe995" stroke-width="3"/>
+<circle cx="256" cy="250" r="183" fill="url(#field)" stroke="#8c5a0a" stroke-width="9"/>
+<circle cx="256" cy="250" r="171" fill="none" stroke="#f9d65c" stroke-width="3" opacity=".8"/>
+<circle cx="256" cy="250" r="159" fill="none" stroke="#f6ce4e" stroke-width="2" stroke-dasharray="3 10" opacity=".8"/>
+<g fill="url(#gold)" stroke="#98610b" stroke-width="2"><circle cx="256" cy="83" r="7"/><circle cx="256" cy="417" r="7"/><circle cx="89" cy="250" r="7"/><circle cx="423" cy="250" r="7"/><path d="M256 100l5 11 12 2-9 8 2 12-10-6-10 6 2-12-9-8 12-2z" /><path d="M256 369l5 11 12 2-9 8 2 12-10-6-10 6 2-12-9-8 12-2z"/></g>
+<g stroke-linejoin="round">
+ <ellipse cx="190" cy="178" rx="42" ry="45" fill="url(#shade)" stroke="#8d580b" stroke-width="7"/>
+ <ellipse cx="322" cy="178" rx="42" ry="45" fill="url(#shade)" stroke="#8d580b" stroke-width="7"/>
+ <ellipse cx="181" cy="164" rx="12" ry="15" fill="#ffdf71" opacity=".9"/><ellipse cx="313" cy="164" rx="12" ry="15" fill="#ffdf71" opacity=".9"/>
+ <path d="M151 252c-8-62 38-111 105-111s113 49 105 111l-12 61c-9 45-48 72-93 72s-84-27-93-72z" transform="translate(0 8)" fill="#392004" opacity=".55"/>
+ <path d="M149 246c-8-62 38-111 107-111s115 49 107 111l-12 61c-9 45-49 72-95 72s-86-27-95-72z" fill="url(#face)" stroke="#8b5006" stroke-width="6"/>
+ <path d="M171 205c22-39 56-52 85-52s63 13 85 52" fill="none" stroke="#fff4b0" stroke-width="7" opacity=".8"/>
+ <path d="M179 244c4-29 30-45 50-31 20 13 17 38-1 58-19 21-49 7-49-27z" fill="url(#shade)" stroke="#7b4b08" stroke-width="5"/>
+ <path d="M333 244c-4-29-30-45-50-31-20 13-17 38 1 58 19 21 49 7 49-27z" fill="url(#shade)" stroke="#7b4b08" stroke-width="5"/>
+ <ellipse cx="213" cy="243" rx="13" ry="17" fill="url(#eye)"/><ellipse cx="299" cy="243" rx="13" ry="17" fill="url(#eye)"/>
+ <circle cx="209" cy="237" r="5" fill="#fff3b0"/><circle cx="295" cy="237" r="5" fill="#fff3b0"/>
+ <path d="M195 293c5-20 30-25 61-9 31-16 56-11 61 9-8 29-32 42-61 42s-53-13-61-42z" fill="url(#face)" stroke="#a56a0d" stroke-width="4"/>
+ <path d="M237 288q19-16 38 0l-19 18z" fill="#432906" stroke="#ffe78a" stroke-width="3"/>
+ <path d="M256 306v13m0 0q-15 14-28 0m28 0q15 14 28 0" fill="none" stroke="#754507" stroke-width="5" stroke-linecap="round"/>
+ <path d="M192 293q8 12 22 8m106-8q-8 12-22 8" fill="none" stroke="#fff1a0" stroke-width="4" stroke-linecap="round"/>
+</g>
+<text x="256" y="391" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="42" fill="#ffe681" stroke="#754806" stroke-width="1.5" paint-order="stroke">BC</text>
+</svg>
