@@ -1173,7 +1173,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     </section>}
     {basicProfileOpen && <div className="dating-basic-backdrop" role="dialog" aria-modal="true" aria-label="Complete your profile"><section className="dating-basic-modal">
       <header><div><p className="eyebrow">DATING</p><h2>Complete your profile</h2></div><button type="button" className="dating-basic-close" aria-label="Close" onClick={()=>setBasicProfileOpen(false)}>×</button></header>
-      <label>Date of birth<input type="date" value={dateOfBirth} max={new Date().toISOString().slice(0,10)} onChange={e=>setDateOfBirth(e.target.value)} required /></label>
+      <label>Date of birth<input type="date" value={dateOfBirth} max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,10)} onChange={e=>setDateOfBirth(e.target.value)} required /></label>
       <p className="dating-basic-age">Age: <strong>{effectiveAge == null ? 'Choose your date of birth' : effectiveAge + ' years'}</strong> · 18+ only.</p>
       <LocationFields value={location} onChange={setLocation} required />
       <label className="dating-address-field">Address <span>(optional)</span><input type="text" value={optionalAddress} onChange={e=>setOptionalAddress(e.target.value)} maxLength={180} placeholder="Street or address (optional)" autoComplete="street-address" /></label>
