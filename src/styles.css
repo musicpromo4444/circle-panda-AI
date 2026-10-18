@@ -1954,3 +1954,33 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   opacity: 0.6;
   cursor: wait;
 }
+
+
+/* Group join approval queue */
+.group-join-requests {
+  margin: 1rem 0 1.5rem;
+  padding: 1.1rem;
+  border: 1px solid rgba(245, 190, 63, 0.58);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(245, 190, 63, 0.09), rgba(28, 184, 146, 0.06));
+  box-shadow: 0 12px 34px rgba(18, 23, 31, 0.12);
+}
+.group-join-request-list { display: grid; gap: 0.75rem; }
+.group-join-request-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(245, 190, 63, 0.48);
+  border-radius: 15px;
+  background: var(--panel-bg, rgba(255,255,255,0.06));
+}
+.group-join-request-card p { margin: 0.35rem 0; }
+.group-join-request-card small { opacity: 0.7; }
+.group-join-request-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.group-join-request-actions button { min-height: 42px; }
+@media (max-width: 560px) {
+  .group-join-request-card { align-items: stretch; flex-direction: column; }
+  .group-join-request-actions { display: grid; grid-template-columns: 1fr 1fr; }
+}
