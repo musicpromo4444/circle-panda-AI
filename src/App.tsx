@@ -1079,6 +1079,8 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     });
   }
 
+  const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
+
   const filteredDirectory = directory.filter(profile => {
     const place = locationDetails[profile.user_id];
     const row = profile as DatingProfileRow & {relationship_goal?:string;looking_for?:string[];personality_tags?:string[];children?:string;smoking?:string;drinking?:string};
@@ -1123,7 +1125,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       onClick={() => onChange(option)}>{option}</button>)}</div>;
   }
 
-  const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
   const formSteps = ['Your introduction','Connection goals','Age & distance','Personality & lifestyle','Interests','Relationship values','Conversation starters','Sexual experience','Photos & publish'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
