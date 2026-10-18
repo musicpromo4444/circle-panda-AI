@@ -725,7 +725,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     'Short hair','Long hair','Dreads','Braids','Curly hair','Straight hair','Bald',
     'Casual','Smart','Streetwear','Glamorous','Feminine','Masculine','Sexy'
   ];
-  const bodyTypeOptions = ['Slim','Petite','Average build','Athletic','Muscular','Chubby','Curvy','Plus-size','Broad shoulders','Figure-eight'];
   const interestOptions = [
     'Social media','Content creation','Comedy','Movies & TV','Music','TikTok / Reels','Gaming','Memes',
     'Football','Sports','Travel','Food','Fitness','Photography','Dancing','Fashion','Podcasts','Live music',
@@ -736,7 +735,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     'Ambitious','Party person','Quiet/private','Family-oriented','Spontaneous','Jealous','Easygoing',
     'Quiet','Confident','Caring','Flirty','Introverted','Outgoing'
   ];
-  const sexualExperienceOptions = ['Virgin','Novice','Expert','Good in bed','Pro','Prefer not to say'];
   const smokingOptions = ['Non-smoker','Smoker','Occasionally','Prefer not to say'];
   const drinkingOptions = ['Non-drinker','Drinker','Occasionally','Prefer not to say'];
   const childrenOptions = ['No children','Have children','Prefer not to say'];
