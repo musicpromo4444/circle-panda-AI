@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Country } from 'country-state-city';
 
 type GeoModule = typeof import('country-state-city');
 
@@ -101,10 +102,9 @@ export default function LocationFields({ value, onChange, required = false }: Pr
 }
 
 export function CountryDropdown({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const geo = useGeoData();
-  const countries = useMemo<Option[]>(() => (geo?.Country.getAllCountries() ?? [])
+  const countries = useMemo<Option[]>(() => Country.getAllCountries()
     .map(country => ({ label: `${countryFlag(country.isoCode)} ${country.name}`, value: country.name }))
-    .sort((a, b) => a.label.localeCompare(b.label)), [geo]);
+    .sort((a, b) => a.label.localeCompare(b.label)), []);
   return <SearchSelect label="Country restriction (optional)" value={value} options={countries}
     onChange={onChange} />;
 }
