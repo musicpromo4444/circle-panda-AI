@@ -1093,7 +1093,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
-  const formSteps = ['Your introduction','Connection goals','Age & distance','Personality','Interests','Relationship values','Conversation starters','Lifestyle','Photos & publish'];
+  const formSteps = ['Your introduction','Connection goals','Age & distance','Personality & lifestyle','Interests','Relationship values','Conversation starters','Sexual experience','Photos & publish'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
@@ -1169,6 +1169,10 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         {formStep === 3 && <section className="dating-form-step">
           <h3>Your personality</h3><p>Pick the traits that best describe you. Choose as many or as few as you like.</p>
           <ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} />
+          <label>Smoking <SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
+          <label>Drinking <SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
+          <label>Children <SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
+          <label>Occupation (optional)<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
         </section>}
         {formStep === 4 && <section className="dating-form-step">
           <h3>Your interests</h3><p>What do you enjoy doing or talking about?</p>
@@ -1186,11 +1190,8 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <label>One thing that makes me smile<input value={smilePrompt} onChange={e=>setSmilePrompt(e.target.value)} maxLength={180} placeholder="A little thing that makes your day" /></label>
         </section>}
         {formStep === 7 && <section className="dating-form-step">
-          <h3>Your lifestyle</h3><p>These details are optional and can be left unanswered.</p>
-          <label>Smoking <SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
-          <label>Drinking <SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
-          <label>Children <SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
-          <label>Occupation (optional)<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
+          <h3>Sexual Experience</h3><p>This is optional. Share only what you feel comfortable including in your dating profile.</p>
+          <SingleChoices values={['No experience','A little experience','Some experience','Experienced','Prefer not to say']} value={sexualExperience} onChange={setSexualExperience} />
         </section>}
         {formStep === 8 && <section className="dating-form-step dating-photo-step">
           <h3>Photos & publish</h3><p>Add a dating photo, preview your profile, then publish when you are ready.</p>
