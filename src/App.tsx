@@ -676,6 +676,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [optionalAddress, setOptionalAddress] = useState('');
   const [location, setLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
+  const [locationHasStates, setLocationHasStates] = useState(false);
   const [mainProfile, setMainProfile] = useState<{name:string;username:string;age:number|null;gender:string}>({name:'',username:'',age:null,gender:''});
   const [headline, setHeadline] = useState('');
   const [about, setAbout] = useState('');
@@ -707,6 +708,15 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [formStep, setFormStep] = useState(0);
+  useEffect(() => {
+    let active = true;
+    if (!location.country) { setLocationHasStates(false); return () => { active = false; }; }
+    import('country-state-city').then(geo => {
+      const country = geo.Country.getAllCountries().find(item => item.name === location.country || item.isoCode === location.country);
+      if (active) setLocationHasStates(geo.State.getStatesOfCountry(country?.isoCode || location.country).length > 0);
+    }).catch(() => { if (active) setLocationHasStates(false); });
+    return () => { active = false; };
+  }, [location.country]);
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [photoPath, setPhotoPath] = useState('');
@@ -1133,7 +1143,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   return <div className="dating-page">
     <div className="dating-toolbar dating-toolbar-stacked">
       <button type="button" className="secondary-button dating-filter-button" aria-expanded={filtersOpen} onClick={() => { setFiltersOpen(open => !open); if (!filtersOpen) setRegisterOpen(false); }}>{filtersOpen ? 'Close Filter ×' : 'Filter'}</button>
-      <button type="button" className="primary-button dating-create-button" aria-expanded={registerOpen || basicProfileOpen} onClick={() => { if (basicProfileOpen) { setBasicProfileOpen(false); return; } if (registerOpen) { setRegisterOpen(false); return; } setFiltersOpen(false); const stateRequired=['United States','Canada','Australia','India','Brazil','Mexico'].includes(location.country); const complete=Boolean(dateOfBirth && location.country && (!stateRequired || location.state) && location.city && location.area && effectiveAge != null && effectiveAge >= 18); if (!complete) setBasicProfileOpen(true); else { setFormStep(0); setRegisterOpen(true); } }}>
+      <button type="button" className="primary-button dating-create-button" aria-expanded={registerOpen || basicProfileOpen} onClick={() => { if (basicProfileOpen) { setBasicProfileOpen(false); return; } if (registerOpen) { setRegisterOpen(false); return; } setFiltersOpen(false); const complete=Boolean(dateOfBirth && location.country && (!locationHasStates || location.state) && location.city && location.area && effectiveAge != null && effectiveAge >= 18); if (!complete) setBasicProfileOpen(true); else { setFormStep(0); setRegisterOpen(true); } }}>
         {registerOpen ? 'Close Dating Profile ×' : published ? 'Edit Dating Profile' : 'Create Dating Profile'}
       </button>
     </div>
@@ -1162,7 +1172,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         if(!dateOfBirth || age===null){setNotice('Choose your date of birth to continue.');return;}
         if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
         if(!location.country){setNotice('Choose your country to continue.');return;}
-        if(location.country && !location.state && ['United States','Canada','Australia','India','Brazil','Mexico'].includes(location.country)){setNotice('Choose your state or province to continue.');return;}
+        if(locationHasStates && !location.state){setNotice('Choose your state or province to continue.');return;}
         if(!location.city){setNotice('Choose your city to continue.');return;}
         if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
         if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
@@ -1255,7 +1265,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
                   if(!dateOfBirth || age===null){setNotice('Add your date of birth to continue.');return;}
                   if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
                   if(!location.country){setNotice('Choose your country to continue.');return;}
-                  if(['United States','Canada','Australia','India','Brazil','Mexico'].includes(location.country) && !location.state){setNotice('Choose your state or province to continue.');return;}
+                  if(locationHasStates && !location.state){setNotice('Choose your state or province to continue.');return;}
                   if(!location.city){setNotice('Choose your city to continue.');return;}
                   if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
                   if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
