@@ -1072,7 +1072,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   }
 
   const effectiveAge = ageFromDate(dateOfBirth) ?? mainProfile.age;
-  const formSteps = ['Your introduction','Connection preferences','Personality & interests','Values & conversation','Lifestyle','Photos & publish'];
+  const formSteps = ['Your introduction','Connection goals','Age & distance','Personality','Interests','Relationship values','Conversation starters','Lifestyle','Photos & publish'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
@@ -1136,44 +1136,55 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
         </section>}
         {formStep === 1 && <section className="dating-form-step">
-          <h3>Who would you like to meet?</h3><p>Set your preferences. You can change them later in Filter.</p>
+          <h3>Who would you like to meet?</h3><p>Choose the kind of connection you want. You can update this later.</p>
           <label>Interested in <ChoiceChips values={['Women','Men','Non-binary people','Everyone']} selected={genderPreferences} onToggle={value=>toggleChoice(genderPreferences,value,setGenderPreferences)} /></label>
-          <div className="dating-age-range"><label>Minimum age<select value={preferredAgeMin} onChange={e=>{setPreferredAgeMin(e.target.value);if(Number(e.target.value)>Number(preferredAgeMax))setPreferredAgeMax(e.target.value);}}>{Array.from({length:83},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label><label>Maximum age<select value={preferredAgeMax} onChange={e=>setPreferredAgeMax(e.target.value)}>{Array.from({length:103},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label></div>
-          <label>Relationship goal<SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} /></label>
-          <label className="dating-inline-check"><input type="checkbox" checked={longDistanceOk} onChange={e=>setLongDistanceOk(e.target.checked)} /> I am open to long-distance relationships</label>
+          <label>Relationship goal <SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} /></label>
         </section>}
         {formStep === 2 && <section className="dating-form-step">
-          <h3>Your personality & interests</h3><p>Choose a few things that feel like you. These help people start a conversation.</p>
-          <label>Personality <ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} /></label>
-          <label>Interests <ChoiceChips values={interestOptions} selected={interests} onToggle={value=>toggleChoice(interests,value,setInterests)} /></label>
+          <h3>Your age & distance preferences</h3><p>Only adults aged 18 and older can appear in Dating.</p>
+          <div className="dating-age-range"><label>Minimum age<select value={preferredAgeMin} onChange={e=>{setPreferredAgeMin(e.target.value);if(Number(e.target.value)>Number(preferredAgeMax))setPreferredAgeMax(e.target.value);}}>{Array.from({length:83},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label><label>Maximum age<select value={preferredAgeMax} onChange={e=>setPreferredAgeMax(e.target.value)}>{Array.from({length:103},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label></div>
+          <label className="dating-inline-check"><input type="checkbox" checked={longDistanceOk} onChange={e=>setLongDistanceOk(e.target.checked)} /> I am open to long-distance relationships</label>
         </section>}
         {formStep === 3 && <section className="dating-form-step">
-          <h3>Values & conversation starters</h3><p>Share what matters to you. Written answers are optional.</p>
-          <label>What matters most? <ChoiceChips values={['Trust','Communication','Loyalty','Affection','Shared goals','Personal space']} selected={relationshipValues} onToggle={value=>toggleChoice(relationshipValues,value,setRelationshipValues)} /></label>
+          <h3>Your personality</h3><p>Pick the traits that best describe you. Choose as many or as few as you like.</p>
+          <ChoiceChips values={personalityOptions} selected={personalityTags} onToggle={value=>toggleChoice(personalityTags,value,setPersonalityTags)} />
+        </section>}
+        {formStep === 4 && <section className="dating-form-step">
+          <h3>Your interests</h3><p>What do you enjoy doing or talking about?</p>
+          <ChoiceChips values={interestOptions} selected={interests} onToggle={value=>toggleChoice(interests,value,setInterests)} />
+        </section>}
+        {formStep === 5 && <section className="dating-form-step">
+          <h3>What matters to you?</h3><p>Choose the values you most want in a relationship.</p>
+          <ChoiceChips values={['Trust','Communication','Loyalty','Affection','Shared goals','Personal space']} selected={relationshipValues} onToggle={value=>toggleChoice(relationshipValues,value,setRelationshipValues)} />
           <label>How do you prefer to communicate? <SingleChoices values={['Frequent messages','Calls & voice notes','Face-to-face','A mix']} value={communicationStyle} onChange={setCommunicationStyle} /></label>
+        </section>}
+        {formStep === 6 && <section className="dating-form-step">
+          <h3>Conversation starters</h3><p>Optional answers that help someone start a meaningful conversation with you.</p>
           <label>My ideal weekend<select value={idealWeekend} onChange={e=>setIdealWeekend(e.target.value)}><option value="">Choose (optional)</option><option>Relaxing at home</option><option>Going out and exploring</option><option>Time with friends</option><option>Family time</option><option>Something spontaneous</option></select></label>
           <label>Something I could talk about for hours<input value={conversationTopic} onChange={e=>setConversationTopic(e.target.value)} maxLength={180} placeholder="Music, travel, football, books…" /></label>
           <label>One thing that makes me smile<input value={smilePrompt} onChange={e=>setSmilePrompt(e.target.value)} maxLength={180} placeholder="A little thing that makes your day" /></label>
         </section>}
-        {formStep === 4 && <section className="dating-form-step">
+        {formStep === 7 && <section className="dating-form-step">
           <h3>Your lifestyle</h3><p>These details are optional and can be left unanswered.</p>
           <label>Smoking <SingleChoices values={smokingOptions} value={smoking} onChange={setSmoking} /></label>
           <label>Drinking <SingleChoices values={drinkingOptions} value={drinking} onChange={setDrinking} /></label>
           <label>Children <SingleChoices values={childrenOptions} value={children} onChange={setChildren} /></label>
           <label>Occupation (optional)<input value={occupation} onChange={e=>setOccupation(e.target.value)} maxLength={120} placeholder="What you do" /></label>
         </section>}
-        {formStep === 5 && <section className="dating-form-step dating-photo-step">
+        {formStep === 8 && <section className="dating-form-step dating-photo-step">
           <h3>Photos & publish</h3><p>Add a dating photo, preview your profile, then publish when you are ready.</p>
           <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div>
           <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label>
           <p className="draft-state">{currentPhotoLabel}</p>
           <div className="dating-preview-summary"><strong>{mainProfile.name || 'Panda'} · {effectiveAge ?? 'Age not set'}</strong><span>{headline || 'Your headline will appear here'}</span><span>{relationshipGoal}</span></div>
         </section>}
+        {notice && <div className="notice dating-step-notice">{notice}</div>}
         <div className="form-submit-row dating-form-actions">
           <button className="secondary-button" type="button" disabled={formStep===0 || busy} onClick={()=>setFormStep(step=>Math.max(0,step-1))}>Back</button>
           {formStep < formSteps.length-1
             ? <button className="primary-button" type="button" disabled={busy} onClick={async()=>{
-                if(formStep===0){
+                if(formStep===2 && Number(preferredAgeMax)<Number(preferredAgeMin)){setNotice('Maximum age must be at least the minimum age.');return;}
+                 if(formStep===0){
                   const age=ageFromDate(dateOfBirth);
                   if(!dateOfBirth || age===null){setNotice('Add your date of birth to continue.');return;}
                   if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
