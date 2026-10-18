@@ -1041,20 +1041,25 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     }
   }
 
+  function genderPreferenceMatches(preferences: string[] | undefined, gender: string) {
+    if (!preferences?.length || preferences.includes('Everyone')) return true;
+    const value = (gender || '').toLowerCase().replaceAll('-', ' ').trim();
+    return preferences.some(preference => {
+      const target = preference.toLowerCase();
+      if (target === 'women') return ['woman','women','female'].includes(value);
+      if (target === 'men') return ['man','men','male'].includes(value);
+      if (target === 'non-binary people') return ['non binary','nonbinary'].includes(value);
+      return target === value;
+    });
+  }
+
   const filteredDirectory = directory.filter(profile => {
     const place = locationDetails[profile.user_id];
     const row = profile as DatingProfileRow & {relationship_goal?:string;looking_for?:string[];personality_tags?:string[];children?:string;smoking?:string;drinking?:string};
     if (profile.age != null && (profile.age < (Number(preferredAgeMin) || 18) || profile.age > (Number(preferredAgeMax) || 120))) return false;
     if (effectiveAge != null && (effectiveAge < (profile.preferred_age_min ?? 18) || effectiveAge > (profile.preferred_age_max ?? 120))) return false;
-    if (genderPreferences.length && !genderPreferences.includes('Everyone')) {
-      const targetGender = (profile.gender || '').toLowerCase();
-      const normalizedTargets = genderPreferences.map(value => value.toLowerCase());
-      const genderAllowed = normalizedTargets.some(value => value === targetGender ||
-        (value === 'women' && ['woman','female','women'].includes(targetGender)) ||
-        (value === 'men' && ['man','male','men'].includes(targetGender)) ||
-        (value === 'non-binary people' && ['non-binary','nonbinary','non binary'].includes(targetGender)));
-      if (!genderAllowed) return false;
-    }
+    if (!genderPreferenceMatches(genderPreferences, profile.gender || '')) return false;
+    if (!genderPreferenceMatches(profile.gender_preferences, mainProfile.gender || '')) return false;
     if (filterGoal && !(row.relationship_goal || '').toLowerCase().includes(filterGoal.toLowerCase())) return false;
     if (filterLookingFor && !(row.looking_for || []).some(value => value.toLowerCase().includes(filterLookingFor.toLowerCase()))) return false;
     if (filterPersonality && !(row.personality_tags || row.personality || []).some(value => value.toLowerCase().includes(filterPersonality.toLowerCase()))) return false;
