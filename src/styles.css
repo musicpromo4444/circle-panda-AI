@@ -1625,3 +1625,28 @@ body{background:radial-gradient(ellipse at 70% 0%,#13264a 0%,transparent 42%),#0
  .dating-setup-modal .choice-chip{padding:5px 7px!important;font-size:9px!important}
  .dating-setup-modal .dating-form-actions button{min-height:40px}
 }
+
+/* Combined dating personality/lifestyle card: all controls remain visible without scrolling. */
+.dating-setup-modal .dating-personality-lifestyle-step{gap:7px!important}
+.dating-setup-modal .dating-personality-lifestyle-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:14px;min-height:0;align-items:start}
+.dating-setup-modal .dating-personality-panel,.dating-setup-modal .dating-lifestyle-panel{display:flex;flex-direction:column;gap:8px;min-width:0}
+.dating-setup-modal .dating-personality-panel>label{font-size:11px;font-weight:700}
+.dating-setup-modal .dating-lifestyle-panel>label{display:flex;flex-direction:column;gap:4px}
+.dating-setup-modal .dating-lifestyle-panel .choice-chips{gap:4px}
+.dating-setup-modal .dating-lifestyle-panel .choice-chip{padding:5px 7px!important;font-size:9px!important}
+.dating-setup-modal .dating-lifestyle-panel input{min-height:32px}
+.dating-setup-modal .dating-personality-panel .choice-chips{gap:5px}
+@media(max-width:600px){
+ .dating-setup-modal .dating-personality-lifestyle-grid{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:8px}
+ .dating-setup-modal .dating-personality-panel,.dating-setup-modal .dating-lifestyle-panel{gap:6px}
+ .dating-setup-modal .dating-lifestyle-panel .choice-chip{padding:4px 5px!important;font-size:8px!important}
+ .dating-setup-modal .dating-personality-panel .choice-chip{padding:5px 6px!important;font-size:9px!important}
+}
+@media(max-height:700px){
+ .dating-setup-modal .dating-setup-intro{padding-top:5px!important}
+ .dating-setup-modal .dating-setup-intro .feature-icon{display:none}
+ .dating-setup-modal .dating-stepper{margin:6px 0!important}
+ .dating-setup-modal .dating-form-step h3{font-size:16px!important}
+ .dating-setup-modal .dating-form-step>p{font-size:10px!important}
+ .dating-setup-modal .dating-form-actions{padding-top:6px!important}
+}
