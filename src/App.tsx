@@ -1689,9 +1689,15 @@ function GroupsFeature({ userId }: { userId: string }) {
     groupActionLocks.current[group.id] = true;
     setBusy(true);setNotice('');
     try {
-      const { error } = await supabase.rpc('join_chat_group',{p_group_id:group.id});
+      // Use the policy-aware join RPC so approval settings and the three-member
+      // activation rule are applied before a member can enter the conversation.
+      const { data, error } = await supabase.rpc('join_group',{p_group_id:group.id});
       if (error) throw error;
-      setNotice('You joined the group.');await load();
+      const result = data as {status?:string;member_count?:number}|null;
+      if (result?.status === 'pending') setNotice('Join request sent. A group admin must approve you before you can enter.');
+      else if (result?.status === 'waiting') setNotice(`You joined. The group chat opens when it has three members (currently ${result.member_count ?? 'fewer than three'}).`);
+      else setNotice('You joined the group.');
+      await load();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not join this group. Please try again.');
     } finally {
