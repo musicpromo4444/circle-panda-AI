@@ -23,7 +23,6 @@ type Props = {
   prefix?: string;
   required?: boolean;
   compact?: boolean;
-  onStateAvailabilityChange?: (hasStates: boolean) => void;
 };
 
 type Option = { label: string; value: string };
@@ -67,7 +66,7 @@ function SearchSelect({ label, value, options, onChange, disabled, required }: {
   </label>;
 }
 
-export default function LocationFields({ value, onChange, required = false, onStateAvailabilityChange }: Props) {
+export default function LocationFields({ value, onChange, required = false }: Props) {
   const geo = useGeoData();
   const countries = useMemo<Option[]>(() => (geo?.Country.getAllCountries() ?? [])
     .map(country => ({ label: `${countryFlag(country.isoCode)} ${country.name}`, value: country.name }))
@@ -87,9 +86,6 @@ export default function LocationFields({ value, onChange, required = false, onSt
   }, [value.country, value.state, country?.isoCode, geo]);
   const areaOptions = cities;
   const hasStates = states.length > 0;
-  useEffect(() => {
-    if (geo && value.country) onStateAvailabilityChange?.(hasStates);
-  }, [geo, value.country, hasStates, onStateAvailabilityChange]);
   const update = (patch: Partial<LocationValue>) => onChange({ ...value, ...patch });
   return <div className="location-fields" aria-label="Location">
     <SearchSelect label="Country" value={value.country} options={countries} required={required}
