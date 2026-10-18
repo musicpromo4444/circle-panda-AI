@@ -949,6 +949,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       setNotice(effectiveAge != null && effectiveAge < 18 ? 'Dating is only available to adults aged 18 and over.' : 'Add your date of birth to your main profile before publishing Dating.');
       return;
     }
+    if (publishNow && !location.country) { setNotice('Choose your country before publishing Dating.'); return; }
+    if (publishNow && locationHasStates && !location.state) { setNotice('Choose your state or province before publishing Dating.'); return; }
+    if (publishNow && (!location.city || !location.area)) { setNotice('Choose your city and area before publishing Dating.'); return; }
     if (!headline.trim()) { setNotice('Add a profile headline before saving.'); return; }
     submitLock.current = true;
     setBusy(true); setNotice('');
