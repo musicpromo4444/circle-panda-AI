@@ -1021,6 +1021,24 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     }
   }
 
+  async function blockDatingProfile(profile: DatingProfileRow) {
+    if (!supabase || profile.user_id === userId || busy) return;
+    if (!window.confirm('Block this person? They will no longer be able to contact you, and you will no longer see their Dating profile.')) return;
+    setBusy(true); setNotice('');
+    try {
+      const { error } = await supabase.rpc('block_user_secure', { p_user_id: profile.user_id });
+      if (error) throw error;
+      setDirectory(current => current.filter(item => item.user_id !== profile.user_id));
+      setSentRequests(current => { const next = {...current}; delete next[profile.user_id]; return next; });
+      setOpenProfile(null);
+      setNotice('This person has been blocked.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not block this person. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function requestChat(profile: DatingProfileRow) {
     if (!supabase || profile.user_id === userId || datingRequestLocks.current[profile.user_id]) return;
     const previous = sentRequests[profile.user_id];
@@ -1317,7 +1335,8 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
             <div><span>Preferred age range</span><strong>{openProfile.preferred_age_min || 18}–{openProfile.preferred_age_max || 45}</strong></div>
           </div>
           <button type="button" className="secondary-button" onClick={()=>setProfileDetailPage(0)}>← Back to overview</button>
-          <button type="button" className="primary-button" disabled={busy} onClick={()=>{const selected=openProfile;setOpenProfile(null);void requestChat(selected);}}>Send message request ↗</button>
+          <button type="button" className="primary-button" disabled={busy || Boolean(sentRequests[openProfile.user_id] && ['pending','accepted'].includes(sentRequests[openProfile.user_id].status))} onClick={()=>{const selected=openProfile;setOpenProfile(null);void requestChat(selected);}}>Send message request ↗</button>
+          <button type="button" className="decline-button dating-block-action" disabled={busy} onClick={()=>void blockDatingProfile(openProfile)}>Block this person</button>
         </div>}
       </section>
     </div>}
