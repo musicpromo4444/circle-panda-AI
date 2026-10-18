@@ -986,7 +986,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       if (error) throw error;
       setPhotoPath(photo.photo_path || '');
       setBlurredPhotoPath(photo.blurred_photo_path || '');
+      if(photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
       setProfilePhoto(null);
+      setPhotoPreview('');
       setPublished(publishNow);
       setNotice(publishNow ? 'Your dating profile is published and ready to discover.' : 'Your dating profile draft is saved.');
       setRegisterOpen(false);
@@ -1205,7 +1207,14 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         {formStep === 8 && <section className="dating-form-step dating-photo-step">
           <h3>Photos & publish</h3><p>Add a dating photo, preview your profile, then publish when you are ready.</p>
           <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div>
-          <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setProfilePhoto(e.target.files?.[0] || null)} /></label>
+          <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{
+            const file=e.currentTarget.files?.[0] || null;
+            if(!file){if(photoPreview.startsWith('blob:'))URL.revokeObjectURL(photoPreview);setProfilePhoto(null);setPhotoPreview('');return;}
+            if(!['image/jpeg','image/png','image/webp'].includes(file.type)){setNotice('Choose a JPG, PNG or WebP image.');e.currentTarget.value='';return;}
+            if(file.size>5*1024*1024){setNotice('Choose an image no larger than 5 MB.');e.currentTarget.value='';return;}
+            if(photoPreview.startsWith('blob:'))URL.revokeObjectURL(photoPreview);
+            setNotice('');setProfilePhoto(file);setPhotoPreview(URL.createObjectURL(file));
+          }} /></label>
           <p className="draft-state">{currentPhotoLabel}</p>
           <div className="dating-preview-summary"><strong>{mainProfile.name || 'Panda'} · {effectiveAge ?? 'Age not set'}</strong><span>{headline || 'Your headline will appear here'}</span><span>{relationshipGoal}</span></div>
         </section>}
