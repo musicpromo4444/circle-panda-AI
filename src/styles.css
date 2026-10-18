@@ -1984,3 +1984,17 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   .group-join-request-card { align-items: stretch; flex-direction: column; }
   .group-join-request-actions { display: grid; grid-template-columns: 1fr 1fr; }
 }
+
+
+.extra-vote-modal {
+  position: relative;
+  width: min(92vw, 480px);
+  margin: auto;
+  padding: clamp(1.4rem, 4vw, 2rem);
+  border: 1px solid rgba(245, 190, 63, 0.8);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(24, 31, 43, 0.98), rgba(18, 73, 64, 0.98));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42), 0 0 28px rgba(245, 190, 63, 0.16);
+}
+.extra-vote-actions { display: grid; gap: 0.75rem; margin-top: 1.25rem; }
+.extra-vote-actions button { min-height: 46px; }
