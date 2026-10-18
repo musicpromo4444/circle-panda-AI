@@ -831,7 +831,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         .select('id,sender_id,recipient_id,source_type,status,created_at')
         .eq('source_type','dating').or('sender_id.eq.' + userId + ',recipient_id.eq.' + userId)
         .order('created_at',{ascending:false}).limit(100);
-      if (requestsError) throw requestsError;
+      if (requestsError) setNotice('Dating profiles loaded, but request status could not be refreshed.');
       const requestMap: Record<string,{status:string;id:string}> = {};
       (requests ?? []).filter((r: {sender_id:string;recipient_id:string}) => r.sender_id === userId)
         .forEach((r: {id:string;recipient_id:string;status:string}) => { requestMap[r.recipient_id] = {status:r.status,id:r.id}; });
@@ -839,7 +839,8 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
 
       const { data: matchRows, error: matchError } = await supabase.rpc('get_my_dating_matches_secure');
       if (matchError) {
-        setNotice(matchError.message);
+        setDatingMatches([]);
+        setMatchPeople({});
       } else {
         const activeMatches = ((matchRows ?? []) as any[]).filter(match => match.status === 'matched');
         setDatingMatches(activeMatches);
@@ -1045,6 +1046,17 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const filteredDirectory = directory.filter(profile => {
     const place = locationDetails[profile.user_id];
     const row = profile as DatingProfileRow & {relationship_goal?:string;looking_for?:string[];personality_tags?:string[];children?:string;smoking?:string;drinking?:string};
+    if (profile.age != null && (profile.age < (Number(preferredAgeMin) || 18) || profile.age > (Number(preferredAgeMax) || 120))) return false;
+    if (effectiveAge != null && (effectiveAge < (profile.preferred_age_min ?? 18) || effectiveAge > (profile.preferred_age_max ?? 120))) return false;
+    if (genderPreferences.length && !genderPreferences.includes('Everyone')) {
+      const targetGender = (profile.gender || '').toLowerCase();
+      const normalizedTargets = genderPreferences.map(value => value.toLowerCase());
+      const genderAllowed = normalizedTargets.some(value => value === targetGender ||
+        (value === 'women' && ['woman','female','women'].includes(targetGender)) ||
+        (value === 'men' && ['man','male','men'].includes(targetGender)) ||
+        (value === 'non-binary people' && ['non-binary','nonbinary','non binary'].includes(targetGender)));
+      if (!genderAllowed) return false;
+    }
     if (filterGoal && !(row.relationship_goal || '').toLowerCase().includes(filterGoal.toLowerCase())) return false;
     if (filterLookingFor && !(row.looking_for || []).some(value => value.toLowerCase().includes(filterLookingFor.toLowerCase()))) return false;
     if (filterPersonality && !(row.personality_tags || row.personality || []).some(value => value.toLowerCase().includes(filterPersonality.toLowerCase()))) return false;
