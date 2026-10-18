@@ -1595,11 +1595,16 @@ function WalletFeature({ userId }: { userId: string }) {
 }
 
 
-type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string };
+type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string; closed_at?: string | null };
 function GroupsFeature({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
   const [myGroups, setMyGroups] = useState<Record<string,boolean>>({});
+  const [myGroupRoles, setMyGroupRoles] = useState<Record<string,string>>({});
+  const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+  const [groupEditInfo, setGroupEditInfo] = useState('admins');
+  const [groupSendMessages, setGroupSendMessages] = useState(true);
+  const [groupApproveMembers, setGroupApproveMembers] = useState(false);
   const [myVip, setMyVip] = useState(false);
   const [myCountry, setMyCountry] = useState('');
   const [name, setName] = useState('');
@@ -1624,8 +1629,8 @@ function GroupsFeature({ userId }: { userId: string }) {
     const { data: profile } = await supabase.from('profiles').select('is_vip,country').eq('id',userId).maybeSingle();
     setMyVip(Boolean(profile?.is_vip)); setMyCountry(profile?.country || '');
     const { data, error } = await supabase.from('chat_groups')
-      .select('id,creator_id,name,description,country_restriction,is_vip,created_at')
-      .order('created_at',{ascending:false}).limit(100);
+      .select('id,creator_id,name,description,country_restriction,is_vip,created_at,closed_at')
+      .is('closed_at', null).order('created_at',{ascending:false}).limit(100);
     if (error) setNotice(error.message);
     const rows = (data ?? []) as GroupRow[];
     setGroups(rows);
@@ -1633,13 +1638,14 @@ function GroupsFeature({ userId }: { userId: string }) {
     if (ids.length) {
       const [membersResult, mineResult] = await Promise.all([
         supabase.from('group_members').select('group_id,user_id,role').in('group_id',ids),
-        supabase.from('group_members').select('group_id').eq('user_id',userId).in('group_id',ids),
+        supabase.from('group_members').select('group_id,role').eq('user_id',userId).in('group_id',ids),
       ]);
       const counts: Record<string,number> = {};
       const mine: Record<string,boolean> = {};
+      const roles: Record<string,string> = {};
       (membersResult.data ?? []).forEach((m: {group_id:string;user_id:string;role:string}) => { counts[m.group_id] = (counts[m.group_id] || 0) + 1; });
-      (mineResult.data ?? []).forEach((m: {group_id:string}) => { mine[m.group_id] = true; });
-      setMemberCounts(counts); setMyGroups(mine);
+      (mineResult.data ?? []).forEach((m: {group_id:string;role?:string}) => { mine[m.group_id] = true; if (m.role) roles[m.group_id] = m.role; });
+      setMemberCounts(counts); setMyGroups(mine); setMyGroupRoles(roles);
     }
     setLoading(false);
   }
@@ -1768,6 +1774,48 @@ function GroupsFeature({ userId }: { userId: string }) {
   }
 
   const openGroup = groups.find(g => g.id === openGroupId);
+  const canManageOpenGroup = Boolean(openGroup && (openGroup.creator_id === userId || ['creator','admin'].includes(myGroupRoles[openGroup.id] || '')));
+
+  async function showGroupSettings() {
+    if (!supabase || !openGroup) return;
+    setBusy(true); setNotice('');
+    const { data, error } = await supabase.from('group_settings').select('edit_group_info,send_messages,approve_new_members').eq('group_id',openGroup.id).maybeSingle();
+    if (error) setNotice(error.message);
+    setGroupEditInfo(data?.edit_group_info || 'admins');
+    setGroupSendMessages(data?.send_messages ?? true);
+    setGroupApproveMembers(data?.approve_new_members ?? false);
+    setGroupSettingsOpen(true); setBusy(false);
+  }
+
+  async function saveGroupSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !openGroup) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('update_group_settings', { p_group_id: openGroup.id, p_edit_group_info: groupEditInfo, p_send_messages: groupSendMessages, p_approve_new_members: groupApproveMembers });
+    if (error) setNotice(error.message);
+    else { setNotice('Group settings saved.'); setGroupSettingsOpen(false); }
+    setBusy(false);
+  }
+
+  async function closeOpenGroup() {
+    if (!supabase || !openGroup || openGroup.creator_id !== userId) return;
+    if (!window.confirm('Close this group? Members will no longer be able to send messages, and the group will disappear from the active directory.')) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('close_group', { p_group_id: openGroup.id });
+    if (error) setNotice(error.message);
+    else { setGroupSettingsOpen(false); setOpenGroupId(null); setOpenConversationId(null); setChatMessages([]); await load(); setNotice('Group closed.'); }
+    setBusy(false);
+  }
+
+  async function leaveOpenGroup() {
+    if (!supabase || !openGroup || openGroup.creator_id === userId) return;
+    if (!window.confirm('Leave this group? You will need to join again to access its chat.')) return;
+    setBusy(true); setNotice('');
+    const { error } = await supabase.rpc('leave_group', { p_group_id: openGroup.id });
+    if (error) setNotice(error.message);
+    else { setGroupSettingsOpen(false); setOpenGroupId(null); setOpenConversationId(null); setChatMessages([]); await load(); setNotice('You left the group.'); }
+    setBusy(false);
+  }
   return <div className="groups-page">
     <div className="directory-toolbar"><div><p className="eyebrow">YOUR PEOPLE, YOUR SPACE</p><p className="feature-copy">Explore normal and VIP groups across your circle.</p></div><button type="button" className="primary-button" onClick={() => setCreateGroupOpen(true)}>＋ Create Group</button></div>
     {createGroupOpen && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create a group"><section className="create-modal-card group-create-panel"><header className="create-modal-header"><div><p className="eyebrow">YOUR PEOPLE, YOUR SPACE</p><h2>Create a group</h2></div><button type="button" className="create-modal-close" aria-label="Close create group" onClick={() => setCreateGroupOpen(false)}>×</button></header><p className="feature-copy">Normal groups stay available without a 24-hour expiry. The group chat unlocks when at least three members have joined.</p>
@@ -1796,7 +1844,8 @@ function GroupsFeature({ userId }: { userId: string }) {
         return <article className="group-card" key={group.id}><div className="group-card-icon">◉</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}</div></div></article>;
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
-    {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-avatar">◉</div><div className="group-chat-heading"><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · online chat</p></div><button className="group-header-action" title="Group settings" onClick={()=>setNotice('Group settings are being connected to member and creator controls.')}>⋮</button></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')}</div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p><div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder={replyingTo?'Write a reply…':'Message the group…'} /><button className="group-send-button" disabled={busy||!chatDraft.trim()} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
+    {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-avatar">◉</div><div className="group-chat-heading"><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · online chat</p></div><button className="group-header-action" title="Group settings" aria-label="Open group settings" onClick={()=>void showGroupSettings()}>⋮</button></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')}</div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p><div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder={replyingTo?'Write a reply…':'Message the group…'} /><button className="group-send-button" disabled={busy||!chatDraft.trim()} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
+    {groupSettingsOpen && openGroup && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Group settings"><section className="create-modal-card group-create-panel"><header className="create-modal-header"><div><p className="eyebrow">GROUP CONTROLS</p><h2>{openGroup.name} settings</h2></div><button type="button" className="create-modal-close" aria-label="Close group settings" onClick={()=>setGroupSettingsOpen(false)}>×</button></header><p className="feature-copy">Choose who can update group details, whether members can send messages, and whether new members need approval.</p>{canManageOpenGroup ? <form className="feature-form" onSubmit={saveGroupSettings}><label>Who can edit group information<select value={groupEditInfo} onChange={e=>setGroupEditInfo(e.target.value)}><option value="admins">Admins only</option><option value="admins_members">Admins and members</option></select></label><label className="group-setting-toggle"><input type="checkbox" checked={groupSendMessages} onChange={e=>setGroupSendMessages(e.target.checked)}/> Allow members to send messages</label><label className="group-setting-toggle"><input type="checkbox" checked={groupApproveMembers} onChange={e=>setGroupApproveMembers(e.target.checked)}/> Approve new members before they join</label><div className="form-submit-row"><button type="button" className="secondary-button" onClick={()=>setGroupSettingsOpen(false)}>Cancel</button><button className="primary-button" disabled={busy}>{busy?'Saving…':'Save settings'}</button></div></form> : <p className="feature-copy">Only group creators and admins can change group settings.</p>}{openGroup.creator_id===userId ? <button type="button" className="danger-button" disabled={busy} onClick={()=>void closeOpenGroup()}>{busy?'Working…':'Close this group'}</button> : <button type="button" className="secondary-button" disabled={busy} onClick={()=>void leaveOpenGroup()}>{busy?'Working…':'Leave group'}</button>}</section></div>}
   </div>;
 }
 
