@@ -571,6 +571,7 @@ function MessagesFeature({ userId }: { userId: string }) {
     if (!supabase) return;
     const channel = supabase.channel('dm-requests-' + userId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'message_requests', filter: 'recipient_id=eq.' + userId }, () => { void loadRequests(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_requests', filter: 'sender_id=eq.' + userId }, () => { void loadRequests(); })
       .subscribe();
     return () => { void channel.unsubscribe(); };
   }, [userId]);
