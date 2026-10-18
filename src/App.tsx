@@ -1596,11 +1596,14 @@ function WalletFeature({ userId }: { userId: string }) {
 
 
 type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string; closed_at?: string | null };
+type GroupJoinRequestRow = { id: string; group_id: string; user_id: string; status: string; created_at: string };
 function GroupsFeature({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
   const [myGroups, setMyGroups] = useState<Record<string,boolean>>({});
   const [myGroupRoles, setMyGroupRoles] = useState<Record<string,string>>({});
+  const [pendingJoinRequests, setPendingJoinRequests] = useState<GroupJoinRequestRow[]>([]);
+  const [joinRequestNames, setJoinRequestNames] = useState<Record<string,string>>({});
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const [groupEditInfo, setGroupEditInfo] = useState('admins');
   const [groupSendMessages, setGroupSendMessages] = useState(true);
@@ -1646,6 +1649,19 @@ function GroupsFeature({ userId }: { userId: string }) {
       (membersResult.data ?? []).forEach((m: {group_id:string;user_id:string;role:string}) => { counts[m.group_id] = (counts[m.group_id] || 0) + 1; });
       (mineResult.data ?? []).forEach((m: {group_id:string;role?:string}) => { mine[m.group_id] = true; if (m.role) roles[m.group_id] = m.role; });
       setMemberCounts(counts); setMyGroups(mine); setMyGroupRoles(roles);
+      const managedIds = (mineResult.data ?? []).filter((m: {group_id:string;role?:string}) => ['creator','admin'].includes(m.role || '')).map((m: {group_id:string}) => m.group_id);
+      if (managedIds.length) {
+        const { data: requests } = await supabase.from('group_join_requests').select('id,group_id,user_id,status,created_at').in('group_id',managedIds).eq('status','pending').order('created_at',{ascending:true});
+        const pending = (requests ?? []) as GroupJoinRequestRow[];
+        setPendingJoinRequests(pending);
+        const requesterIds = [...new Set(pending.map(request => request.user_id))];
+        if (requesterIds.length) {
+          const { data: requesters } = await supabase.from('profiles').select('id,display_name,username').in('id',requesterIds);
+          const names: Record<string,string> = {};
+          (requesters ?? []).forEach((person: {id:string;display_name:string|null;username:string|null}) => { names[person.id] = person.display_name || person.username || 'Panda'; });
+          setJoinRequestNames(names);
+        } else setJoinRequestNames({});
+      } else { setPendingJoinRequests([]); setJoinRequestNames({}); }
     }
     setLoading(false);
   }
@@ -1704,6 +1720,19 @@ function GroupsFeature({ userId }: { userId: string }) {
       delete groupActionLocks.current[group.id];
       setBusy(false);
     }
+  }
+
+  async function reviewJoinRequest(requestId: string, approve: boolean) {
+    if (!supabase || groupActionLocks.current['request-' + requestId]) return;
+    groupActionLocks.current['request-' + requestId] = true; setBusy(true); setNotice('');
+    try {
+      const { data, error } = await supabase.rpc('review_group_join_request', { p_request_id: requestId, p_approve: approve });
+      if (error) throw error;
+      const result = data as {status?:string;member_count?:number}|null;
+      setNotice(approve ? (result?.member_count && result.member_count >= 3 ? 'Member approved. The group chat is now open.' : 'Member approved. The group still needs three members before chat opens.') : 'Join request declined.');
+      await load();
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not update the join request. Please try again.'); }
+    finally { delete groupActionLocks.current['request-' + requestId]; setBusy(false); }
   }
 
   async function openVipGroup(scope: 'worldwide' | 'country') {
@@ -1850,6 +1879,7 @@ function GroupsFeature({ userId }: { userId: string }) {
         return <article className="group-card" key={group.id}><div className="group-card-icon">◉</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}</div></div></article>;
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
+    {pendingJoinRequests.length > 0 && <section className="group-join-requests"><div className="section-title-row"><div><p className="eyebrow">GROUP ADMIN</p><h2>Join requests</h2><p>Review people asking to join groups you manage.</p></div><span className="count-pill">{pendingJoinRequests.length} PENDING</span></div><div className="group-join-request-list">{pendingJoinRequests.map(request => { const group = groups.find(item => item.id === request.group_id); return <article className="group-join-request-card" key={request.id}><div><strong>{joinRequestNames[request.user_id] || 'Panda'}</strong><p>Requested to join <b>{group?.name || 'your group'}</b></p><small>{new Date(request.created_at).toLocaleString()}</small></div><div className="group-join-request-actions"><button type="button" className="secondary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,false)}>Decline</button><button type="button" className="primary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,true)}>Approve</button></div></article>; })}</div></section>}
     {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-avatar">◉</div><div className="group-chat-heading"><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · online chat</p></div><button className="group-header-action" title="Group settings" aria-label="Open group settings" onClick={()=>void showGroupSettings()}>⋮</button></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')}</div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p><div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder={replyingTo?'Write a reply…':'Message the group…'} /><button className="group-send-button" disabled={busy||!chatDraft.trim()} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
     {groupSettingsOpen && openGroup && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Group settings"><section className="create-modal-card group-create-panel"><header className="create-modal-header"><div><p className="eyebrow">GROUP CONTROLS</p><h2>{openGroup.name} settings</h2></div><button type="button" className="create-modal-close" aria-label="Close group settings" onClick={()=>setGroupSettingsOpen(false)}>×</button></header><p className="feature-copy">Choose who can update group details, whether members can send messages, and whether new members need approval.</p>{canManageOpenGroup ? <form className="feature-form" onSubmit={saveGroupSettings}><label>Who can edit group information<select value={groupEditInfo} onChange={e=>setGroupEditInfo(e.target.value)}><option value="admins">Admins only</option><option value="admins_members">Admins and members</option></select></label><label className="group-setting-toggle"><input type="checkbox" checked={groupSendMessages} onChange={e=>setGroupSendMessages(e.target.checked)}/> Allow members to send messages</label><label className="group-setting-toggle"><input type="checkbox" checked={groupApproveMembers} onChange={e=>setGroupApproveMembers(e.target.checked)}/> Approve new members before they join</label><div className="form-submit-row"><button type="button" className="secondary-button" onClick={()=>setGroupSettingsOpen(false)}>Cancel</button><button className="primary-button" disabled={busy}>{busy?'Saving…':'Save settings'}</button></div></form> : <p className="feature-copy">Only group creators and admins can change group settings.</p>}{openGroup.creator_id===userId ? <button type="button" className="danger-button" disabled={busy} onClick={()=>void closeOpenGroup()}>{busy?'Working…':'Close this group'}</button> : <button type="button" className="secondary-button" disabled={busy} onClick={()=>void leaveOpenGroup()}>{busy?'Working…':'Leave group'}</button>}</section></div>}
   </div>;
