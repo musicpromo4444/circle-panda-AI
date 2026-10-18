@@ -1007,6 +1007,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       setPhotoPath(photo.photo_path || '');
       setBlurredPhotoPath(photo.blurred_photo_path || '');
       setProfilePhoto(null);
+      if(photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
       setPhotoPreview('');
       setPublished(publishNow);
       setNotice(publishNow ? 'Your dating profile is published and ready to discover.' : 'Your dating profile draft is saved.');
