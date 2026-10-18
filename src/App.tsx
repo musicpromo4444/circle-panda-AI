@@ -1181,26 +1181,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         </article>;
       })}</div>
     </section>}
-    <section className="directory-section"><div className="section-title-row"><div><h2>Discover your circle</h2><p>Adult profiles from the Circle Panda community.</p></div><span className="count-pill">{filteredDirectory.length} PROFILES</span></div>
-      {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => {
-        const row = profile as DatingProfileRow & {relationship_goal?:string;interests?:string[];personality_tags?:string[];occupation?:string;children?:string;smoking?:string;drinking?:string;sexual_experience?:string;looking_for?:string[];age?:number;gender?:string};
-        const request = sentRequests[profile.user_id];
-        const alreadyMatched = datingMatches.some(match => (match.user_a === userId && match.user_b === profile.user_id) || (match.user_b === userId && match.user_a === profile.user_id));
-        return <article className="dating-card" key={profile.id}>
-          <div className="dating-card-top"><div className="dating-avatar">♡</div><div><strong>{names[profile.user_id] || 'Panda'}</strong><p>{locations[profile.user_id] || 'Location not added'}{row.age ? ' · ' + row.age : ''}</p></div><span className="heart-mark">♡</span></div>
-          <h3>{profile.headline || 'Getting to know someone new'}</h3><p className="dating-about">{profile.about || 'This panda is looking forward to meeting someone.'}</p>
-          {row.relationship_goal && <div className="personality-tag">Looking for: {row.relationship_goal}</div>}
-          {Array.isArray(row.personality_tags) && row.personality_tags.length > 0 && <div className="dating-tag-list">{row.personality_tags.slice(0,5).map(tag=><span className="personality-tag" key={tag}>{tag}</span>)}</div>}
-          {Array.isArray(row.interests) && row.interests.length > 0 && <p className="dating-about"><strong>Interests:</strong> {row.interests.slice(0,5).join(' · ')}</p>}
-          <button type="button" className="secondary-button dating-view-profile" onClick={()=>void viewDatingProfile(profile)}>View full profile</button>
-          <div className="dating-card-bottom"><span>{alreadyMatched ? 'Mutual match 💗' : request ? 'Request: ' + request.status : '18+ · Dating'}</span>
-            <button className="primary-button" disabled={busy || Boolean(request && request.status === 'pending' && !alreadyMatched)} onClick={()=>alreadyMatched || request?.status === 'accepted' ? onOpenMessages() : void requestChat(profile)}>
-              {alreadyMatched || request?.status === 'accepted' ? 'Open chat ↗' : request?.status === 'pending' ? 'Request sent ✓' : request?.status === 'declined' ? 'Send again ↗' : 'Send message request ↗'}
-            </button>
-          </div>
-        </article>;
-      })}</div> : <div className="empty-state"><span>♡</span><h3>{directory.length ? 'No dating cards match these filters.' : 'Your next connection starts here.'}</h3><p>{directory.length ? 'Try a different location or clear your filters.' : 'Published profiles from adults in the community will appear here.'}</p></div>}
-    </section>
     {openProfile && <div className="dating-profile-backdrop" role="dialog" aria-modal="true" aria-label="Dating profile details">
       <section className="dating-profile-detail">
         <header><button type="button" className="secondary-button" onClick={()=>setOpenProfile(null)}>‹ Back</button><strong>Dating profile</strong><span>{profileDetailPage+1}/2</span></header>
