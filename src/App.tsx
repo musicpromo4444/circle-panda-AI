@@ -765,6 +765,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         setMainProfile({ name: profile.display_name || profile.username || 'Panda', username: profile.username || '', age: profile.age == null ? null : Number(profile.age), gender: profile.gender || '' });
         setDateOfBirth(profile.date_of_birth || '');
         const savedLocation = { country: profile.country || '', state: profile.state_province || profile.state || '', city: profile.city || '', area: profile.area || '' };
+        const { data: authUserResult } = await supabase.auth.getUser();
+        const savedAddress = authUserResult.user?.user_metadata?.optional_address;
+        setOptionalAddress(typeof savedAddress === 'string' ? savedAddress : '');
         setLocation(savedLocation);
         if (!profile.date_of_birth || !savedLocation.country || !savedLocation.city || !savedLocation.area) { /* Open profile completion only when the user taps Create Dating Profile. */ }
       } else {
@@ -986,7 +989,6 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       if (error) throw error;
       setPhotoPath(photo.photo_path || '');
       setBlurredPhotoPath(photo.blurred_photo_path || '');
-      if(photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
       setProfilePhoto(null);
       setPhotoPreview('');
       setPublished(publishNow);
@@ -1106,7 +1108,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   return <div className="dating-page">
     <div className="dating-toolbar dating-toolbar-stacked">
       <button type="button" className="secondary-button dating-filter-button" aria-expanded={filtersOpen} onClick={() => { setFiltersOpen(open => !open); if (!filtersOpen) setRegisterOpen(false); }}>{filtersOpen ? 'Close Filter ×' : 'Filter'}</button>
-      <button type="button" className="primary-button dating-create-button" aria-expanded={registerOpen || basicProfileOpen} onClick={() => { if (basicProfileOpen) { setBasicProfileOpen(false); return; } if (registerOpen) { setRegisterOpen(false); return; } setFiltersOpen(false); const complete=Boolean(dateOfBirth && location.country && location.city && location.area && effectiveAge != null && effectiveAge >= 18); if (!complete) setBasicProfileOpen(true); else { setFormStep(0); setRegisterOpen(true); } }}>
+      <button type="button" className="primary-button dating-create-button" aria-expanded={registerOpen || basicProfileOpen} onClick={() => { if (basicProfileOpen) { setBasicProfileOpen(false); return; } if (registerOpen) { setRegisterOpen(false); return; } setFiltersOpen(false); const stateRequired=['United States','Canada','Australia','India','Brazil','Mexico'].includes(location.country); const complete=Boolean(dateOfBirth && location.country && (!stateRequired || location.state) && location.city && location.area && effectiveAge != null && effectiveAge >= 18); if (!complete) setBasicProfileOpen(true); else { setFormStep(0); setRegisterOpen(true); } }}>
         {registerOpen ? 'Close Dating Profile ×' : published ? 'Edit Dating Profile' : 'Create Dating Profile'}
       </button>
     </div>
@@ -1212,8 +1214,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
             if(!file){if(photoPreview.startsWith('blob:'))URL.revokeObjectURL(photoPreview);setProfilePhoto(null);setPhotoPreview('');return;}
             if(!['image/jpeg','image/png','image/webp'].includes(file.type)){setNotice('Choose a JPG, PNG or WebP image.');e.currentTarget.value='';return;}
             if(file.size>5*1024*1024){setNotice('Choose an image no larger than 5 MB.');e.currentTarget.value='';return;}
-            if(photoPreview.startsWith('blob:'))URL.revokeObjectURL(photoPreview);
-            setNotice('');setProfilePhoto(file);setPhotoPreview(URL.createObjectURL(file));
+            setNotice('');setProfilePhoto(file);
           }} /></label>
           <p className="draft-state">{currentPhotoLabel}</p>
           <div className="dating-preview-summary"><strong>{mainProfile.name || 'Panda'} · {effectiveAge ?? 'Age not set'}</strong><span>{headline || 'Your headline will appear here'}</span><span>{relationshipGoal}</span></div>
@@ -1229,6 +1230,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
                   if(!dateOfBirth || age===null){setNotice('Add your date of birth to continue.');return;}
                   if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
                   if(!location.country){setNotice('Choose your country to continue.');return;}
+                  if(['United States','Canada','Australia','India','Brazil','Mexico'].includes(location.country) && !location.state){setNotice('Choose your state or province to continue.');return;}
+                  if(!location.city){setNotice('Choose your city to continue.');return;}
+                  if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
                   if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
                   setBusy(true);setNotice('');
                   const {error}=await supabase.from('profiles').update({date_of_birth:dateOfBirth,age,country:location.country,state:location.state||null,state_province:location.state||null,city:location.city||null,area:location.area||null}).eq('id',userId);
