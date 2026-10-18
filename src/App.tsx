@@ -1260,7 +1260,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
             if(!file){if(photoPreview.startsWith('blob:'))URL.revokeObjectURL(photoPreview);setProfilePhoto(null);setPhotoPreview('');return;}
             if(!['image/jpeg','image/png','image/webp'].includes(file.type)){setNotice('Choose a JPG, PNG or WebP image.');e.currentTarget.value='';return;}
             if(file.size>5*1024*1024){setNotice('Choose an image no larger than 5 MB.');e.currentTarget.value='';return;}
-            setNotice(''); if(photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview); setPhotoPreview(URL.createObjectURL(file)); setProfilePhoto(file);
+            setNotice(''); setProfilePhoto(file);
           }} /></label>
           <p className="draft-state">{currentPhotoLabel}</p>
           <div className="dating-preview-summary"><strong>{mainProfile.name || 'Panda'} · {effectiveAge ?? 'Age not set'}</strong><span>{headline || 'Your headline will appear here'}</span><span>{relationshipGoal}</span></div>
