@@ -809,7 +809,11 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,name,age,gender,location,country,state_province,gender_preferences,preferred_age_min,preferred_age_max,long_distance_ok,communication_style,relationship_values,ideal_weekend,conversation_topic,smile_prompt')
         .eq('is_published', true).neq('user_id', userId).order('created_at', { ascending: false }).limit(60);
       if (error) throw error;
-      const rows = (data ?? []) as DatingProfileRow[];
+      const { data: blockedRows, error: blockedError } = await supabase.from('user_blocks')
+        .select('blocked_id').eq('blocker_id', userId);
+      if (blockedError) throw blockedError;
+      const blockedIds = new Set((blockedRows ?? []).map((row: {blocked_id:string}) => row.blocked_id));
+      const rows = ((data ?? []) as DatingProfileRow[]).filter(row => !blockedIds.has(row.user_id));
       setDirectory(rows);
       const ids = rows.map(row => row.user_id);
       if (ids.length) {
