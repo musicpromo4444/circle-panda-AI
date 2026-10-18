@@ -1363,3 +1363,123 @@ body{background:radial-gradient(ellipse at 70% 0%,#13264a 0%,transparent 42%),#0
 .create-modal-card .group-create-panel,.create-modal-card.event-create-panel{position:static;top:auto;margin:0;padding:0;border:0;background:transparent;box-shadow:none}
 .groups-page>.directory-toolbar,.events-page>.directory-toolbar{position:relative}
 @media(max-width:620px){.message-counter-strip{gap:6px}.message-counter{padding:10px 9px}.message-counter-label{font-size:8px}.message-counter strong{font-size:21px}.directory-toolbar{align-items:flex-start}.directory-toolbar .primary-button{flex-shrink:0;padding:11px 12px;font-size:10px}.create-modal-backdrop{padding:10px}.create-modal-card{max-height:92dvh}}
+
+
+/* Circle Panda Dating refresh — color-only treatment; preserves existing layout and flows. */
+.dating-page {
+  --dating-ink: #4a2434;
+  --dating-muted: #916d7b;
+  --dating-pink: #fff0f5;
+  --dating-pink-strong: #f9d7e4;
+  --dating-red: #df4968;
+  --dating-red-deep: #bd3152;
+  --dating-green: #eaf8ee;
+  --dating-green-line: #ccebd5;
+  color: var(--dating-ink);
+}
+.dating-page .feature-panel,
+.dating-page .directory-section,
+.dating-page .dating-filter-panel {
+  background: linear-gradient(145deg, #fff 0%, #fff7fa 72%, #f3fff6 100%);
+  color: var(--dating-ink);
+  border-color: #f1cbd8;
+  box-shadow: 0 12px 32px rgba(174, 67, 99, .08);
+}
+.dating-page .dating-toolbar .dating-filter-button,
+.dating-page .secondary-button {
+  background: #fff;
+  color: var(--dating-red-deep);
+  border-color: #efb8ca;
+}
+.dating-page .dating-toolbar .dating-create-button,
+.dating-page .primary-button {
+  background: linear-gradient(135deg, #f56b89, #d83e60);
+  color: #fff;
+  border-color: #e04d6c;
+  box-shadow: 0 7px 16px rgba(216, 62, 96, .18);
+}
+.dating-page .dating-card,
+.dating-page .dating-profile-card,
+.dating-page .dating-connection-card {
+  background: linear-gradient(150deg, #fff 0%, #fff4f8 65%, #f0fff4 100%);
+  color: #4a2434;
+  border-color: #f0c4d3;
+  box-shadow: 0 10px 24px rgba(174, 67, 99, .09);
+}
+.dating-page .dating-card-top,
+.dating-page .dating-card-bottom {
+  border-color: #f5dbe4;
+}
+.dating-page .dating-card p,
+.dating-page .dating-card-bottom > span,
+.dating-page .feature-copy,
+.dating-page .section-title-row p,
+.dating-page .dating-profile-detail p {
+  color: #916d7b;
+}
+.dating-page .dating-card-top strong,
+.dating-page .directory-section h2,
+.dating-page .feature-panel h2,
+.dating-page .dating-profile-detail h2,
+.dating-page .dating-profile-detail h3 {
+  color: #6a2c43;
+}
+.dating-page .dating-filter-panel input,
+.dating-page .dating-filter-panel select,
+.dating-page .dating-profile-detail input,
+.dating-page .dating-profile-detail select,
+.dating-page .dating-profile-detail textarea,
+.dating-page .dating-basic-modal input,
+.dating-page .dating-basic-modal select {
+  background: #fff;
+  color: #4a2434;
+  border-color: #edc5d3;
+}
+.dating-page .dating-profile-detail,
+.dating-page .dating-basic-modal {
+  background: linear-gradient(150deg, #fff 0%, #fff4f8 68%, #effbf2 100%);
+  color: #4a2434;
+  border-color: #efbfd0;
+  box-shadow: 0 24px 80px rgba(113, 42, 67, .2);
+}
+.dating-page .dating-profile-detail > header,
+.dating-page .dating-basic-modal > header {
+  background: rgba(255, 248, 251, .96);
+  border-color: #f1d5df;
+}
+.dating-page .dating-profile-detail .eyebrow,
+.dating-page .dating-basic-modal .eyebrow {
+  color: #d74768;
+}
+.dating-page .dating-basic-modal > label,
+.dating-page .dating-profile-detail label {
+  color: #744256;
+}
+.dating-page .dating-profile-detail .dating-progress-track,
+.dating-page .dating-profile-detail .dating-step-progress {
+  background: #f9dce6;
+}
+.dating-page .dating-profile-detail .dating-progress-fill,
+.dating-page .dating-profile-detail .dating-step-progress > span {
+  background: linear-gradient(90deg, #f58aa5, #d94164);
+}
+.dating-page .dating-account-summary > div,
+.dating-page .dating-photo-preview {
+  background: #effaf2;
+  border-color: #cdebd5;
+  color: #3d694b;
+}
+.dating-page .dating-basic-actions {
+  background: linear-gradient(0deg, #fff 75%, rgba(255,255,255,0));
+}
+.dating-page .notice,
+.dating-page .empty-state {
+  background: #f0fbf3;
+  color: #41694c;
+  border-color: #cdebd5;
+}
+.dating-page .dating-basic-close {
+  background: #ffe8ef;
+  color: #b93153;
+  border-color: #f3c2d1;
+}
