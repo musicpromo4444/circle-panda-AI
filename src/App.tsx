@@ -940,6 +940,13 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     return {photo_path:originalPath,blurred_photo_path:blurredPath};
   }
 
+  async function countryHasStates(countryName: string) {
+    if (!countryName) return false;
+    const geo = await import('country-state-city');
+    const country = geo.Country.getAllCountries().find(item => item.name === countryName || item.isoCode === countryName);
+    return geo.State.getStatesOfCountry(country?.isoCode || countryName).length > 0;
+  }
+
   async function saveProfile(event: FormEvent<HTMLFormElement>, publishNow: boolean) {
     event.preventDefault();
     if (!supabase || submitLock.current) return;
@@ -950,7 +957,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       return;
     }
     if (publishNow && !location.country) { setNotice('Choose your country before publishing Dating.'); return; }
-    if (publishNow && locationHasStates && !location.state) { setNotice('Choose your state or province before publishing Dating.'); return; }
+    if (publishNow && await countryHasStates(location.country) && !location.state) { setNotice('Choose your state or province before publishing Dating.'); return; }
     if (publishNow && (!location.city || !location.area)) { setNotice('Choose your city and area before publishing Dating.'); return; }
     if (!headline.trim()) { setNotice('Add a profile headline before saving.'); return; }
     submitLock.current = true;
@@ -1176,7 +1183,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         if(!dateOfBirth || age===null){setNotice('Choose your date of birth to continue.');return;}
         if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
         if(!location.country){setNotice('Choose your country to continue.');return;}
-        if(locationHasStates && !location.state){setNotice('Choose your state or province to continue.');return;}
+        if(await countryHasStates(location.country) && !location.state){setNotice('Choose your state or province to continue.');return;}
         if(!location.city){setNotice('Choose your city to continue.');return;}
         if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
         if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
@@ -1269,7 +1276,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
                   if(!dateOfBirth || age===null){setNotice('Add your date of birth to continue.');return;}
                   if(age<18){setNotice('Dating is only available to adults aged 18 and over.');return;}
                   if(!location.country){setNotice('Choose your country to continue.');return;}
-                  if(locationHasStates && !location.state){setNotice('Choose your state or province to continue.');return;}
+                  if(await countryHasStates(location.country) && !location.state){setNotice('Choose your state or province to continue.');return;}
                   if(!location.city){setNotice('Choose your city to continue.');return;}
                   if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
                   if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
