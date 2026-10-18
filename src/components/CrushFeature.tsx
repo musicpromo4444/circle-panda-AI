@@ -30,6 +30,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [extraVotePost, setExtraVotePost] = useState<CrushPost | null>(null);
   const lock = useRef(false);
   const voteLocks = useRef<Record<string, boolean>>({});
   const messageRequestLocks = useRef<Record<string, boolean>>({});
@@ -136,8 +137,15 @@ export default function CrushFeature({ userId }: { userId: string }) {
     voteLocks.current[post.id] = true;
     setBusy(true); setNotice('');
     try {
-      const { data, error } = await supabase.rpc('cast_crush_vote', { p_post_id: post.id });
-      if (error) throw error;
+      const { data, error } = await supabase.rpc('cast_crush_vote_secure', { p_post_id: post.id });
+      if (error) {
+        if (error.message.includes('FREE_VOTES_EXHAUSTED')) {
+          setExtraVotePost(post);
+          setNotice('You have used your three free weekly votes. Choose an extra vote for 50 BC.');
+          return;
+        }
+        throw error;
+      }
       const payload = data as { post_votes?: number; already_voted?: boolean } | null;
       setMyVotes(prev => ({ ...prev, [post.id]: true }));
       if (typeof payload?.post_votes === 'number') setVotes(prev => ({ ...prev, [post.id]: payload.post_votes! }));
@@ -149,6 +157,25 @@ export default function CrushFeature({ userId }: { userId: string }) {
       delete voteLocks.current[post.id];
       setBusy(false);
     }
+  }
+
+  async function buyExtraVote() {
+    if (!supabase || !extraVotePost || voteLocks.current[extraVotePost.id]) return;
+    const post = extraVotePost;
+    voteLocks.current[post.id] = true; setBusy(true); setNotice('');
+    try {
+      const { data, error } = await supabase.rpc('cast_crush_vote_paid_secure', { p_nominee_id: post.id });
+      if (error) throw error;
+      const payload = data as { voted?:boolean; already_voted?:boolean; balance?:number }|null;
+      if (payload?.voted || payload?.already_voted) {
+        setMyVotes(prev => ({ ...prev, [post.id]: true }));
+        setExtraVotePost(null);
+        setNotice(payload.already_voted ? 'You have already voted for this card.' : 'Extra vote purchased and counted. Your BC balance has been updated.');
+        await load();
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not purchase the extra vote. Please try again.');
+    } finally { delete voteLocks.current[post.id]; setBusy(false); }
   }
 
   async function toggleReaction(post: CrushPost, reaction: string) {
@@ -258,6 +285,7 @@ export default function CrushFeature({ userId }: { userId: string }) {
       })}</div> : <div className="empty-state"><span>♛</span><h3>The next crush moment starts here.</h3><p>Schedule the first MCM or WCW card and it will appear when its weekly time arrives.</p></div>}
     </section>}
     {showUploadModal && <section className="feature-panel crush-upload-modal crush-upload-inline" role="dialog" aria-modal="true" aria-labelledby="crush-upload-title"><button type="button" className="modal-close" aria-label="Close upload" onClick={() => setShowUploadModal(false)}>×</button><div className="feature-icon">♛</div><p className="eyebrow">YOUR CRUSH MOMENT</p><h2 id="crush-upload-title">Upload your crush card</h2><form className="feature-form" onSubmit={createCrushPost}><label>Crush page<select value={crushType} onChange={e => setCrushType(e.target.value as 'mcm'|'wcw')}><option value="wcw">Woman Crush Wednesday (WCW)</option><option value="mcm">Man Crush Monday (MCM)</option></select></label><label>Caption (optional)<input value={caption} onChange={e => setCaption(e.target.value)} maxLength={300} placeholder="Write a short caption…" /></label><label>Upload photo<input id="crush-photo-input" type="file" accept="image/*" onChange={e => setPhoto(e.target.files?.[0] || null)} required /></label><div className="form-submit-row"><span className="draft-state">Image limit: 10 MB</span><button className="primary-button" type="submit" disabled={busy || !photo}>{busy ? 'Uploading…' : 'Publish photo ↗'}</button></div></form>{notice && <div className="notice">{notice}</div>}</section>}
+    {extraVotePost && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="extra-vote-title"><section className="feature-panel extra-vote-modal"><button type="button" className="modal-close" aria-label="Close extra vote options" onClick={()=>setExtraVotePost(null)}>×</button><div className="feature-icon">♛</div><p className="eyebrow">WEEKLY VOTE LIMIT</p><h2 id="extra-vote-title">Want to vote again?</h2><p className="feature-copy">Your three free weekly votes have been used. You can spend 50 BC for one additional vote. Ad-based extra votes are unavailable until a verified ad provider is connected.</p><div className="extra-vote-actions"><button type="button" className="primary-button" disabled={busy} onClick={()=>void buyExtraVote()}>{busy?'Processing…':'Use 50 BC · Vote now'}</button><button type="button" className="secondary-button" onClick={()=>setExtraVotePost(null)}>Not now</button></div></section></div>}
     {showGenderPicker && <div className="modal-backdrop"><section className="feature-panel gender-picker-modal" role="dialog" aria-modal="true" aria-labelledby="crush-gender-title"><div className="feature-icon">♙</div><h2 id="crush-gender-title">Complete your profile</h2><p className="feature-copy">Choose your gender to finish setting up your Circle Panda profile.</p><form className="feature-form" onSubmit={saveGender}><label>Gender<select value={genderDraft || gender} onChange={e => setGenderDraft(e.target.value)} required><option value="">Select gender</option><option value="female">Female</option><option value="male">Male</option><option value="non_binary">Non-binary</option><option value="prefer_not_to_say">Prefer not to say</option></select></label><button className="primary-button" type="submit" disabled={busy || !(genderDraft || gender)}>Save and continue</button><button type="button" className="decline-button" onClick={() => setShowGenderPicker(false)}>Not now</button></form></section></div>}
   </div>;
 }
