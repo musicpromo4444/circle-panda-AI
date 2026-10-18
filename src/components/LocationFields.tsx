@@ -23,6 +23,7 @@ type Props = {
   prefix?: string;
   required?: boolean;
   compact?: boolean;
+  onStateAvailabilityChange?: (hasStates: boolean) => void;
 };
 
 type Option = { label: string; value: string };
@@ -66,7 +67,7 @@ function SearchSelect({ label, value, options, onChange, disabled, required }: {
   </label>;
 }
 
-export default function LocationFields({ value, onChange, required = false }: Props) {
+export default function LocationFields({ value, onChange, required = false, onStateAvailabilityChange }: Props) {
   const geo = useGeoData();
   const countries = useMemo<Option[]>(() => (geo?.Country.getAllCountries() ?? [])
     .map(country => ({ label: `${countryFlag(country.isoCode)} ${country.name}`, value: country.name }))
@@ -86,15 +87,18 @@ export default function LocationFields({ value, onChange, required = false }: Pr
   }, [value.country, value.state, country?.isoCode, geo]);
   const areaOptions = cities;
   const hasStates = states.length > 0;
+  useEffect(() => {
+    if (geo && value.country) onStateAvailabilityChange?.(hasStates);
+  }, [geo, value.country, hasStates, onStateAvailabilityChange]);
   const update = (patch: Partial<LocationValue>) => onChange({ ...value, ...patch });
   return <div className="location-fields" aria-label="Location">
     <SearchSelect label="Country" value={value.country} options={countries} required={required}
       onChange={code => update({ country: code, state: '', city: '', area: '' })} />
     <SearchSelect label={country?.name && ['United States','Canada','Australia','India','Brazil','Mexico'].includes(country?.name || value.country) ? 'State / province' : 'State / region'}
-      value={value.state} options={states} disabled={!value.country || !hasStates}
+      value={value.state} options={states} disabled={!value.country || !hasStates} required={required && hasStates}
       onChange={code => update({ state: code, city: '', area: '' })} />
     <SearchSelect label="Area / Local Government" value={value.area || value.city} options={areaOptions}
-      disabled={!value.country} onChange={area => update({ area, city: area })} />
+      disabled={!value.country || !geo} required={required} onChange={area => update({ area, city: area })} />
     {!hasStates && value.country && <p className="location-hint">This country’s location dataset does not list states or provinces; you can still select an area.</p>}
     <p className="location-hint">Start typing to search, then select a result. Location fields are selections, not free-text entries.</p>
   </div>;
