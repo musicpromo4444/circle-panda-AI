@@ -1997,7 +1997,8 @@ function GroupsFeature({ userId }: { userId: string }) {
 
   async function sendGroupMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !openConversationId || (!chatDraft.trim() && !groupMediaFile)) return;
+    if (!supabase || !openConversationId || (!chatDraft.trim() && !groupMediaFile) || groupActionLocks.current['send-message']) return;
+    groupActionLocks.current['send-message'] = true;
     setBusy(true);setNotice('');
     let uploadedPath: string | null = null;
     try {
@@ -2024,7 +2025,10 @@ function GroupsFeature({ userId }: { userId: string }) {
     } catch (error) {
       if (uploadedPath) await supabase.storage.from('group-media').remove([uploadedPath]).catch(()=>undefined);
       setNotice(error instanceof Error ? error.message : 'Message could not be sent. Please try again.');
-    } finally { setBusy(false); }
+    } finally {
+      delete groupActionLocks.current['send-message'];
+      setBusy(false);
+    }
   }
 
   async function toggleGroupReaction(messageId: string, reaction: string) {
