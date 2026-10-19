@@ -13,7 +13,7 @@ type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; 
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null; media_type?: string | null; media_path?: string | null; view_once?: boolean };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
-type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null };
+type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null; searcher_experience?: string | null };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; category?: string | null; is_published: boolean };
 type EventBlastPlan = { id: string; name: string; unique_reach: number; duration_minutes: number; price_usd: number; bc_price: number | null };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
@@ -786,6 +786,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const [interests, setInterests] = useState<string[]>([]);
   const [personalityTags, setPersonalityTags] = useState<string[]>([]);
   const [sexualExperience, setSexualExperience] = useState('');
+  const [searcherExperience, setSearcherExperience] = useState('');
   const [occupation, setOccupation] = useState('');
   const [children, setChildren] = useState('Prefer not to say');
   const [smoking, setSmoking] = useState('Prefer not to say');
@@ -882,7 +883,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       }
 
       const { data: mine, error: mineError } = await supabase.from('dating_profiles')
-        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,name,age,gender,vibe,emoji,location,country,state_province,gender_preferences,preferred_age_min,preferred_age_max,long_distance_ok,communication_style,relationship_values,ideal_weekend,conversation_topic,smile_prompt')
+        .select('id,user_id,headline,about,personality,sexual_experience,looking_for,is_published,created_at,relationship_goal,interests,personality_tags,occupation,children,smoking,drinking,photo_path,blurred_photo_path,name,age,gender,vibe,emoji,location,country,state_province,gender_preferences,preferred_age_min,preferred_age_max,long_distance_ok,communication_style,relationship_values,ideal_weekend,conversation_topic,smile_prompt,searcher_experience')
         .eq('user_id', userId).maybeSingle();
       if (mineError) throw mineError;
       if (mine) {
@@ -898,6 +899,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         setIdealWeekend(mine.ideal_weekend || '');
         setConversationTopic(mine.conversation_topic || '');
         setSmilePrompt(mine.smile_prompt || '');
+        setSearcherExperience(mine.searcher_experience || '');
         setLookingFor(Array.isArray(mine.looking_for) ? mine.looking_for : []);
         setInterests(Array.isArray(mine.interests) ? mine.interests : []);
         setPersonalityTags(Array.isArray(mine.personality_tags) ? mine.personality_tags : (Array.isArray(mine.personality) ? mine.personality : []));
@@ -1111,6 +1113,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         personality: personalityTags,
         personality_tags: personalityTags,
         sexual_experience: sexualExperience || null,
+        searcher_experience: searcherExperience.trim() || null,
         occupation: occupation.trim() || null,
         children,
         smoking,
@@ -1258,7 +1261,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       onClick={() => onChange(option)}>{option}</button>)}</div>;
   }
 
-  const formSteps = ['Your introduction','Connection goals','Age & distance','Personality & lifestyle','Interests','Relationship values','Conversation starters','Sexual experience','Photos & publish'];
+  const formSteps = ['Your introduction','Connection goals','Age & distance','Personality & lifestyle','Interests','Relationship values','Conversation starters','Sexual experience','Searcher experience','Photos & publish'];
   const currentPhotoLabel = profilePhoto ? profilePhoto.name : photoPath ? 'Dating photo saved' : 'Add a dating photo';
 
   return <div className="dating-page">
@@ -1362,7 +1365,11 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <h3>Sexual Experience</h3><p>This is optional. Share only what you feel comfortable including in your dating profile.</p>
           <SingleChoices values={['No experience','A little experience','Some experience','Experienced','Prefer not to say']} value={sexualExperience} onChange={setSexualExperience} />
         </section>}
-        {formStep === 8 && <section className="dating-form-step dating-photo-step">
+        {formStep === 8 && <section className="dating-form-step">
+          <h3>Searcher Experience</h3><p>Optional: share what you have learned from dating or what would help you feel comfortable meeting someone new.</p>
+          <label>Your dating experience<textarea value={searcherExperience} onChange={e=>setSearcherExperience(e.target.value)} maxLength={1200} rows={4} placeholder="Share only what you feel comfortable sharing…" /></label>
+        </section>}
+        {formStep === 9 && <section className="dating-form-step dating-photo-step">
           <h3>Photos & publish</h3><p>Add a dating photo, preview your profile, then publish when you are ready.</p>
           <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div>
           <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{
