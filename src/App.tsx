@@ -2012,7 +2012,7 @@ function GroupsFeature({ userId }: { userId: string }) {
         if (uploadError) throw uploadError;
       }
       const { error } = await supabase.from('messages').insert({
-        conversation_id:openConversationId, sender_id:userId, body:chatDraft.trim(),
+        conversation_id:openConversationId, sender_id:userId, body:chatDraft.trim() || (groupMediaFile ? 'Shared media' : ''),
         reply_to_message_id:replyingTo?.id ?? null, media_type:mediaType, media_path:uploadedPath,
         view_once:Boolean(groupMediaFile && groupMediaViewOnce),
       });
