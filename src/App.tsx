@@ -854,6 +854,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   const [published, setPublished] = useState(false);
   const [directory, setDirectory] = useState<DatingProfileRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [vipDirectoryIds, setVipDirectoryIds] = useState<Set<string>>(() => new Set());
   const [locations, setLocations] = useState<Record<string, string>>({});
   const [locationDetails, setLocationDetails] = useState<Record<string, LocationValue>>({});
   const [sentRequests, setSentRequests] = useState<Record<string, {status:string; id:string}>>({});
@@ -996,18 +997,21 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       const ids = rows.map(row => row.user_id);
       if (ids.length) {
         const { data: publicProfiles } = await supabase.from('profiles')
-          .select('id,display_name,username,country,state,state_province,city,area,age,gender').in('id', ids);
+          .select('id,display_name,username,country,state,state_province,city,area,age,gender,is_vip,vip_expires_at').in('id', ids);
         const nameMap: Record<string, string> = {};
         const locationMap: Record<string, string> = {};
         const detailsMap: Record<string, LocationValue> = {};
-        (publicProfiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;country:string|null;state:string|null;state_province:string|null;city:string|null;area:string|null}) => {
+        const activeVipIds = new Set<string>();
+        const vipCheckTime = Date.now();
+        (publicProfiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;country:string|null;state:string|null;state_province:string|null;city:string|null;area:string|null;is_vip?:boolean|null;vip_expires_at?:string|null}) => {
           nameMap[p.id] = p.display_name || p.username || 'Panda';
           locationMap[p.id] = [p.area,p.city,p.state_province || p.state,p.country].filter(Boolean).join(', ');
           detailsMap[p.id] = { country: p.country || '', state: p.state_province || p.state || '', city: p.city || '', area: p.area || '' };
+          if (Boolean(p.is_vip) && (!p.vip_expires_at || new Date(p.vip_expires_at).getTime() > vipCheckTime)) activeVipIds.add(p.id);
         });
-        setNames(nameMap); setLocations(locationMap); setLocationDetails(detailsMap);
+        setNames(nameMap); setLocations(locationMap); setLocationDetails(detailsMap); setVipDirectoryIds(activeVipIds);
       } else {
-        setNames({}); setLocations({}); setLocationDetails({});
+        setNames({}); setLocations({}); setLocationDetails({}); setVipDirectoryIds(new Set());
       }
 
       const { data: requests, error: requestsError } = await supabase.from('message_requests')
@@ -1478,7 +1482,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         const alreadyRequested = Boolean(request && ['pending','accepted'].includes(request.status));
         return <article className="dating-card dating-discovery-card" key={profile.id}>
           <button type="button" className="dating-discovery-open" onClick={()=>void viewDatingProfile(profile)} aria-label={'View profile for '+(names[profile.user_id] || 'Panda')}>
-            <div className="dating-card-top"><div className="dating-avatar">♡</div><div><strong>{names[profile.user_id] || 'Panda'}{profile.age ? ' · '+profile.age : ''}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div></div>
+            <div className="dating-card-top"><div className={`dating-avatar${vipDirectoryIds.has(profile.user_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div><strong>{names[profile.user_id] || 'Panda'}{profile.age ? ' · '+profile.age : ''} {vipDirectoryIds.has(profile.user_id) && <span className="vip-member-label">VIP</span>}</strong><p>{locations[profile.user_id] || 'Location not added'}</p></div></div>
             <h3>{profile.headline || 'Getting to know someone new'}</h3>
             <p className="dating-about">{profile.about || 'This Panda is looking forward to meeting someone.'}</p>
             <div className="dating-card-bottom"><span>{profile.relationship_goal || 'Open to connection'}</span><span>{(profile.personality_tags || profile.personality || []).slice(0,2).join(' · ')}</span></div>
