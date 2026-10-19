@@ -1413,6 +1413,8 @@ function EventsFeature({ userId }: { userId: string }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [venue, setVenue] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState('');
   const [location, setLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
   const [startsAt, setStartsAt] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1451,6 +1453,12 @@ function EventsFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void load(); }, [userId]);
+  useEffect(() => {
+    if (!coverFile) { setCoverPreview(''); return; }
+    const preview = URL.createObjectURL(coverFile);
+    setCoverPreview(preview);
+    return () => URL.revokeObjectURL(preview);
+  }, [coverFile]);
 
   const publishLock = useRef(false);
   const attendanceLocks = useRef<Record<string, boolean>>({});
@@ -1463,9 +1471,21 @@ function EventsFeature({ userId }: { userId: string }) {
     if (!description.trim()) { setNotice('Add event details so people know what to expect.'); return; }
     if (!location.country || !location.city) { setNotice('Choose the event country and city.'); return; }
     if (!startsAt || new Date(startsAt).getTime() <= Date.now()) { setNotice('Choose a future event date and time.'); return; }
+    if (coverFile && (!['image/jpeg','image/png','image/webp'].includes(coverFile.type) || coverFile.size > 5 * 1024 * 1024)) {
+      setNotice('Event cover must be a JPG, PNG or WebP image up to 5 MB.'); return;
+    }
     publishLock.current = true;
     setBusy(true); setNotice('');
+    let uploadedCoverPath: string | null = null;
     try {
+      let coverUrl: string | null = null;
+      if (coverFile) {
+        const extension = coverFile.type === 'image/png' ? 'png' : coverFile.type === 'image/webp' ? 'webp' : 'jpg';
+        uploadedCoverPath = `${userId}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage.from('event-covers').upload(uploadedCoverPath, coverFile, { upsert: false, contentType: coverFile.type });
+        if (uploadError) throw uploadError;
+        coverUrl = supabase.storage.from('event-covers').getPublicUrl(uploadedCoverPath).data.publicUrl;
+      }
       const start = new Date(startsAt);
       const end = new Date(start.getTime() + 120 * 60 * 1000);
       const { error } = await supabase.rpc('create_event_secure', {
@@ -1492,12 +1512,13 @@ function EventsFeature({ userId }: { userId: string }) {
         p_area: location.area || null,
         p_latitude: null,
         p_longitude: null,
-        p_cover_url: null,
+        p_cover_url: coverUrl,
       });
       if (error) throw error;
-      setTitle(''); setDescription(''); setVenue(''); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
+      setTitle(''); setDescription(''); setVenue(''); setCoverFile(null); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
       setPublishedOnce(true); setCreateEventOpen(false); setNotice('Event published successfully.'); await load();
     } catch (error) {
+      if (uploadedCoverPath) await supabase.storage.from('event-covers').remove([uploadedCoverPath]).catch(() => undefined);
       setNotice(error instanceof Error ? error.message : 'Could not publish this event. Please try again.');
     } finally {
       publishLock.current = false;
@@ -1550,13 +1571,15 @@ function EventsFeature({ userId }: { userId: string }) {
         <label>Event title<input value={title} onChange={e => { setTitle(e.target.value); setPublishedOnce(false); }} maxLength={160} required placeholder="What are we getting together for?" /></label>
         <label>Description<textarea value={description} onChange={e => { setDescription(e.target.value); setPublishedOnce(false); }} rows={3} maxLength={4000} required placeholder="Tell people what to expect…" /></label>
         <label>Venue or meeting point<input value={venue} onChange={e => { setVenue(e.target.value); setPublishedOnce(false); }} maxLength={250} placeholder="Venue, online or meeting point" /></label>
+        <label className="event-cover-upload">Event cover image <span>(optional · JPG, PNG or WebP · up to 5 MB)</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const file = e.currentTarget.files?.[0] || null; setCoverFile(file); setPublishedOnce(false); if (file && (file.size > 5 * 1024 * 1024 || !['image/jpeg','image/png','image/webp'].includes(file.type))) setNotice('Choose a JPG, PNG or WebP image up to 5 MB.'); else setNotice(''); }} /></label>
+        {coverPreview && <img className="event-cover-preview" src={coverPreview} alt="Event cover preview" />}
         <LocationFields value={location} onChange={value => { setLocation(value); setPublishedOnce(false); }} required /><label>Date and time<input type="datetime-local" value={startsAt} onChange={e => { setStartsAt(e.target.value); setPublishedOnce(false); }} required /></label>
         <div className="form-submit-row"><span className="draft-state">No media upload in this version</span><button className="primary-button" type="submit" disabled={busy || publishedOnce}>{busy ? 'Publishing…' : publishedOnce ? 'Event published ✓' : 'Publish event ↗'}</button></div>
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section></div>}
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}><div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
+      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}>{item.cover_url && <img className="event-card-cover" src={item.cover_url} alt="" loading="lazy" />}<div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
     </section>
   </div>;
 }
