@@ -75,6 +75,7 @@ export default function App() {
   const [reactionsByPost, setReactionsByPost] = useState<Record<string,FeedReaction[]>>({});
   const [myReactions, setMyReactions] = useState<Record<string,string>>({});
   const [commentNames, setCommentNames] = useState<Record<string,string>>({});
+  const [vipCommentAuthorIds, setVipCommentAuthorIds] = useState<Set<string>>(() => new Set());
   const [expandedComments, setExpandedComments] = useState<Record<string,boolean>>({});
   const [reactionPickerPost, setReactionPickerPost] = useState<string|null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string,string>>({});
@@ -257,11 +258,17 @@ export default function App() {
         setMyReactions(mine);
         const authorIds = [...new Set(commentRows.map(row => row.author_id))];
         if (authorIds.length) {
-          const { data: profiles } = await supabase!.from('profiles').select('id,display_name,username').in('id', authorIds);
+          const { data: profiles } = await supabase!.from('profiles').select('id,display_name,username,is_vip,vip_expires_at').in('id', authorIds);
           if (!alive) return;
           const map: Record<string,string> = {};
-          (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null}) => { map[p.id] = p.display_name || p.username || 'Panda'; });
+          const activeVipIds = new Set<string>();
+          const now = Date.now();
+          (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;is_vip?:boolean|null;vip_expires_at?:string|null}) => {
+            map[p.id] = p.display_name || p.username || 'Panda';
+            if (Boolean(p.is_vip) && (!p.vip_expires_at || new Date(p.vip_expires_at).getTime() > now)) activeVipIds.add(p.id);
+          });
           setCommentNames(map);
+          setVipCommentAuthorIds(activeVipIds);
         }
       } else {
         setCommentsByPost({}); setReactionsByPost({}); setMyReactions({});
@@ -570,7 +577,7 @@ export default function App() {
           <section id="confession-composer" className="feed-composer"><div className="composer-avatar">🐼</div><form onSubmit={publishPost}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder={section === 'Confessions' ? 'Share what is on your mind — anonymously…' : 'What would you like to share with your circle?'} maxLength={5000} required /><div className="composer-footer"><span>{section === 'Confessions' ? '☁ Posted anonymously' : '✦ Be kind, be real'}</span><button className="primary-button" disabled={posting || !draft.trim()}>{posting ? 'Posting…' : 'Share post'} <span>↗</span></button></div></form></section>
           {loadingFeed ? <div className="empty-state">Loading your circle…</div> : posts.length ? <div className="post-list">{posts.map(post => <article className={`post-card${vipPostIds.has(post.id) ? ` vip-post-card ${getWeeklyVipAuraClass()}` : ''}`} key={post.id}><div className={`post-top${vipPostIds.has(post.id) ? ' vip-post-top' : ''}`}><div className={`post-avatar${vipPostIds.has(post.id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>{'🐼'}</div><div><strong>{post.is_anonymous ? 'Anonymous Panda' : (post.author_name || 'Panda')} {vipPostIds.has(post.id) && <span className="vip-member-label">VIP</span>}</strong><p>{post.post_type === 'confession' ? 'Confession' : 'Circle post'} · {new Date(post.created_at).toLocaleString()}</p></div><button type="button" className="post-share-button" onClick={() => void shareFeedPost(post)} aria-label="Share this post"><span aria-hidden="true">↗</span> Share</button></div><p className="post-body">{post.body}</p><div className="post-actions"><button className={myReactions[post.id] ? 'react-active' : ''} onClick={() => setReactionPickerPost(reactionPickerPost === post.id ? null : post.id)}>♡ React {reactionsByPost[post.id]?.length ? `(${reactionsByPost[post.id].length})` : ''}</button><button onClick={() => setExpandedComments(prev => ({...prev,[post.id]:!prev[post.id]}))}>▢ Comment {commentsByPost[post.id]?.length ? `(${commentsByPost[post.id].length})` : ''}</button><button onClick={() => void messagePostAuthor(post.id)}>↗ Message</button></div>
               {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
-              {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className="comment-row" key={comment.id}><span className="comment-avatar">🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
+              {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className={`comment-row${vipCommentAuthorIds.has(comment.author_id) ? ` vip-comment-row ${getWeeklyVipAuraClass()}` : ''}`} key={comment.id}><span className={`comment-avatar${vipCommentAuthorIds.has(comment.author_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'} {vipCommentAuthorIds.has(comment.author_id) && <span className="vip-member-label">VIP</span>}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
         {section !== 'Home' && section !== 'Confessions' && <FeaturePanel key={section === 'Crush' ? crushPanelKey : section} section={section} userId={session.user.id} onOpenMessages={() => setSection('Messages')} onNavigate={setSection} />}
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
