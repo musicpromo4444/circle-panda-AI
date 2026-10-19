@@ -10,7 +10,7 @@ type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boo
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
-type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null };
+type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null; media_type?: string | null; media_path?: string | null; view_once?: boolean };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null };
@@ -1807,6 +1807,10 @@ function GroupsFeature({ userId }: { userId: string }) {
   const [openConversationId, setOpenConversationId] = useState<string|null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatDraft, setChatDraft] = useState('');
+  const [groupMediaFile, setGroupMediaFile] = useState<File | null>(null);
+  const [groupMediaViewOnce, setGroupMediaViewOnce] = useState(true);
+  const [groupMediaUrls, setGroupMediaUrls] = useState<Record<string,string>>({});
+  const [viewedOnceMessageIds, setViewedOnceMessageIds] = useState<Record<string,boolean>>({});
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [groupReactions, setGroupReactions] = useState<Record<string,GroupMessageReaction[]>>({});
   const [groupReactionPicker, setGroupReactionPicker] = useState<string | null>(null);
@@ -1946,11 +1950,16 @@ function GroupsFeature({ userId }: { userId: string }) {
     if (error) { setNotice(error.message);return; }
     setOpenGroupId(group.id);setOpenConversationId(data as string);setNotice('');
     const { data: rows, error: messagesError } = await supabase.from('messages')
-      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
+      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
     if (messagesError) setNotice(messagesError.message);
     else {
       const messages = (rows ?? []) as ChatMessage[];
       setChatMessages(messages);
+      const onceIds = messages.filter(m => m.view_once).map(m => m.id);
+      if (onceIds.length) {
+        const { data: claims } = await supabase.from('group_media_views').select('message_id').eq('user_id',userId).in('message_id',onceIds);
+        setViewedOnceMessageIds(Object.fromEntries((claims ?? []).map((claim: {message_id:string}) => [claim.message_id,true])));
+      }
       const senderIds = [...new Set(messages.map(m => m.sender_id))];
       if (senderIds.length) {
         const { data: people } = await supabase.from('profiles').select('id,display_name,username').in('id', senderIds);
@@ -1968,19 +1977,54 @@ function GroupsFeature({ userId }: { userId: string }) {
     }
   }
 
+  async function openGroupMedia(message: ChatMessage) {
+    if (!supabase || !message.media_path || !openGroupId) return;
+    if (message.view_once && viewedOnceMessageIds[message.id]) { setNotice('This view-once media has already been opened.'); return; }
+    setNotice('');
+    try {
+      if (message.view_once) {
+        const { data, error } = await supabase.rpc('claim_group_media_view_once',{p_message_id:message.id});
+        if (error) throw error;
+        if (data !== true) { setViewedOnceMessageIds(prev=>({...prev,[message.id]:true})); setNotice('This view-once media has already been opened.'); return; }
+        setViewedOnceMessageIds(prev=>({...prev,[message.id]:true}));
+      }
+      const { data, error } = await supabase.storage.from('group-media').createSignedUrl(message.media_path, message.view_once ? 30 : 300);
+      if (error || !data?.signedUrl) throw error || new Error('Media could not be opened.');
+      setGroupMediaUrls(prev=>({...prev,[message.id]:data.signedUrl}));
+      if (message.view_once) window.setTimeout(()=>setGroupMediaUrls(prev=>{const next={...prev};delete next[message.id];return next;}),10000);
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not open this group media.'); }
+  }
+
   async function sendGroupMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !openConversationId || !chatDraft.trim()) return;
+    if (!supabase || !openConversationId || (!chatDraft.trim() && !groupMediaFile)) return;
     setBusy(true);setNotice('');
-    const { error } = await supabase.from('messages').insert({conversation_id:openConversationId,sender_id:userId,body:chatDraft.trim(),reply_to_message_id:replyingTo?.id ?? null});
-    if (error) setNotice(error.message);
-    else {
-      setChatDraft(''); setReplyingTo(null);
-      const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at,reply_to_message_id')
+    let uploadedPath: string | null = null;
+    try {
+      let mediaType: string | null = null;
+      if (groupMediaFile) {
+        const allowed = ['image/jpeg','image/png','image/webp','video/mp4','video/webm','audio/webm','audio/mpeg','audio/mp4','audio/ogg','audio/wav'];
+        if (!allowed.includes(groupMediaFile.type) || groupMediaFile.size > 50 * 1024 * 1024) throw new Error('Choose supported image, video or audio media up to 50 MB.');
+        mediaType = groupMediaFile.type.startsWith('image/') ? 'image' : groupMediaFile.type.startsWith('video/') ? 'video' : 'audio';
+        const extension = groupMediaFile.name.split('.').pop()?.toLowerCase() || 'bin';
+        uploadedPath = `${userId}/${openGroupId}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage.from('group-media').upload(uploadedPath,groupMediaFile,{upsert:false,contentType:groupMediaFile.type});
+        if (uploadError) throw uploadError;
+      }
+      const { error } = await supabase.from('messages').insert({
+        conversation_id:openConversationId, sender_id:userId, body:chatDraft.trim(),
+        reply_to_message_id:replyingTo?.id ?? null, media_type:mediaType, media_path:uploadedPath,
+        view_once:Boolean(groupMediaFile && groupMediaViewOnce),
+      });
+      if (error) throw error;
+      setChatDraft(''); setReplyingTo(null); setGroupMediaFile(null); setGroupMediaViewOnce(true);
+      const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once')
         .eq('conversation_id',openConversationId).order('created_at',{ascending:true}).limit(200);
       setChatMessages((data ?? []) as ChatMessage[]);
-    }
-    setBusy(false);
+    } catch (error) {
+      if (uploadedPath) await supabase.storage.from('group-media').remove([uploadedPath]).catch(()=>undefined);
+      setNotice(error instanceof Error ? error.message : 'Message could not be sent. Please try again.');
+    } finally { setBusy(false); }
   }
 
   async function toggleGroupReaction(messageId: string, reaction: string) {
@@ -2067,7 +2111,7 @@ function GroupsFeature({ userId }: { userId: string }) {
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
     {pendingJoinRequests.length > 0 && <section className="group-join-requests"><div className="section-title-row"><div><p className="eyebrow">GROUP ADMIN</p><h2>Join requests</h2><p>Review people asking to join groups you manage.</p></div><span className="count-pill">{pendingJoinRequests.length} PENDING</span></div><div className="group-join-request-list">{pendingJoinRequests.map(request => { const group = groups.find(item => item.id === request.group_id); return <article className="group-join-request-card" key={request.id}><div><strong>{joinRequestNames[request.user_id] || 'Panda'}</strong><p>Requested to join <b>{group?.name || 'your group'}</b></p><small>{new Date(request.created_at).toLocaleString()}</small></div><div className="group-join-request-actions"><button type="button" className="secondary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,false)}>Decline</button><button type="button" className="primary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,true)}>Approve</button></div></article>; })}</div></section>}
-    {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-avatar">◉</div><div className="group-chat-heading"><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · online chat</p></div><button className="group-header-action" title="Group settings" aria-label="Open group settings" onClick={()=>void showGroupSettings()}>⋮</button></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')}</div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p><div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} required placeholder={replyingTo?'Write a reply…':'Message the group…'} /><button className="group-send-button" disabled={busy||!chatDraft.trim()} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
+    {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-avatar">◉</div><div className="group-chat-heading"><strong>{openGroup.name}</strong><p>{memberCounts[openGroup.id] || 0} members · online chat</p></div><button className="group-header-action" title="Group settings" aria-label="Open group settings" onClick={()=>void showGroupSettings()}>⋮</button></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')}</div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p>{m.media_path && <div className="group-media-message">{groupMediaUrls[m.id] ? <>{m.media_type==='image' ? <img src={groupMediaUrls[m.id]} alt="Group shared media" /> : m.media_type==='video' ? <video src={groupMediaUrls[m.id]} controls autoPlay /> : <audio src={groupMediaUrls[m.id]} controls autoPlay />}{m.view_once && <small>View-once media closes automatically.</small>}</> : <button type="button" className="group-media-open" disabled={Boolean(m.view_once && viewedOnceMessageIds[m.id])} onClick={()=>void openGroupMedia(m)}>{m.view_once ? (viewedOnceMessageIds[m.id] ? '✓ Viewed once' : 'Open view-once media ↗') : 'Open shared media ↗'}</button>}</div>}<div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><label className="group-media-picker" title="Attach image, video or audio">＋<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/webm,audio/mpeg,audio/mp4,audio/ogg,audio/wav" onChange={e=>{const file=e.currentTarget.files?.[0]||null;if(file&&(file.size>50*1024*1024)){setNotice('Media must be 50 MB or smaller.');setGroupMediaFile(null);}else{setGroupMediaFile(file);setNotice('');}}}/></label><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} placeholder={groupMediaFile ? groupMediaFile.name : replyingTo?'Write a reply…':'Message the group…'} /><label className="group-view-once-toggle"><input type="checkbox" checked={groupMediaViewOnce} disabled={!groupMediaFile} onChange={e=>setGroupMediaViewOnce(e.target.checked)}/> View once</label><button className="group-send-button" disabled={busy||(!chatDraft.trim()&&!groupMediaFile)} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
     {groupSettingsOpen && openGroup && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Group settings"><section className="create-modal-card group-create-panel"><header className="create-modal-header"><div><p className="eyebrow">GROUP CONTROLS</p><h2>{openGroup.name} settings</h2></div><button type="button" className="create-modal-close" aria-label="Close group settings" onClick={()=>setGroupSettingsOpen(false)}>×</button></header><p className="feature-copy">Choose who can update group details, whether members can send messages, and whether new members need approval.</p>{canManageOpenGroup ? <form className="feature-form" onSubmit={saveGroupSettings}><label>Who can edit group information<select value={groupEditInfo} onChange={e=>setGroupEditInfo(e.target.value)}><option value="admins">Admins only</option><option value="admins_members">Admins and members</option></select></label><label className="group-setting-toggle"><input type="checkbox" checked={groupSendMessages} onChange={e=>setGroupSendMessages(e.target.checked)}/> Allow members to send messages</label><label className="group-setting-toggle"><input type="checkbox" checked={groupApproveMembers} onChange={e=>setGroupApproveMembers(e.target.checked)}/> Approve new members before they join</label><div className="form-submit-row"><button type="button" className="secondary-button" onClick={()=>setGroupSettingsOpen(false)}>Cancel</button><button className="primary-button" disabled={busy}>{busy?'Saving…':'Save settings'}</button></div></form> : <p className="feature-copy">Only group creators and admins can change group settings.</p>}{openGroup.creator_id===userId ? <button type="button" className="danger-button" disabled={busy} onClick={()=>void closeOpenGroup()}>{busy?'Working…':'Close this group'}</button> : <button type="button" className="secondary-button" disabled={busy} onClick={()=>void leaveOpenGroup()}>{busy?'Working…':'Leave group'}</button>}</section></div>}
   </div>;
 }
