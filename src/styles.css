@@ -2135,3 +2135,12 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .auth-provider-button:disabled { opacity: 0.55; cursor: not-allowed; }
 .auth-provider-note { margin: 0.5rem 0 0; color: var(--muted, #a8b7ac); font-size: 0.72rem; line-height: 1.5; }
 @media (max-width: 420px) { .auth-provider-buttons { grid-template-columns: 1fr; } }
+
+
+.admin-coin-packages { display: grid; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(226,184,77,0.32); }
+.admin-coin-packages h3 { margin: 0.2rem 0; color: var(--text, #f2f5e9); }
+.admin-coin-package-row { display: grid; gap: 0.85rem; padding: 1rem; border: 1px solid rgba(226,184,77,0.4); border-radius: 15px; background: rgba(255,255,255,0.025); }
+.admin-coin-package-fields { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 0.75rem; }
+.admin-coin-package-fields label { display: grid; gap: 0.4rem; color: var(--muted, #a8b7ac); font-size: 0.85rem; }
+.admin-coin-package-fields input { min-width: 0; width: 100%; }
+@media (max-width: 720px) { .admin-coin-package-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } }
