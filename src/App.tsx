@@ -504,11 +504,14 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [lastMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
   const [datingMatches, setDatingMatches] = useState<Array<{id:string;thread_id:string|null;free_until:string;status:string}>>([]);
   const [chatClock, setChatClock] = useState(Date.now());
+  const [datingFreeHours, setDatingFreeHours] = useState(72);
   const responseLocks = useRef<Record<string, boolean>>({});
   const sendingLock = useRef(false);
 
   async function loadRequests() {
     if (!supabase) return;
+    const { data: freeHoursSetting } = await supabase.from('economy_settings').select('numeric_value').eq('setting_key', 'dating_free_hours').maybeSingle();
+    if (freeHoursSetting?.numeric_value != null) setDatingFreeHours(Math.max(0, Number(freeHoursSetting.numeric_value)));
     const { data, error } = await supabase.from('message_requests')
       .select('id,sender_id,recipient_id,source_type,greeting,status,created_at,conversation_id')
       .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
@@ -629,7 +632,7 @@ function MessagesFeature({ userId }: { userId: string }) {
   const datingFreeRemaining = activeDatingMatch ? Math.max(0, new Date(activeDatingMatch.free_until).getTime() - chatClock) : 0;
   const datingTimerLabel = activeDatingMatch ? datingFreeRemaining > 0
     ? `Dating free period · ${String(Math.floor(datingFreeRemaining/3600000)).padStart(2,'0')}:${String(Math.floor((datingFreeRemaining%3600000)/60000)).padStart(2,'0')}:${String(Math.floor((datingFreeRemaining%60000)/1000)).padStart(2,'0')} remaining`
-    : 'The 72-hour free period has ended · normal BC message charges apply'
+    : `The ${datingFreeHours}-hour free period has ended · normal BC message charges apply`
     : '';
   const sourceLabels: Record<string, string> = { dating: 'Dating 💌', event: 'Event ▦', events: 'Event ▦', group: 'Group ◉', wcw: 'WCW ♛', mcm: 'MCM ♛', confession: 'Secret Confession ☁', post: 'Secret Confession ☁' };
   const sourceLabel = (source: string) => sourceLabels[source.toLowerCase()] || source.replaceAll('_', ' ');
@@ -666,6 +669,7 @@ function MessagesFeature({ userId }: { userId: string }) {
 
 
 function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessages: () => void }) {
+  const [datingFreeHours, setDatingFreeHours] = useState(72);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [basicProfileOpen, setBasicProfileOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -774,6 +778,8 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     if (!supabase) { setLoading(false); return; }
     setLoading(true);
     try {
+      const { data: freeHoursSetting } = await supabase.from('economy_settings').select('numeric_value').eq('setting_key', 'dating_free_hours').maybeSingle();
+      if (freeHoursSetting?.numeric_value != null) setDatingFreeHours(Math.max(0, Number(freeHoursSetting.numeric_value)));
       const { data: profile, error: profileError } = await supabase.from('profiles')
         .select('display_name,username,age,date_of_birth,gender,country,state,state_province,city,area')
         .eq('id', userId).maybeSingle();
@@ -1328,7 +1334,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       })}</div> : <div className="empty-state compact"><span>♡</span><h3>No profiles match yet</h3><p>Try changing your filters, or check back as more people publish their dating profiles.</p></div>}
     </section>}
     {datingMatches.length > 0 && <section className="directory-section dating-connections-section">
-      <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first 72 hours. After 72 hours, normal BC message charges apply; both people can separately confirm to reveal dating photos.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
+      <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first {datingFreeHours} hours. After that, normal BC message charges apply; both people can separately confirm to reveal dating photos.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
       <div className="dating-directory">{datingMatches.map(match => {
         const otherId = match.user_a === userId ? match.user_b : match.user_a;
         const person = matchPeople[otherId];
@@ -1337,7 +1343,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         const minutes = Math.floor((remaining%3600000)/60000);
         const seconds = Math.floor((remaining%60000)/1000);
         return <article className="dating-card dating-match-card" key={match.id}>
-          <div className="dating-card-top"><div className="dating-avatar">💗</div><div><strong>{person?.name || 'Your match'}</strong><p>{match.photos_revealed ? 'Photos revealed' : remaining > 0 ? 'Free Dating chat active' : 'Waiting for mutual confirmation'}</p></div></div>
+          <div className="dating-card-top"><div className="dating-avatar">💗</div><div><strong>{person?.name || 'Your match'}</strong><p>{match.photos_revealed ? 'Photos revealed' : remaining > 0 ? `Free Dating chat active · ${datingFreeHours} hours total` : 'Waiting for mutual confirmation'}</p></div></div>
           {person?.photoUrl ? <img className="dating-match-photo" src={person.photoUrl} alt={match.photos_revealed ? 'Dating match photo' : 'Blurred dating photo'} /> : <div className="dating-photo-preview match-photo-placeholder">🐼</div>}
           {person?.headline && <p className="dating-about">{person.headline}</p>}
           {remaining > 0 ? <p className="dating-match-countdown">Free chat · {String(hours).padStart(2,'0')}:{String(minutes).padStart(2,'0')}:{String(seconds).padStart(2,'0')} remaining</p>
