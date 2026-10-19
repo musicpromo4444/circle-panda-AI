@@ -628,6 +628,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section
 function MessagesFeature({ userId }: { userId: string }) {
   const [requests, setRequests] = useState<MessageRequestRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [vipMessageUserIds, setVipMessageUserIds] = useState<Set<string>>(() => new Set());
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [openConversation, setOpenConversation] = useState<string | null>(null);
@@ -669,12 +670,15 @@ function MessagesFeature({ userId }: { userId: string }) {
     }
     const ids = [...new Set(rows.flatMap(r => [r.sender_id, r.recipient_id]))];
     if (ids.length) {
-      const { data: profiles } = await supabase.from('profiles').select('id,display_name,username').in('id', ids);
+      const { data: profiles } = await supabase.from('profiles').select('id,display_name,username,is_vip,vip_expires_at').in('id', ids);
       const nextNames: Record<string, string> = {};
-      (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null}) => {
+      const activeVipIds = new Set<string>();
+      const vipCheckTime = Date.now();
+      (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;is_vip?:boolean|null;vip_expires_at?:string|null}) => {
         nextNames[p.id] = p.display_name || p.username || 'Panda';
+        if (Boolean(p.is_vip) && (!p.vip_expires_at || new Date(p.vip_expires_at).getTime() > vipCheckTime)) activeVipIds.add(p.id);
       });
-      setNames(nextNames);
+      setNames(nextNames); setVipMessageUserIds(activeVipIds);
     }
     const { data: memberships } = await supabase.from('conversation_members').select('conversation_id,user_id').eq('user_id', userId);
     const memberRows = (memberships ?? []) as ChatConversation[];
@@ -792,13 +796,13 @@ function MessagesFeature({ userId }: { userId: string }) {
       </div>
       {messageNotice && <div className="notice inline-notice">{messageNotice}<button onClick={() => setMessageNotice('')}>×</button></div>}
       {messageView === 'requests' && <section className="request-section"><div className="section-title-row"><div><h2>Message requests</h2><p>Requests from dating, events, groups and your feed.</p></div><span className="count-pill">{incoming.length} NEW</span></div>
-        {loading ? <div className="empty-state">Loading requests…</div> : incoming.length ? incoming.map(r => <article className="request-card request-needs-attention" key={r.id}><div className="request-avatar">🐼</div><div className="request-content"><div className="request-card-top"><strong>{names[r.sender_id] || 'Panda'}</strong><span className="source-tag">{sourceLabel(r.source_type)}</span></div><p>{r.greeting || 'Would like to start a conversation with you.'}</p><small>{new Date(r.created_at).toLocaleString()}</small><div className="request-buttons"><button className="primary-button" disabled={busyId === r.id} onClick={() => void respond(r.id, true)}>{busyId === r.id ? 'Working…' : 'Accept'}</button><button className="decline-button" disabled={busyId === r.id} onClick={() => void respond(r.id, false)}>Decline</button></div></div></article>) : <div className="empty-state compact"><span>✦</span><h3>No new requests</h3><p>When someone wants to connect, their request will show up here.</p></div>}
+        {loading ? <div className="empty-state">Loading requests…</div> : incoming.length ? incoming.map(r => <article className="request-card request-needs-attention" key={r.id}><div className={`request-avatar${vipMessageUserIds.has(r.sender_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div className="request-content"><div className="request-card-top"><strong>{names[r.sender_id] || 'Panda'} {vipMessageUserIds.has(r.sender_id) && <span className="vip-member-label">VIP</span>}</strong><span className="source-tag">{sourceLabel(r.source_type)}</span></div><p>{r.greeting || 'Would like to start a conversation with you.'}</p><small>{new Date(r.created_at).toLocaleString()}</small><div className="request-buttons"><button className="primary-button" disabled={busyId === r.id} onClick={() => void respond(r.id, true)}>{busyId === r.id ? 'Working…' : 'Accept'}</button><button className="decline-button" disabled={busyId === r.id} onClick={() => void respond(r.id, false)}>Decline</button></div></div></article>) : <div className="empty-state compact"><span>✦</span><h3>No new requests</h3><p>When someone wants to connect, their request will show up here.</p></div>}
       </section>}
       {messageView === 'sent' && <section className="request-section"><div className="section-title-row"><div><h2>Sent requests</h2><p>Keep track of requests you have sent.</p></div><span className="count-pill">{sent.length} TOTAL</span></div>
-        {sent.length ? sent.map(r => <article className={r.status === 'pending' ? 'sent-card request-needs-attention' : 'sent-card'} key={r.id}><div><strong>{names[r.recipient_id] || 'Panda'}</strong><p>Message request · {sourceLabel(r.source_type)}</p></div><span className={`status-tag status-${r.status}`}>{r.status}</span>{r.conversation_id && <button className="text-action" onClick={() => void loadMessages(r.conversation_id!)}>Open chat →</button>}</article>) : <div className="empty-state compact"><p>You have not sent a request yet.</p></div>}
+        {sent.length ? sent.map(r => <article className={r.status === 'pending' ? 'sent-card request-needs-attention' : 'sent-card'} key={r.id}><div className="sent-card-person"><span className={`request-avatar${vipMessageUserIds.has(r.recipient_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><div><strong>{names[r.recipient_id] || 'Panda'} {vipMessageUserIds.has(r.recipient_id) && <span className="vip-member-label">VIP</span>}</strong><p>Message request · {sourceLabel(r.source_type)}</p></div></div><span className={`status-tag status-${r.status}`}>{r.status}</span>{r.conversation_id && <button className="text-action" onClick={() => void loadMessages(r.conversation_id!)}>Open chat →</button>}</article>) : <div className="empty-state compact"><p>You have not sent a request yet.</p></div>}
       </section>}
       {messageView === 'messages' && <section className="request-section"><div className="section-title-row"><div><h2>Your messages</h2><p>Open a conversation to continue chatting.</p></div><span className="count-pill">{activeConversations.length} CHATS</span></div>
-        {activeConversations.length ? activeConversations.map(id => <button key={id} className={(openConversation === id ? 'chat-list-item selected' : 'chat-list-item') + (lastMessageSender[id] && lastMessageSender[id] !== userId ? ' chat-needs-attention' : '')} onClick={() => void loadMessages(id)}><span className="request-avatar">🐼</span><span><strong>{conversationTitle(id)}</strong><small>Private conversation</small></span><b>→</b></button>) : <div className="empty-state compact"><p>Accept a message request to start your first chat.</p></div>}
+        {activeConversations.length ? activeConversations.map(id => <button key={id} className={(openConversation === id ? 'chat-list-item selected' : 'chat-list-item') + (lastMessageSender[id] && lastMessageSender[id] !== userId ? ' chat-needs-attention' : '')} onClick={() => void loadMessages(id)}><span className={`request-avatar${vipMessageUserIds.has((requests.find(r => r.conversation_id === id)?.sender_id === userId ? requests.find(r => r.conversation_id === id)?.recipient_id : requests.find(r => r.conversation_id === id)?.sender_id) || '') ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><span><strong>{conversationTitle(id)}</strong><small>Private conversation</small></span><b>→</b></button>) : <div className="empty-state compact"><p>Accept a message request to start your first chat.</p></div>}
       </section>}
     </div>
     <section className="chat-panel">
