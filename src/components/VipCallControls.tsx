@@ -24,12 +24,13 @@ export default function VipCallControls({ userId, threadId, otherName, otherIsVi
   const remoteVideoRef = useRef<HTMLVideoElement|null>(null);
 
   useEffect(() => {
-    if (!supabase) return;
+    const client = supabase;
+    if (!client) return;
     let live=true;
     const refresh=async()=>{
       const [{data:profile},{data:calls}]=await Promise.all([
-        supabase.from('profiles').select('is_vip,vip_expires_at').eq('id',userId).maybeSingle(),
-        supabase.rpc('get_my_incoming_vip_calls')
+        client.from('profiles').select('is_vip,vip_expires_at').eq('id',userId).maybeSingle(),
+        client.rpc('get_my_incoming_vip_calls')
       ]);
       if(!live)return;
       setMyVip(Boolean(profile?.is_vip)&&(!profile?.vip_expires_at||new Date(profile.vip_expires_at).getTime()>Date.now()));
