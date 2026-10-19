@@ -39,6 +39,7 @@ export default function App() {
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
@@ -220,18 +221,37 @@ export default function App() {
         if (password.length < 8) throw new Error('Choose a password with at least 8 characters.');
         if (password !== confirmPassword) throw new Error('Your passwords do not match.');
         if (!displayName.trim()) throw new Error('Enter your name to create your Circle Panda account.');
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim().toLowerCase(), password,
-          options: { data: { display_name: displayName.trim(), country: signupCountry || undefined } },
+        const identifier = email.trim();
+        const isEmailIdentifier = identifier.includes('@');
+        const normalizedPhone = (() => {
+          const raw = identifier.replace(/[\\s().-]/g, '');
+          if (raw.startsWith('+')) return raw;
+          if (raw.startsWith('00')) return '+' + raw.slice(2);
+          if (/^0\\d{10}$/.test(raw)) return '+234' + raw.slice(1);
+          return raw;
+        })();
+        const { data: created, error: createError } = await supabase.functions.invoke('create-panda-account', {
+          body: {
+            name: displayName.trim(),
+            identifier,
+            password,
+            metadata: {
+              display_name: displayName.trim(),
+              country: signupCountry || undefined,
+              contact_email: contactEmail.trim().toLowerCase() || undefined,
+            },
+          },
         });
-        if (error) throw error;
-        if (data.session) {
-          setEmailConfirmationPending(false);
-          setNotice('Welcome to Circle Panda. Your account is ready.');
-        } else {
-          setEmailConfirmationPending(true);
-          setNotice('Your account was created. Check your inbox and spam folder for a confirmation link if email confirmation is enabled.');
-        }
+        if (createError) throw createError;
+        if (!created?.ok) throw new Error(created?.error || 'Could not create your account.');
+        const { error: loginError } = await supabase.auth.signInWithPassword(
+          isEmailIdentifier
+            ? { email: identifier.toLowerCase(), password }
+            : { phone: normalizedPhone, password },
+        );
+        if (loginError) throw loginError;
+        setEmailConfirmationPending(false);
+        setNotice('Welcome to Circle Panda. Your account is ready and you are signed in.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -257,8 +277,8 @@ export default function App() {
   }
 
   async function sendPasswordReset() {
-    if (!supabase || !email.trim() || authBusy) {
-      setNotice('Enter your email address first, then choose Forgot password.');
+    if (!supabase || !email.trim() || !email.includes('@') || authBusy) {
+      setNotice('Enter the email address used for your account to request a password reset. Phone-based password recovery is not enabled yet.');
       return;
     }
     setAuthBusy(true);
@@ -384,7 +404,8 @@ export default function App() {
         <form className="auth-form" onSubmit={handleAuth}>
           {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" required /></label>}
           {authMode === 'signup' && <CountryDropdown value={signupCountry} onChange={setSignupCountry} />}
-          <label>Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" /></label>
+          <label>Phone number or email<input type="text" inputMode="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="+2348012345678 or you@example.com" required autoComplete="username" /></label>
+          {authMode === 'signup' && <label>Optional email address<input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="you@example.com (optional)" autoComplete="email" /></label>}
           <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" minLength={8} required autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label>
           {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
           <button className="primary-button full" type="submit" disabled={!supabaseConfigured || authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <span>→</span></button>
