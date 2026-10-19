@@ -502,7 +502,7 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [messageView, setMessageView] = useState<'requests' | 'messages' | 'sent'>('requests');
   const [totalMessages, setTotalMessages] = useState(0);
   const [lastMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
-  const [datingMatches, setDatingMatches] = useState<Array<{id:string;thread_id:string|null;free_until:string;status:string}>>([]);
+  const [datingMatches, setDatingMatches] = useState<Array<{id:string;user_a?:string;user_b?:string;thread_id:string|null;free_until:string;status:string;photos_revealed?:boolean;my_confirmed?:boolean;other_confirmed?:boolean}>>([]);
   const [chatClock, setChatClock] = useState(Date.now());
   const [datingFreeHours, setDatingFreeHours] = useState(72);
   const [datingMessageCost, setDatingMessageCost] = useState(1);
@@ -522,7 +522,7 @@ function MessagesFeature({ userId }: { userId: string }) {
     if (error) { setMessageNotice(error.message); setLoading(false); return; }
     const rows = (data ?? []) as MessageRequestRow[];
     setRequests(rows);
-    const { data: datingMatchRows, error: datingMatchError } = await supabase.rpc('get_my_dating_matches_secure');
+    const { data: datingMatchRows, error: datingMatchError } = await supabase.rpc('get_my_dating_matches_review_secure');
     if (datingMatchError) {
       setDatingMatches([]);
       setMessageNotice(`Message requests loaded, but Dating chats could not be refreshed: ${datingMatchError.message}`);
@@ -885,7 +885,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         });
       setSentRequests(requestMap);
 
-      const { data: matchRows, error: matchError } = await supabase.rpc('get_my_dating_matches_secure');
+      const { data: matchRows, error: matchError } = await supabase.rpc('get_my_dating_matches_review_secure');
       if (matchError) {
         setDatingMatches([]);
         setMatchPeople({});
@@ -1358,7 +1358,8 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           {person?.headline && <p className="dating-about">{person.headline}</p>}
           {remaining > 0 ? <p className="dating-match-countdown">Free chat · {String(hours).padStart(2,'0')}:{String(minutes).padStart(2,'0')}:{String(seconds).padStart(2,'0')} remaining</p>
             : match.photos_revealed ? <p className="published-state">● Both people continued. Photos are revealed.</p>
-            : <><p className="draft-state">The free period has ended. Messages now use the normal BC rate. Both people can confirm separately to reveal dating photos.</p><button className="primary-button" disabled={busy} onClick={()=>void confirmDatingMatch(match.id)}>Confirm & reveal photos ↗</button></>}
+            : match.my_confirmed ? <p className="draft-state">Your confirmation is saved. Waiting for the other person to confirm before photos are revealed.</p>
+            : <><p className="draft-state">The free period has ended. Each message costs {datingMessageCost} BC (VIP members message free). Confirm if you want to continue and reveal photos when both people agree.</p><button className="primary-button" disabled={busy} onClick={()=>void confirmDatingMatch(match.id)}>Confirm & reveal photos ↗</button></>}
           <button className="secondary-button" type="button" onClick={onOpenMessages}>Open chat in Messages ↗</button>
         </article>;
       })}</div>
