@@ -2281,3 +2281,8 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   opacity:.8;
   animation:vip-fire-rotate 8s linear infinite;
 }
+
+
+.sent-card-person { display:flex; align-items:center; gap:10px; min-width:0; }
+.sent-card-person>div { min-width:0; }
+.request-avatar.vip-avatar-frame { overflow:visible; flex-shrink:0; --vip-glow:rgba(255,205,92,.8); }
