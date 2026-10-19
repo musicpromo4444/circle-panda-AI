@@ -224,10 +224,10 @@ export default function App() {
         const identifier = email.trim();
         const isEmailIdentifier = identifier.includes('@');
         const normalizedPhone = (() => {
-          const raw = identifier.replace(/[\\s().-]/g, '');
+          const raw = identifier.replace(/[\s().-]/g, '');
           if (raw.startsWith('+')) return raw;
           if (raw.startsWith('00')) return '+' + raw.slice(2);
-          if (/^0\\d{10}$/.test(raw)) return '+234' + raw.slice(1);
+          if (/^0\d{10}$/.test(raw)) return '+234' + raw.slice(1);
           return raw;
         })();
         const { data: created, error: createError } = await supabase.functions.invoke('create-panda-account', {
@@ -253,8 +253,17 @@ export default function App() {
         setEmailConfirmationPending(false);
         setNotice('Welcome to Circle Panda. Your account is ready and you are signed in.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const identifier = email.trim();
+        if (!identifier) throw new Error('Enter your phone number or email.');
+        if (identifier.includes('@')) {
+          const { error } = await supabase.auth.signInWithPassword({ email: identifier.toLowerCase(), password });
+          if (error) throw error;
+        } else {
+          const raw = identifier.replace(/[\s().-]/g, '');
+          const phone = raw.startsWith('+') ? raw : raw.startsWith('00') ? '+' + raw.slice(2) : /^0\d{10}$/.test(raw) ? '+234' + raw.slice(1) : raw;
+          const { error } = await supabase.auth.signInWithPassword({ phone, password });
+          if (error) throw error;
+        }
         setNotice('You are signed in.');
       }
     } catch (error) {
