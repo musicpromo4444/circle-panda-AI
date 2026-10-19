@@ -90,18 +90,19 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (!supabase || !session) return;
+    const client = supabase;
+    if (!client || !session) return;
     const params = new URLSearchParams(window.location.search);
     const reference = params.get('reference') || params.get('trxref');
     if (params.get('payment') !== 'coin-purchase' || !reference) return;
     let alive = true;
     setSection('Wallet');
-    void supabase.rpc('get_my_coin_purchase_status_secure', { p_reference: reference }).then(async ({ data, error }) => {
+    void client.rpc('get_my_coin_purchase_status_secure', { p_reference: reference }).then(async ({ data, error }) => {
       if (!alive) return;
       if (error) { setNotice('Payment return received. Open Wallet and refresh the purchase status if needed.'); return; }
       const status = data as {status:string;coins:number;amount_ngn:number}|null;
       if (status?.status === 'paid') {
-        const { data: wallet } = await supabase.from('wallet_accounts').select('bc_balance').eq('user_id',session.user.id).maybeSingle();
+        const { data: wallet } = await client.from('wallet_accounts').select('bc_balance').eq('user_id',session.user.id).maybeSingle();
         if (alive && wallet) setCoinBalance(Number(wallet.bc_balance));
         if (alive) setNotice(`Payment verified. ${Number(status.coins).toLocaleString()} BC has been credited to your wallet.`);
       } else if (alive) {
