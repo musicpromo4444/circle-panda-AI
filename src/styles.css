@@ -2327,3 +2327,28 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   animation:none!important;
   box-shadow:none!important;
 }
+
+
+/* Accessibility and consistency pass for the public VIP aura across every surface. */
+.vip-avatar-frame,
+.public-vip-panda {
+  will-change: box-shadow, filter;
+}
+.comment-avatar.vip-avatar-frame,
+.dating-avatar.vip-avatar-frame,
+.request-avatar.vip-avatar-frame,
+.group-card-icon.vip-avatar-frame,
+.group-message-display-avatar.vip-avatar-frame {
+  overflow:visible!important;
+  isolation:isolate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vip-avatar-frame,
+  .vip-avatar-frame::before,
+  .vip-avatar-frame::after,
+  .public-vip-panda::before,
+  .vip-post-card::before {
+    animation:none!important;
+    transition:none!important;
+  }
+}
