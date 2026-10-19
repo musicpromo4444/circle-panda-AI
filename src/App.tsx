@@ -1428,9 +1428,16 @@ function EventsFeature({ userId }: { userId: string }) {
   const [notice, setNotice] = useState('');
   const [publishedOnce, setPublishedOnce] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
+  const [promotionStatus, setPromotionStatus] = useState<{eligible:boolean;base_reach:number;notification_cap:number;is_vip:boolean}|null>(null);
+  const [blastEvent, setBlastEvent] = useState<EventRow | null>(null);
+  const [blastScope, setBlastScope] = useState<'worldwide'|'country'|'state'|'city'|'area'>('worldwide');
+  const [blastLocation, setBlastLocation] = useState<LocationValue>({country:'',state:'',city:'',area:''});
+  const [blastBusy, setBlastBusy] = useState(false);
 
   async function load() {
     if (!supabase) return;
+    const { data: promotionData, error: promotionError } = await supabase.rpc('get_event_promotion_status_secure');
+    if (!promotionError && promotionData) setPromotionStatus(promotionData as {eligible:boolean;base_reach:number;notification_cap:number;is_vip:boolean});
     const { data, error } = await supabase.from('events')
       .select('id,creator_id,title,description,venue,country,state,city,area,starts_at,cover_url,category,is_published')
       .eq('is_published', true).order('starts_at', { ascending: true }).limit(60);
@@ -1570,6 +1577,34 @@ function EventsFeature({ userId }: { userId: string }) {
     }
   }
 
+  async function startFreeEventBlast() {
+    if (!supabase || !blastEvent || blastBusy) return;
+    if (blastEvent.creator_id !== userId) { setNotice('Only the event creator can promote this event.'); return; }
+    if (blastScope !== 'worldwide' && !blastLocation.country) { setNotice('Choose a target country for this Event Blast.'); return; }
+    if (['state','city','area'].includes(blastScope) && !blastLocation.state) { setNotice('Choose a target state or province.'); return; }
+    if (['city','area'].includes(blastScope) && !blastLocation.city) { setNotice('Choose a target city.'); return; }
+    if (blastScope === 'area' && !blastLocation.area) { setNotice('Choose a target area.'); return; }
+    setBlastBusy(true); setNotice('');
+    try {
+      const { data, error } = await supabase.rpc('claim_free_event_promotion_secure', {
+        p_event_id: blastEvent.id,
+        p_target_scope: blastScope,
+        p_target_country: blastScope === 'worldwide' ? null : blastLocation.country,
+        p_target_state: ['state','city','area'].includes(blastScope) ? blastLocation.state : null,
+        p_target_city: ['city','area'].includes(blastScope) ? blastLocation.city : null,
+        p_target_area: blastScope === 'area' ? blastLocation.area : null,
+      });
+      if (error) throw error;
+      const result = data as {unique_reach?:number;ends_at?:string}|null;
+      setBlastEvent(null);
+      setBlastScope('worldwide'); setBlastLocation({country:'',state:'',city:'',area:''});
+      setNotice(`Your free Event Blast has started and notified ${Number(result?.unique_reach ?? 0).toLocaleString()} eligible people. It runs for 24 hours.`);
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not start the Event Blast. Please try again.');
+    } finally { setBlastBusy(false); }
+  }
+
   const filteredEvents = events.filter(item => {
     const haystack = `${item.title} ${item.description} ${item.venue || ''}`.toLowerCase();
     return (!searchText.trim() || haystack.includes(searchText.trim().toLowerCase()))
@@ -1583,6 +1618,7 @@ function EventsFeature({ userId }: { userId: string }) {
   return <div className="events-page">
     <div className="directory-toolbar"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><p className="feature-copy">Discover events, or create one for your community.</p></div><div className="event-toolbar-actions"><button type="button" className="secondary-button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Close Filter ×' : 'Filter'}</button><button type="button" className="primary-button" onClick={() => { setNotice(''); setCreateEventOpen(true); }}>＋ Create Event</button></div></div>
     {filtersOpen && <section className="feature-panel event-filter-panel"><div className="section-title-row"><div><h2>Filter events</h2><p>Search by name, category and location.</p></div><button type="button" className="secondary-button" onClick={() => { setSearchText(''); setFilterCategory(''); setFilterLocation({country:'',state:'',city:'',area:''}); }}>Clear</button></div><label>Search events<input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="Event name or keyword…" /></label><label>Category<select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}><option value="">All categories</option>{eventCategories.map(category => <option key={category}>{category}</option>)}</select></label><LocationFields value={filterLocation} onChange={setFilterLocation} /></section>}
+    {blastEvent && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Promote event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">EVENT BLAST</p><h2>Promote {blastEvent.title}</h2></div><button type="button" className="create-modal-close" aria-label="Close Event Blast" onClick={() => setBlastEvent(null)}>×</button></header><p className="feature-copy">Send a targeted notification to people who may be interested in your event.</p><div className="event-blast-reach-card"><strong>{promotionStatus?.base_reach ?? 100} people · 24 hours</strong><span>{promotionStatus?.is_vip ? 'VIP free reach' : 'Standard free reach'} · one free Event Blast per calendar month</span></div><label>Audience<select value={blastScope} onChange={e => setBlastScope(e.target.value as typeof blastScope)}><option value="worldwide">Worldwide</option><option value="country">Country</option><option value="state">State / province</option><option value="city">City</option><option value="area">Area / local government</option></select></label>{blastScope !== 'worldwide' && <LocationFields value={blastLocation} onChange={setBlastLocation} />}<p className="draft-state">{promotionStatus?.eligible ? 'Your free Event Blast is available.' : 'Your free Event Blast has already been used this month.'} Paid blast plans can be configured by an administrator.</p><div className="form-submit-row"><button type="button" className="secondary-button" onClick={() => setBlastEvent(null)}>Cancel</button><button type="button" className="primary-button" disabled={blastBusy || !promotionStatus?.eligible} onClick={() => void startFreeEventBlast()}>{blastBusy ? 'Starting…' : 'Use free Event Blast ↗'}</button></div></section></div>}
     {createEventOpen && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create an event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><h2>Publish an event</h2></div><button type="button" className="create-modal-close" aria-label="Close create event" onClick={() => setCreateEventOpen(false)}>×</button></header><p className="feature-copy">Create a real plan for your community. Your event is published once the form succeeds.</p>
       <form className="feature-form" onSubmit={publish}>
         <label>Event title<input value={title} onChange={e => { setTitle(e.target.value); setPublishedOnce(false); }} maxLength={160} required placeholder="What are we getting together for?" /></label>
@@ -1597,7 +1633,7 @@ function EventsFeature({ userId }: { userId: string }) {
       {notice && <div className="notice">{notice}</div>}
     </section></div>}
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{filteredEvents.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : filteredEvents.length ? <div className="event-directory">{filteredEvents.map(item => <article className="event-card" key={item.id}>{item.cover_url && <img className="event-card-cover" src={item.cover_url} alt="" loading="lazy" />}<div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>{events.length ? 'No events match these filters.' : 'There is room for your first event.'}</h3><p>{events.length ? 'Try a different keyword, category or location.' : 'Publish an event above and it will appear here for your community.'}</p></div>}
+      {loading ? <div className="empty-state">Loading events…</div> : filteredEvents.length ? <div className="event-directory">{filteredEvents.map(item => <article className="event-card" key={item.id}>{item.cover_url && <img className="event-card-cover" src={item.cover_url} alt="" loading="lazy" />}<div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <div className="event-owner-actions"><span className="published-state">● Your event</span><button type="button" className="secondary-button" disabled={blastBusy} onClick={() => { setNotice(''); setBlastEvent(item); setBlastScope('worldwide'); setBlastLocation({country:'',state:'',city:'',area:''}); }}>Promote event ↗</button></div> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>{events.length ? 'No events match these filters.' : 'There is room for your first event.'}</h3><p>{events.length ? 'Try a different keyword, category or location.' : 'Publish an event above and it will appear here for your community.'}</p></div>}
     </section>
   </div>;
 }
