@@ -1998,3 +1998,35 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 }
 .extra-vote-actions { display: grid; gap: 0.75rem; margin-top: 1.25rem; }
 .extra-vote-actions button { min-height: 46px; }
+
+
+/* Event cover media is part of the complete event creation and discovery flow. */
+.event-cover-upload { display: grid; gap: 8px; }
+.event-cover-upload span { display: block; color: var(--muted, #a8b7ac); font-size: 0.82rem; }
+.event-cover-upload input[type="file"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px;
+  border: 1px solid rgba(226, 184, 77, 0.72);
+  border-radius: 12px;
+  background: rgba(9, 25, 19, 0.82);
+  color: var(--text, #f2f5e9);
+  box-shadow: 0 0 14px rgba(226, 184, 77, 0.12);
+}
+.event-cover-preview {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border: 1px solid rgba(226, 184, 77, 0.72);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), 0 0 16px rgba(226, 184, 77, 0.12);
+}
+.event-card-cover {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin: 0 0 12px;
+}
