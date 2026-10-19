@@ -65,7 +65,7 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [vipPostIds, setVipPostIds] = useState<Set<string>>(() => new Set());
-  const [isVipMember, setIsVipMember] = useState(false);
+  const [, setIsVipMember] = useState(false);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
   const publishLock = useRef(false);
