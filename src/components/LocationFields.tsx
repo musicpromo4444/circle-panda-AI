@@ -15,7 +15,7 @@ function useCountryData() {
   useEffect(() => {
     let active = true;
     import('country-state-city/lib/country').then(module => {
-      if (active) setService(module.Country as CountryService);
+      if (active) setService((module.default ?? module) as CountryService);
     }).catch(() => {
       if (active) setService(null);
     });
@@ -30,7 +30,7 @@ function useStateData(countryCode: string) {
     if (!countryCode || service) return;
     let active = true;
     import('country-state-city/lib/state').then(module => {
-      if (active) setService(module.State as StateService);
+      if (active) setService((module.default ?? module) as StateService);
     }).catch(() => {
       if (active) setService(null);
     });
@@ -107,7 +107,7 @@ export default function LocationFields({ value, onChange, required = false }: Pr
     if (cityApi || cityLoading) return;
     setCityLoading(true);
     import('country-state-city/lib/city').then(module => {
-      setCityApi(module.City as CityService);
+      setCityApi((module.default ?? module) as CityService);
     }).catch(() => {
       setCityApi(null);
     }).finally(() => setCityLoading(false));
