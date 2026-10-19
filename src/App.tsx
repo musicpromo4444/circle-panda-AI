@@ -1815,8 +1815,9 @@ function GroupsFeature({ userId }: { userId: string }) {
 
   async function load() {
     if (!supabase) return;
-    const { data: profile } = await supabase.from('profiles').select('is_vip,country').eq('id',userId).maybeSingle();
-    setMyVip(Boolean(profile?.is_vip)); setMyCountry(profile?.country || '');
+    const { data: profile } = await supabase.from('profiles').select('is_vip,vip_expires_at,country').eq('id',userId).maybeSingle();
+    const activeVip = Boolean(profile?.is_vip) && (!profile?.vip_expires_at || new Date(profile.vip_expires_at).getTime() > Date.now());
+    setMyVip(activeVip); setMyCountry(profile?.country || '');
     const { data, error } = await supabase.from('chat_groups')
       .select('id,creator_id,name,description,country_restriction,is_vip,created_at,closed_at,activated_at')
       .is('closed_at', null).order('created_at',{ascending:false}).limit(100);
@@ -2092,7 +2093,8 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
       ]);
       if (!alive) return;
       if (profileResult.error) setNotice(profileResult.error.message);
-      setVip(Boolean(profileResult.data?.is_vip));
+      const expiry = profileResult.data?.vip_expires_at ? new Date(profileResult.data.vip_expires_at).getTime() : null;
+      setVip(Boolean(profileResult.data?.is_vip) && (expiry === null || expiry > Date.now()));
       setExpiresAt(profileResult.data?.vip_expires_at ?? null);
       setCountry(profileResult.data?.country ?? '');
       setIsAdmin(Boolean(roleResult.data));
