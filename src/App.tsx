@@ -2271,21 +2271,26 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
 
 type EconomySettingRow = { setting_key: string; numeric_value: number; updated_at: string; };
 type EventBlastAdminPlan = EventBlastPlan & { enabled: boolean };
+type CoinPackageAdmin = CoinPackage & { enabled:boolean };
+type CoinPackageAdminDraft = { name:string; coins:string; price_ngn:string; enabled:boolean; sort_order:string };
 type EventBlastPlanDraft = { name:string; unique_reach:string; duration_minutes:string; price_usd:string; bc_price:string; enabled:boolean };
 function AdminFeature() {
   const [settings, setSettings] = useState<EconomySettingRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string,string>>({});
   const [blastPlans, setBlastPlans] = useState<EventBlastAdminPlan[]>([]);
   const [planDrafts, setPlanDrafts] = useState<Record<string,EventBlastPlanDraft>>({});
+  const [coinPackages, setCoinPackages] = useState<CoinPackageAdmin[]>([]);
+  const [coinPackageDrafts, setCoinPackageDrafts] = useState<Record<string,CoinPackageAdminDraft>>({});
   const [busyKey, setBusyKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
 
   async function load() {
     if (!supabase) return;
-    const [settingsResult, plansResult] = await Promise.all([
+    const [settingsResult, plansResult, coinPackagesResult] = await Promise.all([
       supabase.from('economy_settings').select('setting_key,numeric_value,updated_at').order('setting_key'),
       supabase.rpc('get_event_blast_plans_admin'),
+      supabase.rpc('get_coin_packages_admin'),
     ]);
     if (settingsResult.error) setNotice(settingsResult.error.message);
     else {
@@ -2302,6 +2307,14 @@ function AdminFeature() {
         price_usd:String(plan.price_usd), bc_price:plan.bc_price == null ? '' : String(plan.bc_price), enabled:plan.enabled,
       }])));
     }
+    if (coinPackagesResult.error) setNotice(coinPackagesResult.error.message);
+    else {
+      const packages = (coinPackagesResult.data ?? []) as CoinPackageAdmin[];
+      setCoinPackages(packages);
+      setCoinPackageDrafts(Object.fromEntries(packages.map(pack => [pack.id, {
+        name:pack.name, coins:String(pack.coins), price_ngn:pack.price_ngn == null ? '' : String(pack.price_ngn), enabled:pack.enabled, sort_order:String(pack.sort_order),
+      }])));
+    }
     setLoading(false);
   }
   useEffect(() => { void load(); }, []);
@@ -2314,6 +2327,21 @@ function AdminFeature() {
     const { error } = await supabase.rpc('set_economy_setting',{p_setting_key:key,p_numeric_value:value});
     if (error) setNotice(error.message);
     else { setNotice(`Saved ${key.replaceAll('_',' ')}.`);await load(); }
+    setBusyKey('');
+  }
+
+  async function saveCoinPackage(id: string) {
+    if (!supabase) return;
+    const draft = coinPackageDrafts[id];
+    if (!draft) return;
+    const coins = Number(draft.coins), price = draft.price_ngn.trim()==='' ? null : Number(draft.price_ngn), order = Number(draft.sort_order);
+    if (!draft.name.trim() || !Number.isSafeInteger(coins) || coins<1 || (price!==null && (!Number.isFinite(price)||price<0)) || !Number.isSafeInteger(order)) {
+      setNotice('Check the package name, positive coin amount, price and order before saving.'); return;
+    }
+    setBusyKey('coin:'+id); setNotice('');
+    const { error } = await supabase.rpc('admin_upsert_coin_package', { p_id:id, p_name:draft.name.trim(), p_coins:coins, p_price_ngn:price, p_enabled:draft.enabled, p_sort_order:order });
+    if (error) setNotice(error.message);
+    else { setNotice(`Saved coin package: ${draft.name}.`); await load(); }
     setBusyKey('');
   }
 
@@ -2339,6 +2367,7 @@ function AdminFeature() {
   return <section className="feature-panel admin-panel"><div className="feature-icon">⚙</div><p className="eyebrow">CIRCLE PANDA CONTROL ROOM</p><h2>Economy settings</h2><p className="feature-copy">Reward amounts and message costs are stored in the database, not hard-coded into the interface. Changes here require an administrator role.</p>
     {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
     {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div> : <div className="empty-state"><p>No economy settings were found.</p></div>}
+    <section className="admin-coin-packages"><div><p className="eyebrow">WALLET STORE</p><h3>BC coin packages</h3><p className="feature-copy">Set the BC amount and NGN price for each bundle. Checkout stays unavailable until a payment provider is configured.</p></div>{coinPackages.length ? coinPackages.map(pack=>{const draft=coinPackageDrafts[pack.id] || {name:pack.name,coins:String(pack.coins),price_ngn:pack.price_ngn==null?'':String(pack.price_ngn),enabled:pack.enabled,sort_order:String(pack.sort_order)};return <article className="admin-coin-package-row" key={pack.id}><div className="admin-blast-plan-id"><strong>{pack.id} BC package</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><div className="admin-coin-package-fields"><label>Package name<input value={draft.name} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,name:e.target.value}}))}/></label><label>Coins<input type="number" min="1" step="1" value={draft.coins} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,coins:e.target.value}}))}/></label><label>Price (NGN)<input type="number" min="0" step="0.01" value={draft.price_ngn} placeholder="Set price" onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,price_ngn:e.target.value}}))}/></label><label>Sort order<input type="number" step="1" value={draft.sort_order} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,sort_order:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='coin:'+pack.id} onClick={()=>void saveCoinPackage(pack.id)}>{busyKey==='coin:'+pack.id?'Saving…':'Save package'}</button></article>}) : <div className="empty-state">No coin packages configured.</div>}</section>
     <section className="admin-blast-plans"><div><p className="eyebrow">EVENT PROMOTION</p><h3>Event Blast plans</h3><p className="feature-copy">Set paid reach, duration and BC pricing here. Changes apply to new Event Blasts.</p></div>{blastPlans.length ? blastPlans.map(plan=>{const draft=planDrafts[plan.id] || {name:plan.name,unique_reach:String(plan.unique_reach),duration_minutes:String(plan.duration_minutes),price_usd:String(plan.price_usd),bc_price:plan.bc_price == null?'':String(plan.bc_price),enabled:plan.enabled};return <article className="admin-blast-plan-row" key={plan.id}><div className="admin-blast-plan-id"><strong>{plan.id}</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><label>Plan name<input value={draft.name} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,name:e.target.value}}))}/></label><div className="admin-blast-plan-fields"><label>Unique reach<input type="number" min="1" step="1" value={draft.unique_reach} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,unique_reach:e.target.value}}))}/></label><label>Duration (minutes)<input type="number" min="1" step="1" value={draft.duration_minutes} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,duration_minutes:e.target.value}}))}/></label><label>Price (USD)<input type="number" min="0" step="0.01" value={draft.price_usd} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,price_usd:e.target.value}}))}/></label><label>Price (BC)<input type="number" min="0" step="1" value={draft.bc_price} placeholder="Unavailable" onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,bc_price:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='blast:'+plan.id} onClick={()=>void saveBlastPlan(plan.id)}>{busyKey==='blast:'+plan.id?'Saving…':'Save plan'}</button></article>}) : <div className="empty-state">No Event Blast plans are configured.</div>}</section>
   </section>;
 }
