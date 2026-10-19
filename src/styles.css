@@ -2249,3 +2249,35 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   border-color:#d5ad5966;
   box-shadow:0 0 0 1px #d5ad5912,0 0 18px #d5ad5910;
 }
+
+
+/* Compact public Panda badge for VIP hosts on event cards. */
+.public-vip-panda {
+  display:inline-grid;
+  place-items:center;
+  position:relative;
+  isolation:isolate;
+  width:24px;
+  height:24px;
+  margin-right:5px;
+  border-radius:50%;
+  border:1px solid #ffe49a;
+  background:#1c3429;
+  font-size:14px;
+  vertical-align:middle;
+}
+.public-vip-panda.vip-effects-flame { --vip-glow:rgba(255,105,24,.8); }
+.public-vip-panda.vip-effects-lightning { --vip-glow:rgba(67,147,255,.85); }
+.public-vip-panda.vip-effects-bubbles { --vip-glow:rgba(196,112,255,.8); }
+.public-vip-panda.vip-effects-orbit { --vip-glow:rgba(100,231,160,.8); }
+.public-vip-panda::before {
+  content:"";
+  position:absolute;
+  inset:-5px;
+  z-index:-1;
+  border-radius:50%;
+  background:conic-gradient(from 0deg,transparent,#ffdf7a,#67e9ba,#9a82ff,#ffdf7a,transparent);
+  filter:blur(4px);
+  opacity:.8;
+  animation:vip-fire-rotate 8s linear infinite;
+}
