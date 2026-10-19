@@ -17,6 +17,7 @@ type DatingProfileRow = { id: string; user_id: string; headline: string | null; 
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; category?: string | null; is_published: boolean };
 type EventBlastPlan = { id: string; name: string; unique_reach: number; duration_minutes: number; price_usd: number; bc_price: number | null };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
+type CoinPackage = { id:string; name:string; coins:number; price_ngn:number|null; sort_order:number };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Confessions', icon: '🔒', hint: 'Say what is on your mind' },
@@ -1763,6 +1764,7 @@ function WalletFeature({ userId }: { userId: string }) {
   const [xpTotal, setXpTotal] = useState(0);
   const [levelName, setLevelName] = useState('Novice');
   const [transactions, setTransactions] = useState<WalletTransactionRow[]>([]);
+  const [coinPackages, setCoinPackages] = useState<CoinPackage[]>([]);
   const [settings, setSettings] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -1772,11 +1774,12 @@ function WalletFeature({ userId }: { userId: string }) {
 
   async function load() {
     if (!supabase) return;
-    const [walletResult, xpResult, transactionResult, settingsResult] = await Promise.all([
+    const [walletResult, xpResult, transactionResult, settingsResult, argumentsResult] = await Promise.all([
       supabase.from('wallet_accounts').select('bc_balance,wc_balance').eq('user_id', userId).maybeSingle(),
       supabase.from('user_xp').select('xp_total,level_name').eq('user_id', userId).maybeSingle(),
       supabase.from('wallet_transactions').select('id,currency,amount,reason,created_at').eq('user_id', userId).order('created_at', {ascending:false}).limit(20),
       supabase.from('economy_settings').select('setting_key,numeric_value'),
+      supabase.rpc('get_coin_packages'),
     ]);
     if (walletResult.data) { setBcBalance(Number(walletResult.data.bc_balance)); setWcBalance(Number(walletResult.data.wc_balance)); }
     if (xpResult.data) { setXpTotal(Number(xpResult.data.xp_total)); setLevelName(xpResult.data.level_name); }
@@ -1784,12 +1787,14 @@ function WalletFeature({ userId }: { userId: string }) {
     const map: Record<string,number> = {};
     (settingsResult.data ?? []).forEach((s: {setting_key:string;numeric_value:number}) => { map[s.setting_key] = Number(s.numeric_value); });
     setSettings(map);
-    const error = walletResult.error || xpResult.error || transactionResult.error || settingsResult.error;
+    setCoinPackages((argumentsResult.data ?? []) as CoinPackage[]);
+    const error = walletResult.error || xpResult.error || transactionResult.error || settingsResult.error || argumentsResult.error;
     if (error) setNotice(error.message);
     setLoading(false);
   }
 
   useEffect(() => { void load(); }, [userId]);
+  const chosenCoinPackage = coinPackages.find(pack => pack.id === selectedPackage);
 
   async function claimDailyReward() {
     if (!supabase) return;
@@ -1811,7 +1816,7 @@ function WalletFeature({ userId }: { userId: string }) {
   }
 
   return <div className="wallet-page">
-    {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2><p>Choose a coin bundle for your Circle Panda wallet. Your BC balance never expires.</p></section><div className="coin-package-grid">{[{id:'100',name:'Mini',coins:100},{id:'300',name:'Starter',coins:300},{id:'700',name:'Value',coins:700},{id:'1200',name:'Popular',coins:1200},{id:'2500',name:'Power',coins:2500},{id:'5000',name:'Mega',coins:5000}].map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{pack.coins.toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">Price shown at checkout</span></button>)}</div><div className="wallet-checkout-note"><strong>Secure checkout setup required</strong><p>Purchases must be completed through a configured payment provider and verified server-side. No payment is taken and no coins are added until checkout is connected.</p><button type="button" className="primary-button full" onClick={() => setNotice('Payment checkout is not configured yet. Connect the payment provider before accepting real purchases.')}>Continue to secure checkout ↗</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
+    {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2><p>Choose a coin bundle for your Circle Panda wallet. Your BC balance never expires.</p></section><div className="coin-package-grid">{coinPackages.map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{Number(pack.coins).toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">{pack.price_ngn != null && Number(pack.price_ngn)>0 ? `₦${Number(pack.price_ngn).toLocaleString('en-NG')}` : 'Price not configured'}</span></button>)}</div><div className="wallet-checkout-note"><strong>Secure checkout setup required</strong><p>Purchases must be completed through a configured payment provider and verified server-side. No payment is taken and no coins are added until checkout is connected.</p><button type="button" className="primary-button full" onClick={() => setNotice(!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'This package has no price configured yet. An administrator must set its NGN price.' : 'Secure payment checkout is not configured yet. No payment has been taken and no coins have been added.')}>Continue to secure checkout ↗</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
     <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" onClick={startFreeAdReward} title="Requires a verified rewarded-ad provider"><span aria-hidden="true">▷</span> Get 100 Free BC · Setup required <span aria-hidden="true">↗</span></button></div>
     <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your activity has value.</h2><p>BC balances do not expire. Rewards and message charges are processed by the backend.</p></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
