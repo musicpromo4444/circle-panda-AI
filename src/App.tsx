@@ -2379,6 +2379,63 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
   </div>;
 }
 
+type VipAdminMember = { user_id:string; email:string; display_name:string|null; username:string|null; is_vip:boolean; vip_expires_at:string|null };
+
+function VipAdminControls() {
+  const [members, setMembers] = useState<VipAdminMember[]>([]);
+  const [search, setSearch] = useState('');
+  const [duration, setDuration] = useState<'permanent'|'30'|'90'>('permanent');
+  const [busyId, setBusyId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState('');
+
+  async function load() {
+    if (!supabase) { setLoading(false); setNotice('Supabase is not configured.'); return; }
+    const { data, error } = await supabase.rpc('admin_list_vip_members');
+    if (error) setNotice(error.message);
+    else setMembers((data ?? []) as VipAdminMember[]);
+    setLoading(false);
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function setMembership(member: VipAdminMember, active: boolean) {
+    if (!supabase || busyId) return;
+    const expiresAt = active && duration !== 'permanent'
+      ? new Date(Date.now() + Number(duration) * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+    setBusyId(member.user_id); setNotice('');
+    const { error } = await supabase.rpc('admin_set_user_vip', {
+      p_user_id: member.user_id, p_active: active, p_expires_at: expiresAt,
+    });
+    if (error) setNotice(error.message);
+    else {
+      setNotice(active ? (expiresAt ? 'VIP access granted for ' + duration + ' days.' : 'Permanent VIP access granted.') : 'VIP access revoked.');
+      await load();
+    }
+    setBusyId('');
+  }
+
+  const visible = members.filter(member => {
+    const needle = search.trim().toLowerCase();
+    return !needle || [member.email, member.display_name || '', member.username || ''].some(value => value.toLowerCase().includes(needle));
+  });
+
+  return <section className="vip-admin-controls">
+    <div className="section-title-row"><div><p className="eyebrow">MEMBERSHIP MANAGEMENT</p><h3>VIP access control</h3><p>Grant or revoke VIP access through admin-only database functions. The owner account is protected from revocation.</p></div><button type="button" className="secondary-button" disabled={loading || Boolean(busyId)} onClick={() => void load()}>Refresh</button></div>
+    <div className="vip-admin-toolbar"><input aria-label="Search users for VIP access" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search by name, username or email" /><label>Grant duration<select value={duration} onChange={event => setDuration(event.target.value as 'permanent'|'30'|'90')}><option value="permanent">Permanent VIP</option><option value="30">30 days</option><option value="90">90 days</option></select></label></div>
+    {notice && <div className="notice inline-notice">{notice}<button type="button" onClick={() => setNotice('')}>×</button></div>}
+    {loading ? <div className="empty-state">Loading members…</div> : <div className="vip-admin-member-list">{visible.map(member => {
+      const owner = member.email.toLowerCase() === 'circlepandaapp@gmail.com';
+      const active = member.is_vip && (!member.vip_expires_at || new Date(member.vip_expires_at).getTime() > Date.now());
+      return <article className="vip-admin-member" key={member.user_id}>
+        <div className="vip-admin-member-avatar">🐼</div><div className="vip-admin-member-copy"><strong>{member.display_name || member.username || 'Circle Panda member'}</strong><span>{member.email}</span><small>{owner ? 'Owner account · protected' : active ? (member.vip_expires_at ? 'VIP until ' + new Date(member.vip_expires_at).toLocaleDateString() : 'Permanent VIP') : 'Standard membership'}</small></div>
+        {active ? <button type="button" className="secondary-button" disabled={owner || Boolean(busyId)} onClick={() => void setMembership(member,false)}>{busyId===member.user_id?'Saving…':owner?'Owner protected':'Revoke VIP'}</button> : <button type="button" className="vip-gold-button" disabled={Boolean(busyId)} onClick={() => void setMembership(member,true)}>{busyId===member.user_id?'Saving…':'Grant VIP'}</button>}
+      </article>;
+    })}{!visible.length && <div className="empty-state">No matching members found.</div>}</div>}
+    <p className="vip-admin-footnote">Showing up to 200 accounts. Membership changes are enforced server-side and persist across refreshes.</p>
+  </section>;
+}
+
 type EconomySettingRow = { setting_key: string; numeric_value: number; updated_at: string; };
 type EventBlastAdminPlan = EventBlastPlan & { enabled: boolean };
 type CoinPackageAdmin = CoinPackage & { enabled:boolean };
@@ -2475,6 +2532,7 @@ function AdminFeature() {
   }
 
   return <section className="feature-panel admin-panel"><div className="feature-icon">⚙</div><p className="eyebrow">CIRCLE PANDA CONTROL ROOM</p><h2>Economy settings</h2><p className="feature-copy">Reward amounts and message costs are stored in the database, not hard-coded into the interface. Changes here require an administrator role.</p>
+    <VipAdminControls />
     {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
     {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div> : <div className="empty-state"><p>No economy settings were found.</p></div>}
     <section className="admin-coin-packages"><div><p className="eyebrow">WALLET STORE</p><h3>BC coin packages</h3><p className="feature-copy">Set the BC amount and NGN price for each bundle. Checkout stays unavailable until a payment provider is configured.</p></div>{coinPackages.length ? coinPackages.map(pack=>{const draft=coinPackageDrafts[pack.id] || {name:pack.name,coins:String(pack.coins),price_ngn:pack.price_ngn==null?'':String(pack.price_ngn),enabled:pack.enabled,sort_order:String(pack.sort_order)};return <article className="admin-coin-package-row" key={pack.id}><div className="admin-blast-plan-id"><strong>{pack.id} BC package</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><div className="admin-coin-package-fields"><label>Package name<input value={draft.name} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,name:e.target.value}}))}/></label><label>Coins<input type="number" min="1" step="1" value={draft.coins} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,coins:e.target.value}}))}/></label><label>Price (NGN)<input type="number" min="0" step="0.01" value={draft.price_ngn} placeholder="Set price" onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,price_ngn:e.target.value}}))}/></label><label>Sort order<input type="number" step="1" value={draft.sort_order} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,sort_order:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='coin:'+pack.id} onClick={()=>void saveCoinPackage(pack.id)}>{busyKey==='coin:'+pack.id?'Saving…':'Save package'}</button></article>}) : <div className="empty-state">No coin packages configured.</div>}</section>
