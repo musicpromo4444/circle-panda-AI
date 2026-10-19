@@ -305,6 +305,20 @@ export default function App() {
     }
   }
 
+  async function signInWithProvider(provider: 'google' | 'apple') {
+    if (!supabase || authBusy) return;
+    setAuthBusy(true); setNotice('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : `Could not start ${provider} sign-in. Check that this provider is configured in Supabase Auth.`);
+    } finally { setAuthBusy(false); }
+  }
+
   async function publishPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.trim();
@@ -420,6 +434,8 @@ export default function App() {
           {authMode === 'signup' && <label>Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Enter your password again" minLength={8} required autoComplete="new-password" /></label>}
           <button className="primary-button full" type="submit" disabled={!supabaseConfigured || authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <span>→</span></button>
         </form>
+        <div className="auth-provider-buttons"><button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('google')}><span aria-hidden="true">G</span> Continue with Google</button><button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('apple')}><span aria-hidden="true">●</span> Continue with Apple</button></div>
+        <p className="auth-provider-note">Google and Apple sign-in require their provider credentials and redirect URLs to be enabled in Supabase Auth.</p>
         <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); setEmailConfirmationPending(false); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
         {authMode === 'login' && <button type="button" className="text-button" onClick={() => void sendPasswordReset()} disabled={authBusy}>Forgot password?</button>}
         {emailConfirmationPending && authMode === 'signup' && <button type="button" className="text-button" onClick={() => void resendSignupConfirmation()} disabled={authBusy}>Resend confirmation email</button>}
