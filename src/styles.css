@@ -2201,3 +2201,28 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 /* Keep the self-only account/profile control plain: VIP flair is public content flair. */
 .topbar .profile-chip { box-shadow:none!important; }
 .topbar .profile-chip .avatar { box-shadow:none!important; animation:none!important; }
+
+
+/* Header chrome must remain unlit. VIP aura is reserved for public display avatars
+   beside posts/cards, so the owner-only account control and BC balance coin do not glow. */
+.topbar .coin-token {
+  box-shadow: inset 0 0 0 2px #ffda55, inset 0 0 5px #fff2a6, 0 2px 5px #0009 !important;
+  filter:none!important;
+  text-shadow:none!important;
+  animation:none!important;
+}
+.topbar .coin-token::before,
+.topbar .coin-token::after { box-shadow:none!important; filter:none!important; }
+.topbar .coin-token .panda-coin-engraving { filter:none!important; box-shadow:none!important; }
+.topbar .coin-balance-chip,
+.topbar .coin-balance-chip:hover { box-shadow:none!important; filter:none!important; }
+.topbar .profile-chip,
+.topbar .profile-chip .avatar {
+  box-shadow:none!important;
+  filter:none!important;
+  text-shadow:none!important;
+  animation:none!important;
+}
+.topbar .profile-chip .avatar { border:1px solid #d6ad4c!important; }
+.topbar .profile-chip .avatar::before,
+.topbar .profile-chip .avatar::after { content:none!important; display:none!important; }
