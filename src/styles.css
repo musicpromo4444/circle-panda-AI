@@ -2226,3 +2226,26 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .topbar .profile-chip .avatar { border:1px solid #d6ad4c!important; }
 .topbar .profile-chip .avatar::before,
 .topbar .profile-chip .avatar::after { content:none!important; display:none!important; }
+
+
+/* Extend public VIP identity to comments and dating discovery, using the same
+   database-derived active VIP state and weekly aura class as the confession feed. */
+.comment-avatar.vip-avatar-frame,
+.dating-avatar.vip-avatar-frame {
+  flex-shrink:0;
+  overflow:visible;
+  --vip-glow:rgba(255,205,92,.78);
+}
+.comment-row.vip-comment-row {
+  border-radius:10px;
+  background:linear-gradient(110deg,rgba(255,202,90,.055),rgba(105,226,170,.025),transparent);
+}
+.comment-row.vip-effects-flame .comment-avatar.vip-avatar-frame { --vip-glow:rgba(255,105,24,.8); }
+.comment-row.vip-effects-lightning .comment-avatar.vip-avatar-frame { --vip-glow:rgba(67,147,255,.85); }
+.comment-row.vip-effects-bubbles .comment-avatar.vip-avatar-frame { --vip-glow:rgba(196,112,255,.8); }
+.comment-row.vip-effects-orbit .comment-avatar.vip-avatar-frame { --vip-glow:rgba(100,231,160,.8); }
+.dating-avatar.vip-avatar-frame { margin:4px 8px 4px 4px; }
+.dating-discovery-card:has(.dating-avatar.vip-avatar-frame) {
+  border-color:#d5ad5966;
+  box-shadow:0 0 0 1px #d5ad5912,0 0 18px #d5ad5910;
+}
