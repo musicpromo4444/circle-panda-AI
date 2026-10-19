@@ -1562,6 +1562,7 @@ function EventsFeature({ userId }: { userId: string }) {
   const [eventCategory, setEventCategory] = useState('Other');
   const eventCategories = ['Music','Business','Education','Technology','Arts & Culture','Food & Drink','Sports & Fitness','Community','Faith & Spirituality','Travel','Other'];
   const [names, setNames] = useState<Record<string, string>>({});
+  const [vipEventCreatorIds, setVipEventCreatorIds] = useState<Set<string>>(() => new Set());
   const [attending, setAttending] = useState<Record<string, boolean>>({});
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [title, setTitle] = useState('');
@@ -1600,10 +1601,15 @@ function EventsFeature({ userId }: { userId: string }) {
     const ids = rows.map(row => row.id);
     const creatorIds = [...new Set(rows.map(row => row.creator_id))];
     if (creatorIds.length) {
-      const { data: profiles } = await supabase.from('profiles').select('id,display_name,username').in('id', creatorIds);
+      const { data: profiles } = await supabase.from('profiles').select('id,display_name,username,is_vip,vip_expires_at').in('id', creatorIds);
       const nameMap: Record<string,string> = {};
-      (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null}) => { nameMap[p.id] = p.display_name || p.username || 'Panda'; });
-      setNames(nameMap);
+      const activeVipIds = new Set<string>();
+      const vipCheckTime = Date.now();
+      (profiles ?? []).forEach((p: {id:string;display_name:string|null;username:string|null;is_vip?:boolean|null;vip_expires_at?:string|null}) => {
+        nameMap[p.id] = p.display_name || p.username || 'Panda';
+        if (Boolean(p.is_vip) && (!p.vip_expires_at || new Date(p.vip_expires_at).getTime() > vipCheckTime)) activeVipIds.add(p.id);
+      });
+      setNames(nameMap); setVipEventCreatorIds(activeVipIds);
     }
     if (ids.length) {
       const { data: attendees } = await supabase.from('event_attendees').select('event_id,user_id,status').in('event_id', ids).neq('status','cancelled');
@@ -1817,7 +1823,7 @@ function EventsFeature({ userId }: { userId: string }) {
       {notice && <div className="notice">{notice}</div>}
     </section></div>}
     <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{filteredEvents.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : filteredEvents.length ? <div className="event-directory">{filteredEvents.map(item => <article className="event-card" key={item.id}>{item.cover_url && <img className="event-card-cover" src={item.cover_url} alt="" loading="lazy" />}<div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <div className="event-owner-actions"><span className="published-state">● Your event</span><button type="button" className="secondary-button" disabled={blastBusy} onClick={() => { setNotice(''); setBlastEvent(item); setBlastScope('worldwide'); setBlastLocation({country:'',state:'',city:'',area:''}); }}>Promote event ↗</button></div> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>{events.length ? 'No events match these filters.' : 'There is room for your first event.'}</h3><p>{events.length ? 'Try a different keyword, category or location.' : 'Publish an event above and it will appear here for your community.'}</p></div>}
+      {loading ? <div className="empty-state">Loading events…</div> : filteredEvents.length ? <div className="event-directory">{filteredEvents.map(item => <article className="event-card" key={item.id}>{item.cover_url && <img className="event-card-cover" src={item.cover_url} alt="" loading="lazy" />}<div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">{vipEventCreatorIds.has(item.creator_id) && <span className={`public-vip-panda ${getWeeklyVipAuraClass()}`} aria-label="VIP host">🐼</span>} HOSTED BY {names[item.creator_id] || 'PANDA'} {vipEventCreatorIds.has(item.creator_id) && <span className="vip-member-label">VIP</span>}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <div className="event-owner-actions"><span className="published-state">● Your event</span><button type="button" className="secondary-button" disabled={blastBusy} onClick={() => { setNotice(''); setBlastEvent(item); setBlastScope('worldwide'); setBlastLocation({country:'',state:'',city:'',area:''}); }}>Promote event ↗</button></div> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>{events.length ? 'No events match these filters.' : 'There is room for your first event.'}</h3><p>{events.length ? 'Try a different keyword, category or location.' : 'Publish an event above and it will appear here for your community.'}</p></div>}
     </section>
   </div>;
 }
