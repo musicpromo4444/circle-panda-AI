@@ -109,19 +109,28 @@ export default function App() {
     if (params.get('payment') !== 'coin-purchase' || !reference) return;
     let alive = true;
     setSection('Wallet');
-    void client.rpc('get_my_coin_purchase_status_secure', { p_reference: reference }).then(async ({ data, error }) => {
-      if (!alive) return;
-      if (error) { setNotice('Payment return received. Open Wallet and refresh the purchase status if needed.'); return; }
-      const status = data as {status:string;coins:number;amount_ngn:number}|null;
-      if (status?.status === 'paid') {
-        const { data: wallet } = await client.from('wallet_accounts').select('bc_balance').eq('user_id',session.user.id).maybeSingle();
-        if (alive && wallet) setCoinBalance(Number(wallet.bc_balance));
-        if (alive) setNotice(`Payment verified. ${Number(status.coins).toLocaleString()} BC has been credited to your wallet.`);
-      } else if (alive) {
-        setNotice('Payment is still being verified by Paystack. Your wallet is credited only after the signed payment confirmation arrives.');
-      }
-    });
     window.history.replaceState({}, '', window.location.pathname);
+    void (async () => {
+      for (let attempt = 0; attempt < 10 && alive; attempt++) {
+        const { data, error } = await client.rpc('get_my_coin_purchase_status_secure', { p_reference: reference });
+        if (!alive) return;
+        if (error) { setNotice('Payment return received, but the status could not be checked. Open Wallet again in a moment.'); return; }
+        const status = data as {status:string;coins:number;amount_ngn:number}|null;
+        if (status?.status === 'paid') {
+          const { data: wallet } = await client.from('wallet_accounts').select('bc_balance').eq('user_id',session.user.id).maybeSingle();
+          if (alive && wallet) setCoinBalance(Number(wallet.bc_balance));
+          if (alive) setNotice(`Payment verified. ${Number(status.coins).toLocaleString()} BC has been credited to your wallet.`);
+          return;
+        }
+        if (status?.status === 'failed') {
+          setNotice('Paystack has not confirmed this purchase. No BC has been credited; you can retry checkout from the wallet.');
+          return;
+        }
+        setNotice('Payment received. Waiting for Paystack confirmation before crediting your BC wallet…');
+        await new Promise(resolve => window.setTimeout(resolve, 2000));
+      }
+      if (alive) setNotice('Payment is still processing. Your wallet will be credited only after the signed Paystack confirmation arrives.');
+    })();
     return () => { alive = false; };
   }, [session]);
 
