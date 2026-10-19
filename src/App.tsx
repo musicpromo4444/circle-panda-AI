@@ -877,8 +877,12 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         .order('created_at',{ascending:false}).limit(100);
       if (requestsError) setNotice('Dating profiles loaded, but request status could not be refreshed.');
       const requestMap: Record<string,{status:string;id:string}> = {};
+      // Requests are ordered newest-first; keep the newest status per recipient so an older
+      // pending/accepted request cannot overwrite a later decline or a fresh re-request.
       (requests ?? []).filter((r: {sender_id:string;recipient_id:string}) => r.sender_id === userId)
-        .forEach((r: {id:string;recipient_id:string;status:string}) => { requestMap[r.recipient_id] = {status:r.status,id:r.id}; });
+        .forEach((r: {id:string;recipient_id:string;status:string}) => {
+          if (!requestMap[r.recipient_id]) requestMap[r.recipient_id] = {status:r.status,id:r.id};
+        });
       setSentRequests(requestMap);
 
       const { data: matchRows, error: matchError } = await supabase.rpc('get_my_dating_matches_secure');
