@@ -2144,3 +2144,60 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .admin-coin-package-fields label { display: grid; gap: 0.4rem; color: var(--muted, #a8b7ac); font-size: 0.85rem; }
 .admin-coin-package-fields input { min-width: 0; width: 100%; }
 @media (max-width: 720px) { .admin-coin-package-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+
+/* PUBLIC VIP EXPERIENCE: effects belong to display avatars and the content other
+   members see, never to the private account button in the header. Aura styles are
+   selected globally by UTC week in App.tsx so all viewers see the same weekly style. */
+.vip-post-card.vip-effects-flame {
+  border-color:#ff9a45!important;
+  box-shadow:0 0 0 1px #ff9a4522,0 0 24px #ff682b35,0 10px 30px #0004!important;
+}
+.vip-post-card.vip-effects-flame::before {
+  background:linear-gradient(90deg,transparent,#ff5b2e,#ffd16a,#fff0ba,#ff6a32,transparent)!important;
+  height:3px!important;
+}
+.vip-avatar-frame.vip-effects-flame { --vip-glow:rgba(255,105,24,.75); border-color:#ffb45e!important; }
+.vip-avatar-frame.vip-effects-flame::before {
+  background:conic-gradient(from 0deg,transparent 0 8%,#ff572f 14%,#ffd05a 23%,#ff7b32 31%,transparent 39% 52%,#ff3c52 62%,transparent 71% 82%,#ffc14f 92%,transparent)!important;
+}
+.vip-post-card.vip-effects-lightning {
+  border-color:#71baff!important;
+  box-shadow:0 0 0 1px #71baff24,0 0 25px #438bff35,0 10px 30px #0004!important;
+}
+.vip-post-card.vip-effects-lightning::before {
+  background:linear-gradient(90deg,transparent,#4f9dff,#c6efff,#8a79ff,transparent)!important;
+  height:3px!important;
+}
+.vip-avatar-frame.vip-effects-lightning { --vip-glow:rgba(67,147,255,.8); border-color:#9ad8ff!important; }
+.vip-avatar-frame.vip-effects-lightning::before {
+  background:conic-gradient(from 0deg,transparent 0 12%,#4c8dff 18%,#c8f2ff 25%,transparent 32% 48%,#8a6dff 57%,#7de6ff 65%,transparent 73% 88%,#4c8dff)!important;
+  filter:blur(3px)!important;
+}
+.vip-post-card.vip-effects-bubbles {
+  border-color:#c88bff!important;
+  box-shadow:0 0 0 1px #c88bff24,0 0 24px #b36bff30,0 10px 30px #0004!important;
+}
+.vip-post-card.vip-effects-bubbles::before {
+  background:linear-gradient(90deg,transparent,#8cecff,#e8b5ff,#ffdbfb,#8cecff,transparent)!important;
+  height:3px!important;
+}
+.vip-avatar-frame.vip-effects-bubbles { --vip-glow:rgba(196,112,255,.75); border-color:#e4b6ff!important; }
+.vip-avatar-frame.vip-effects-bubbles::before {
+  background:conic-gradient(from 0deg,transparent 0 10%,#7be8ff 17%,#e5a4ff 25%,transparent 34% 48%,#ffb4ec 57%,#8cecff 65%,transparent 74% 87%,#d4a0ff)!important;
+}
+.vip-post-card.vip-effects-orbit {
+  border-color:#9ee77b!important;
+  box-shadow:0 0 0 1px #9ee77b24,0 0 24px #66db7833,0 10px 30px #0004!important;
+}
+.vip-post-card.vip-effects-orbit::before {
+  background:linear-gradient(90deg,transparent,#62e5a0,#ffe98a,#fff4c6,#62e5a0,transparent)!important;
+  height:3px!important;
+}
+.vip-avatar-frame.vip-effects-orbit { --vip-glow:rgba(100,231,160,.75); border-color:#b7f5a0!important; }
+.vip-avatar-frame.vip-effects-orbit::before {
+  background:conic-gradient(from 0deg,transparent 0 9%,#56e4b2 17%,#ffe78a 26%,transparent 35% 49%,#7ce77a 58%,#fff0a6 67%,transparent 76% 88%,#56e4b2)!important;
+}
+/* Keep the self-only account/profile control plain: VIP flair is public content flair. */
+.topbar .profile-chip { box-shadow:none!important; }
+.topbar .profile-chip .avatar { box-shadow:none!important; animation:none!important; }
