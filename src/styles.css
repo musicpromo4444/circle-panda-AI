@@ -2114,3 +2114,24 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .group-media-message small { color: var(--muted, #a8b7ac); font-size: 0.7rem; }
 .group-media-open { min-height: 40px; padding: 0.55rem 0.8rem; border: 1px solid rgba(226,184,77,0.55); border-radius: 10px; color: #f5d57d; background: rgba(226,184,77,0.08); }
 .group-media-open:disabled { opacity: 0.55; cursor: not-allowed; }
+
+
+.auth-provider-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-top: 0.8rem; }
+.auth-provider-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.7rem 0.65rem;
+  border: 1px solid rgba(226, 184, 77, 0.38);
+  border-radius: 12px;
+  color: var(--text, #f2f5e9);
+  background: rgba(255,255,255,0.035);
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+.auth-provider-button span { color: #f5d57d; font-size: 1rem; font-weight: 900; }
+.auth-provider-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth-provider-note { margin: 0.5rem 0 0; color: var(--muted, #a8b7ac); font-size: 0.72rem; line-height: 1.5; }
+@media (max-width: 420px) { .auth-provider-buttons { grid-template-columns: 1fr; } }
