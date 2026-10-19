@@ -90,6 +90,29 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (!supabase || !session) return;
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get('reference') || params.get('trxref');
+    if (params.get('payment') !== 'coin-purchase' || !reference) return;
+    let alive = true;
+    setSection('Wallet');
+    void supabase.rpc('get_my_coin_purchase_status_secure', { p_reference: reference }).then(async ({ data, error }) => {
+      if (!alive) return;
+      if (error) { setNotice('Payment return received. Open Wallet and refresh the purchase status if needed.'); return; }
+      const status = data as {status:string;coins:number;amount_ngn:number}|null;
+      if (status?.status === 'paid') {
+        const { data: wallet } = await supabase.from('wallet_accounts').select('bc_balance').eq('user_id',session.user.id).maybeSingle();
+        if (alive && wallet) setCoinBalance(Number(wallet.bc_balance));
+        if (alive) setNotice(`Payment verified. ${Number(status.coins).toLocaleString()} BC has been credited to your wallet.`);
+      } else if (alive) {
+        setNotice('Payment is still being verified by Paystack. Your wallet is credited only after the signed payment confirmation arrives.');
+      }
+    });
+    window.history.replaceState({}, '', window.location.pathname);
+    return () => { alive = false; };
+  }, [session]);
+
+  useEffect(() => {
     if (!supabase || !session) { setOnboardingStep(null); return; }
     let alive = true;
     async function loadOnboarding() {
@@ -1803,6 +1826,25 @@ function WalletFeature({ userId }: { userId: string }) {
   useEffect(() => { void load(); }, [userId]);
   const chosenCoinPackage = coinPackages.find(pack => pack.id === selectedPackage);
 
+  async function startCoinPurchase() {
+    if (!supabase || busy) return;
+    if (!chosenCoinPackage) { setNotice('Choose a coin package first.'); return; }
+    if (chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0) {
+      setNotice('This package has no NGN price configured yet. An administrator must set the package price first.');
+      return;
+    }
+    setBusy(true); setNotice('');
+    try {
+      const { data, error } = await supabase.functions.invoke('initialize-coin-purchase', { body: { package_id: chosenCoinPackage.id } });
+      if (error) throw error;
+      if (data?.error) throw new Error(String(data.error));
+      if (!data?.authorization_url || typeof data.authorization_url !== 'string') throw new Error('Secure checkout did not return a payment link.');
+      window.location.assign(data.authorization_url);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not start secure checkout. No payment has been taken.');
+    } finally { setBusy(false); }
+  }
+
   async function claimDailyReward() {
     if (!supabase) return;
     setBusy(true); setNotice('');
@@ -1823,7 +1865,7 @@ function WalletFeature({ userId }: { userId: string }) {
   }
 
   return <div className="wallet-page">
-    {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2><p>Choose a coin bundle for your Circle Panda wallet. Your BC balance never expires.</p></section><div className="coin-package-grid">{coinPackages.map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{Number(pack.coins).toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">{pack.price_ngn != null && Number(pack.price_ngn)>0 ? `₦${Number(pack.price_ngn).toLocaleString('en-NG')}` : 'Price not configured'}</span></button>)}</div><div className="wallet-checkout-note"><strong>Secure checkout setup required</strong><p>Purchases must be completed through a configured payment provider and verified server-side. No payment is taken and no coins are added until checkout is connected.</p><button type="button" className="primary-button full" onClick={() => setNotice(!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'This package has no price configured yet. An administrator must set its NGN price.' : 'Secure payment checkout is not configured yet. No payment has been taken and no coins have been added.')}>Continue to secure checkout ↗</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
+    {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2><p>Choose a coin bundle for your Circle Panda wallet. Your BC balance never expires.</p></section><div className="coin-package-grid">{coinPackages.map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{Number(pack.coins).toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">{pack.price_ngn != null && Number(pack.price_ngn)>0 ? `₦${Number(pack.price_ngn).toLocaleString('en-NG')}` : 'Price not configured'}</span></button>)}</div><div className="wallet-checkout-note"><strong>Secure checkout setup required</strong><p>Purchases must be completed through a configured payment provider and verified server-side. No payment is taken and no coins are added until checkout is connected.</p><button type="button" className="primary-button full" disabled={busy || !chosenCoinPackage} onClick={() => void startCoinPurchase()}>{busy ? 'Preparing secure checkout…' : 'Continue to secure checkout ↗'}</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
     <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" onClick={startFreeAdReward} title="Requires a verified rewarded-ad provider"><span aria-hidden="true">▷</span> Get 100 Free BC · Setup required <span aria-hidden="true">↗</span></button></div>
     <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your activity has value.</h2><p>BC balances do not expire. Rewards and message charges are processed by the backend.</p></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
