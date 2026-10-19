@@ -2352,3 +2352,22 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
     transition:none!important;
   }
 }
+
+.vip-admin-controls{margin:24px 0;padding:18px;border:1px solid #8c6c32;border-radius:16px;background:linear-gradient(145deg,#211d14,#111713);box-shadow:inset 0 1px #f4d87b20}
+.vip-admin-controls .section-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.vip-admin-controls h3{margin:0 0 7px;color:#f7e6b7;font:800 17px Manrope,sans-serif}
+.vip-admin-controls .section-title-row p:not(.eyebrow){margin:0;color:#b9ad8c;font-size:10px;line-height:1.6;max-width:520px}
+.vip-admin-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,220px);gap:10px;margin:16px 0}
+.vip-admin-toolbar input,.vip-admin-toolbar select{width:100%;min-width:0;border:1px solid #b8954d;background:#161a15;color:#f6edcf;border-radius:9px;padding:11px;outline:none;box-shadow:0 0 0 1px #d4ae4b16,inset 0 1px #fff1}
+.vip-admin-toolbar input:focus,.vip-admin-toolbar select:focus{border-color:#ffe18a;box-shadow:0 0 0 3px #e8bd4a24}
+.vip-admin-toolbar label{display:grid;gap:5px;color:#d7c38f;font-size:10px}
+.vip-admin-member-list{display:grid;gap:8px}
+.vip-admin-member{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid #57492a;border-radius:11px;background:#171a14}
+.vip-admin-member-avatar{width:38px;height:38px;display:grid;place-items:center;flex-shrink:0;border:1px solid #b9964c;border-radius:50%;background:radial-gradient(circle at 30% 20%,#fff0b0,#a97b22 70%);font-size:19px}
+.vip-admin-member-copy{display:grid;gap:3px;min-width:0;flex:1}
+.vip-admin-member-copy strong{color:#f5e8c3;font-size:12px;overflow-wrap:anywhere}
+.vip-admin-member-copy span,.vip-admin-member-copy small{color:#b8ad8f;font-size:9px;overflow-wrap:anywhere}
+.vip-admin-member-copy small{color:#e3c76f}
+.vip-admin-member .vip-gold-button,.vip-admin-member .secondary-button{flex-shrink:0;font-size:10px;padding:9px 10px}
+.vip-admin-footnote{color:#9b9a83;font-size:9px;line-height:1.6;margin:12px 0 0}
+@media(max-width:560px){.vip-admin-toolbar{grid-template-columns:1fr}.vip-admin-member{align-items:flex-start;flex-wrap:wrap}.vip-admin-member-copy{min-width:calc(100% - 60px)}.vip-admin-member .vip-gold-button,.vip-admin-member .secondary-button{margin-left:49px}}
