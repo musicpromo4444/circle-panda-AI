@@ -1849,7 +1849,11 @@ function WalletFeature({ userId }: { userId: string }) {
     setBusy(true); setNotice('');
     try {
       const { data, error } = await supabase.functions.invoke('initialize-coin-purchase', { body: { package_id: chosenCoinPackage.id } });
-      if (error) throw error;
+      if (error) {
+        const response = (error as Error & {context?: Response}).context;
+        const payload = response ? await response.clone().json().catch(() => null) as {error?:string}|null : null;
+        throw new Error(payload?.error || error.message);
+      }
       if (data?.error) throw new Error(String(data.error));
       if (!data?.authorization_url || typeof data.authorization_url !== 'string') throw new Error('Secure checkout did not return a payment link.');
       window.location.assign(data.authorization_url);
