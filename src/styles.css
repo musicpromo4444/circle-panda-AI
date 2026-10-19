@@ -2371,3 +2371,21 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .vip-admin-member .vip-gold-button,.vip-admin-member .secondary-button{flex-shrink:0;font-size:10px;padding:9px 10px}
 .vip-admin-footnote{color:#9b9a83;font-size:9px;line-height:1.6;margin:12px 0 0}
 @media(max-width:560px){.vip-admin-toolbar{grid-template-columns:1fr}.vip-admin-member{align-items:flex-start;flex-wrap:wrap}.vip-admin-member-copy{min-width:calc(100% - 60px)}.vip-admin-member .vip-gold-button,.vip-admin-member .secondary-button{margin-left:49px}}
+
+.vip-call-controls{margin:12px 0;padding:14px;border:1px solid #8c6c32;border-radius:15px;background:linear-gradient(145deg,#211d14,#111713);box-shadow:inset 0 1px #f4d87b20}
+.vip-call-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.vip-call-heading>div{display:grid;gap:4px}.vip-call-heading strong{font-size:13px;color:#f7e6b7}.vip-call-heading small{font-size:10px;color:#b9ad8c}
+.vip-call-pill{border:1px solid #c8a34c;border-radius:20px;padding:5px 9px;color:#f4d77e;font-size:9px;font-weight:800;white-space:nowrap}
+.vip-call-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.vip-call-actions button{font-size:11px;padding:9px 12px}
+.vip-call-live{margin-top:12px}.vip-call-live>p{color:#e9d7a5;font-size:11px}
+.vip-call-video-grid{position:relative;display:grid;grid-template-columns:1fr;min-height:90px;border-radius:12px;overflow:hidden;background:#090e0c}
+.vip-remote-video{width:100%;max-height:280px;aspect-ratio:16/9;object-fit:cover;background:#090e0c}
+.vip-audio-video{width:100%;height:80px;background:radial-gradient(circle,#2d482e,#090e0c)}
+.vip-local-video{position:absolute;right:8px;bottom:8px;width:26%;max-height:100px;aspect-ratio:3/4;object-fit:cover;border:1px solid #e5c15b;border-radius:8px;background:#141914}
+.vip-local-preview{position:absolute;right:8px;bottom:8px;width:1px;height:1px;opacity:0}
+.vip-call-end{border:1px solid #d86a68;background:#6d2626;color:#fff;border-radius:9px;padding:9px 12px;font-weight:700}
+.vip-incoming-call{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding:10px;border:1px solid #9e7c38;border-radius:10px;background:#282113;color:#f3e3b8;font-size:11px}
+.vip-incoming-call>div{display:flex;gap:6px;flex-wrap:wrap}.vip-incoming-call button{padding:7px 9px;font-size:10px}
+.vip-call-notice{font-size:10px;color:#ffd38a;line-height:1.5;margin:10px 0 0;overflow-wrap:anywhere}
+@media(max-width:480px){.vip-incoming-call{align-items:flex-start;flex-direction:column}.vip-call-heading{align-items:flex-start}.vip-call-actions button{flex:1}}
