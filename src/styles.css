@@ -2030,3 +2030,13 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   border-radius: 12px;
   margin: 0 0 12px;
 }
+
+
+/* Event discovery controls stay compact and usable on narrow mobile screens. */
+.event-toolbar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.55rem; }
+.event-filter-panel { display: grid; gap: 0.9rem; margin: 0.8rem 0 1rem; }
+.event-filter-panel > label { display: grid; gap: 0.45rem; }
+@media (max-width: 560px) {
+  .directory-toolbar:has(.event-toolbar-actions) { align-items: stretch; flex-direction: column; }
+  .event-toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; }
+}
