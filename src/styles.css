@@ -2040,3 +2040,20 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   .directory-toolbar:has(.event-toolbar-actions) { align-items: stretch; flex-direction: column; }
   .event-toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; }
 }
+
+
+.event-owner-actions { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; }
+.event-blast-reach-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid rgba(226, 184, 77, 0.72);
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(226, 184, 77, 0.13), rgba(18, 78, 58, 0.28));
+  box-shadow: 0 0 18px rgba(226, 184, 77, 0.1);
+}
+.event-blast-reach-card strong { color: #f5d57d; font-size: 1rem; }
+.event-blast-reach-card span { color: var(--muted, #a8b7ac); font-size: 0.85rem; }
+@media (max-width: 560px) {
+  .event-owner-actions { align-items: stretch; flex-direction: column; }
+}
