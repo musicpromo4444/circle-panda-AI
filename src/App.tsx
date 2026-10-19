@@ -14,7 +14,7 @@ type ChatMessage = { id: string; conversation_id: string; sender_id: string; bod
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null };
-type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; is_published: boolean };
+type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; category?: string | null; is_published: boolean };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
@@ -1407,6 +1407,12 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
 
 function EventsFeature({ userId }: { userId: string }) {
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterLocation, setFilterLocation] = useState<LocationValue>({ country: '', state: '', city: '', area: '' });
+  const [eventCategory, setEventCategory] = useState('Other');
+  const eventCategories = ['Music','Business','Education','Technology','Arts & Culture','Food & Drink','Sports & Fitness','Community','Faith & Spirituality','Travel','Other'];
   const [names, setNames] = useState<Record<string, string>>({});
   const [attending, setAttending] = useState<Record<string, boolean>>({});
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -1426,7 +1432,7 @@ function EventsFeature({ userId }: { userId: string }) {
   async function load() {
     if (!supabase) return;
     const { data, error } = await supabase.from('events')
-      .select('id,creator_id,title,description,venue,country,state,city,area,starts_at,cover_url,is_published')
+      .select('id,creator_id,title,description,venue,country,state,city,area,starts_at,cover_url,category,is_published')
       .eq('is_published', true).order('starts_at', { ascending: true }).limit(60);
     if (error) setNotice(error.message);
     const rows = (data ?? []) as EventRow[];
@@ -1494,7 +1500,7 @@ function EventsFeature({ userId }: { userId: string }) {
         p_location: venue.trim() || null,
         p_starts_at: start.toISOString(),
         p_ends_at: end.toISOString(),
-        p_category: 'Other',
+        p_category: eventCategory,
         p_entry_fee_bc: 0,
         p_duration_minutes: 120,
         p_reach_scope: 'worldwide',
@@ -1515,7 +1521,7 @@ function EventsFeature({ userId }: { userId: string }) {
         p_cover_url: coverUrl,
       });
       if (error) throw error;
-      setTitle(''); setDescription(''); setVenue(''); setCoverFile(null); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
+      setTitle(''); setDescription(''); setVenue(''); setCoverFile(null); setEventCategory('Other'); setLocation({ country: '', state: '', city: '', area: '' }); setStartsAt('');
       setPublishedOnce(true); setCreateEventOpen(false); setNotice('Event published successfully.'); await load();
     } catch (error) {
       if (uploadedCoverPath) await supabase.storage.from('event-covers').remove([uploadedCoverPath]).catch(() => undefined);
@@ -1564,12 +1570,24 @@ function EventsFeature({ userId }: { userId: string }) {
     }
   }
 
+  const filteredEvents = events.filter(item => {
+    const haystack = `${item.title} ${item.description} ${item.venue || ''}`.toLowerCase();
+    return (!searchText.trim() || haystack.includes(searchText.trim().toLowerCase()))
+      && (!filterCategory || (item.category || 'Other') === filterCategory)
+      && (!filterLocation.country || item.country === filterLocation.country)
+      && (!filterLocation.state || (item.state || '') === filterLocation.state)
+      && (!filterLocation.city || (item.city || '') === filterLocation.city)
+      && (!filterLocation.area || (item.area || '') === filterLocation.area);
+  });
+
   return <div className="events-page">
-    <div className="directory-toolbar"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><p className="feature-copy">Discover events, or create one for your community.</p></div><button type="button" className="primary-button" onClick={() => { setNotice(''); setCreateEventOpen(true); }}>＋ Create Event</button></div>
+    <div className="directory-toolbar"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><p className="feature-copy">Discover events, or create one for your community.</p></div><div className="event-toolbar-actions"><button type="button" className="secondary-button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Close Filter ×' : 'Filter'}</button><button type="button" className="primary-button" onClick={() => { setNotice(''); setCreateEventOpen(true); }}>＋ Create Event</button></div></div>
+    {filtersOpen && <section className="feature-panel event-filter-panel"><div className="section-title-row"><div><h2>Filter events</h2><p>Search by name, category and location.</p></div><button type="button" className="secondary-button" onClick={() => { setSearchText(''); setFilterCategory(''); setFilterLocation({country:'',state:'',city:'',area:''}); }}>Clear</button></div><label>Search events<input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="Event name or keyword…" /></label><label>Category<select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}><option value="">All categories</option>{eventCategories.map(category => <option key={category}>{category}</option>)}</select></label><LocationFields value={filterLocation} onChange={setFilterLocation} /></section>}
     {createEventOpen && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create an event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><h2>Publish an event</h2></div><button type="button" className="create-modal-close" aria-label="Close create event" onClick={() => setCreateEventOpen(false)}>×</button></header><p className="feature-copy">Create a real plan for your community. Your event is published once the form succeeds.</p>
       <form className="feature-form" onSubmit={publish}>
         <label>Event title<input value={title} onChange={e => { setTitle(e.target.value); setPublishedOnce(false); }} maxLength={160} required placeholder="What are we getting together for?" /></label>
         <label>Description<textarea value={description} onChange={e => { setDescription(e.target.value); setPublishedOnce(false); }} rows={3} maxLength={4000} required placeholder="Tell people what to expect…" /></label>
+        <label>Category<select value={eventCategory} onChange={e => setEventCategory(e.target.value)}>{eventCategories.map(category => <option key={category}>{category}</option>)}</select></label>
         <label>Venue or meeting point<input value={venue} onChange={e => { setVenue(e.target.value); setPublishedOnce(false); }} maxLength={250} placeholder="Venue, online or meeting point" /></label>
         <label className="event-cover-upload">Event cover image <span>(optional · JPG, PNG or WebP · up to 5 MB)</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const file = e.currentTarget.files?.[0] || null; setCoverFile(file); setPublishedOnce(false); if (file && (file.size > 5 * 1024 * 1024 || !['image/jpeg','image/png','image/webp'].includes(file.type))) setNotice('Choose a JPG, PNG or WebP image up to 5 MB.'); else setNotice(''); }} /></label>
         {coverPreview && <img className="event-cover-preview" src={coverPreview} alt="Event cover preview" />}
@@ -1578,8 +1596,8 @@ function EventsFeature({ userId }: { userId: string }) {
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section></div>}
-    <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{events.length} EVENTS</span></div>
-      {loading ? <div className="empty-state">Loading events…</div> : events.length ? <div className="event-directory">{events.map(item => <article className="event-card" key={item.id}>{item.cover_url && <img className="event-card-cover" src={item.cover_url} alt="" loading="lazy" />}<div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>There is room for your first event.</h3><p>Publish an event above and it will appear here for your community.</p></div>}
+    <section className="directory-section"><div className="section-title-row"><div><h2>Events in your circle</h2><p>Published events and the people bringing them together.</p></div><span className="count-pill">{filteredEvents.length} EVENTS</span></div>
+      {loading ? <div className="empty-state">Loading events…</div> : filteredEvents.length ? <div className="event-directory">{filteredEvents.map(item => <article className="event-card" key={item.id}>{item.cover_url && <img className="event-card-cover" src={item.cover_url} alt="" loading="lazy" />}<div className="event-date-block"><span>{new Date(item.starts_at).toLocaleDateString([], {month:'short'}).toUpperCase()}</span><strong>{new Date(item.starts_at).getDate()}</strong><small>{new Date(item.starts_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div><div className="event-card-body"><div className="event-creator">HOSTED BY {names[item.creator_id] || 'PANDA'}</div><h3>{item.title}</h3><p>{item.description || 'Join the community for this event.'}</p><div className="event-meta"><span>⌖ {[item.venue,item.area,item.city,item.state,item.country].filter(Boolean).join(' · ') || 'Location to be announced'}</span><strong className="event-attending-count">ATTENDING {counts[item.id] || 0} 👤</strong></div><div className="event-card-actions">{item.creator_id === userId ? <span className="published-state">● Your event</span> : <><button className="primary-button" disabled={busy} onClick={() => void toggleAttendance(item)}>{attending[item.id] ? '✓ Attending' : 'I’m attending'}</button><button className="decline-button" disabled={busy} onClick={() => void messageCreator(item)}>Message creator ↗</button></>}</div></div></article>)}</div> : <div className="empty-state"><span>▦</span><h3>{events.length ? 'No events match these filters.' : 'There is room for your first event.'}</h3><p>{events.length ? 'Try a different keyword, category or location.' : 'Publish an event above and it will appear here for your community.'}</p></div>}
     </section>
   </div>;
 }
