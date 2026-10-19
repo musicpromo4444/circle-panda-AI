@@ -44,6 +44,11 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
+  const [phoneRecoveryPending, setPhoneRecoveryPending] = useState(false);
+  const [recoveryPhone, setRecoveryPhone] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [recoveryNewPassword, setRecoveryNewPassword] = useState('');
+  const [recoveryConfirmPassword, setRecoveryConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [signupCountry, setSignupCountry] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
@@ -287,22 +292,45 @@ export default function App() {
   }
 
   async function sendPasswordReset() {
-    if (!supabase || !email.trim() || !email.includes('@') || authBusy) {
-      setNotice('Enter the email address used for your account to request a password reset. Phone-based password recovery is not enabled yet.');
+    if (!supabase || !email.trim() || authBusy) {
+      setNotice('Enter the phone number or email address used for your account first.');
       return;
     }
-    setAuthBusy(true);
+    setAuthBusy(true); setNotice('');
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: window.location.origin,
-      });
-      if (error) throw error;
-      setNotice('If an account exists for that email, a password-reset link has been requested.');
+      if (email.includes('@')) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: window.location.origin });
+        if (error) throw error;
+        setNotice('If an account exists for that email, a password-reset link has been requested.');
+      } else {
+        const raw = email.trim().replace(/[\s().-]/g, '');
+        const phone = raw.startsWith('+') ? raw : raw.startsWith('00') ? '+' + raw.slice(2) : /^0\d{10}$/.test(raw) ? '+234' + raw.slice(1) : raw;
+        const { error } = await supabase.auth.signInWithOtp({ phone, options: { shouldCreateUser: false } });
+        if (error) throw error;
+        setRecoveryPhone(phone); setRecoveryCode(''); setRecoveryNewPassword(''); setRecoveryConfirmPassword(''); setPhoneRecoveryPending(true);
+        setNotice('A verification code was requested for your phone. Enter the SMS code below and choose a new password.');
+      }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not request a password reset.');
-    } finally {
-      setAuthBusy(false);
-    }
+      setNotice(error instanceof Error ? error.message : 'Could not request a password reset. Check that phone/SMS authentication is configured.');
+    } finally { setAuthBusy(false); }
+  }
+
+  async function finishPhonePasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || authBusy) return;
+    if (recoveryNewPassword.length < 8) { setNotice('Your new password must have at least 8 characters.'); return; }
+    if (recoveryNewPassword !== recoveryConfirmPassword) { setNotice('Your new passwords do not match.'); return; }
+    setAuthBusy(true); setNotice('');
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({ phone: recoveryPhone, token: recoveryCode.trim(), type: 'sms' });
+      if (verifyError) throw verifyError;
+      const { error: updateError } = await supabase.auth.updateUser({ password: recoveryNewPassword });
+      if (updateError) throw updateError;
+      setPhoneRecoveryPending(false); setRecoveryCode(''); setRecoveryNewPassword(''); setRecoveryConfirmPassword('');
+      setNotice('Your password has been updated and you are signed in.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not reset your password. Check the SMS code and try again.');
+    } finally { setAuthBusy(false); }
   }
 
   async function signInWithProvider(provider: 'google' | 'apple') {
@@ -437,7 +465,8 @@ export default function App() {
         <div className="auth-provider-buttons"><button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('google')}><span aria-hidden="true">G</span> Continue with Google</button><button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('apple')}><span aria-hidden="true">●</span> Continue with Apple</button></div>
         <p className="auth-provider-note">Google and Apple sign-in require their provider credentials and redirect URLs to be enabled in Supabase Auth.</p>
         <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); setEmailConfirmationPending(false); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
-        {authMode === 'login' && <button type="button" className="text-button" onClick={() => void sendPasswordReset()} disabled={authBusy}>Forgot password?</button>}
+        {authMode === 'login' && !phoneRecoveryPending && <button type="button" className="text-button" onClick={() => void sendPasswordReset()} disabled={authBusy}>Forgot password?</button>}
+        {authMode === 'login' && phoneRecoveryPending && <form className="auth-form phone-recovery-form" onSubmit={finishPhonePasswordReset}><p className="feature-copy">Reset password for {recoveryPhone}</p><label>SMS verification code<input value={recoveryCode} onChange={e=>setRecoveryCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required placeholder="Enter the code" /></label><label>New password<input type="password" value={recoveryNewPassword} onChange={e=>setRecoveryNewPassword(e.target.value)} minLength={8} required autoComplete="new-password" placeholder="At least 8 characters" /></label><label>Confirm new password<input type="password" value={recoveryConfirmPassword} onChange={e=>setRecoveryConfirmPassword(e.target.value)} minLength={8} required autoComplete="new-password" placeholder="Enter it again" /></label><button className="primary-button full" disabled={authBusy}>{authBusy?'Verifying…':'Verify code & reset password'}</button><button type="button" className="text-button" disabled={authBusy} onClick={()=>{setPhoneRecoveryPending(false);setRecoveryCode('');setNotice('');}}>Cancel password reset</button></form>}
         {emailConfirmationPending && authMode === 'signup' && <button type="button" className="text-button" onClick={() => void resendSignupConfirmation()} disabled={authBusy}>Resend confirmation email</button>}
         {notice && <p className="notice">{notice}</p>}
         <p className="fine-print">A fresh build. A better way to connect.</p>
