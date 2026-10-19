@@ -2379,7 +2379,7 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
   </div>;
 }
 
-type VipAdminMember = { user_id:string; email:string; display_name:string|null; username:string|null; is_vip:boolean; vip_expires_at:string|null };
+type VipAdminMember = { user_id:string; email:string|null; display_name:string|null; username:string|null; is_vip:boolean; vip_expires_at:string|null };
 
 function VipAdminControls() {
   const [members, setMembers] = useState<VipAdminMember[]>([]);
@@ -2417,7 +2417,7 @@ function VipAdminControls() {
 
   const visible = members.filter(member => {
     const needle = search.trim().toLowerCase();
-    return !needle || [member.email, member.display_name || '', member.username || ''].some(value => value.toLowerCase().includes(needle));
+    return !needle || [member.email || '', member.display_name || '', member.username || ''].some(value => value.toLowerCase().includes(needle));
   });
 
   return <section className="vip-admin-controls">
@@ -2425,10 +2425,10 @@ function VipAdminControls() {
     <div className="vip-admin-toolbar"><input aria-label="Search users for VIP access" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search by name, username or email" /><label>Grant duration<select value={duration} onChange={event => setDuration(event.target.value as 'permanent'|'30'|'90')}><option value="permanent">Permanent VIP</option><option value="30">30 days</option><option value="90">90 days</option></select></label></div>
     {notice && <div className="notice inline-notice">{notice}<button type="button" onClick={() => setNotice('')}>×</button></div>}
     {loading ? <div className="empty-state">Loading members…</div> : <div className="vip-admin-member-list">{visible.map(member => {
-      const owner = member.email.toLowerCase() === 'circlepandaapp@gmail.com';
+      const owner = (member.email || '').toLowerCase() === 'circlepandaapp@gmail.com';
       const active = member.is_vip && (!member.vip_expires_at || new Date(member.vip_expires_at).getTime() > Date.now());
       return <article className="vip-admin-member" key={member.user_id}>
-        <div className="vip-admin-member-avatar">🐼</div><div className="vip-admin-member-copy"><strong>{member.display_name || member.username || 'Circle Panda member'}</strong><span>{member.email}</span><small>{owner ? 'Owner account · protected' : active ? (member.vip_expires_at ? 'VIP until ' + new Date(member.vip_expires_at).toLocaleDateString() : 'Permanent VIP') : 'Standard membership'}</small></div>
+        <div className="vip-admin-member-avatar">🐼</div><div className="vip-admin-member-copy"><strong>{member.display_name || member.username || 'Circle Panda member'}</strong><span>{member.email || 'Phone-only account'}</span><small>{owner ? 'Owner account · protected' : active ? (member.vip_expires_at ? 'VIP until ' + new Date(member.vip_expires_at).toLocaleDateString() : 'Permanent VIP') : 'Standard membership'}</small></div>
         {active ? <button type="button" className="secondary-button" disabled={owner || Boolean(busyId)} onClick={() => void setMembership(member,false)}>{busyId===member.user_id?'Saving…':owner?'Owner protected':'Revoke VIP'}</button> : <button type="button" className="vip-gold-button" disabled={Boolean(busyId)} onClick={() => void setMembership(member,true)}>{busyId===member.user_id?'Saving…':'Grant VIP'}</button>}
       </article>;
     })}{!visible.length && <div className="empty-state">No matching members found.</div>}</div>}
