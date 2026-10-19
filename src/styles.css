@@ -2079,3 +2079,15 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
   .event-blast-plan { grid-template-columns: minmax(0, 1fr) auto; }
   .event-blast-plan > button { grid-column: 1 / -1; }
 }
+
+
+.admin-blast-plans { display: grid; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(226, 184, 77, 0.32); }
+.admin-blast-plans h3 { margin: 0.2rem 0; color: var(--text, #f2f5e9); }
+.admin-blast-plan-row { display: grid; gap: 0.85rem; padding: 1rem; border: 1px solid rgba(226, 184, 77, 0.4); border-radius: 15px; background: rgba(255,255,255,0.025); }
+.admin-blast-plan-id { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.admin-blast-plan-id > strong { color: #f5d57d; }
+.admin-blast-plan-row label { display: grid; gap: 0.4rem; color: var(--muted, #a8b7ac); font-size: 0.85rem; }
+.admin-blast-plan-row input:not([type="checkbox"]) { min-width: 0; width: 100%; }
+.admin-blast-plan-id label { display: flex; align-items: center; gap: 0.5rem; }
+.admin-blast-plan-fields { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0.75rem; }
+@media (max-width: 720px) { .admin-blast-plan-fields { grid-template-columns: repeat(2, minmax(0,1fr)); } }
