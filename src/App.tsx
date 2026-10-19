@@ -15,6 +15,7 @@ type GroupMessageReaction = { id: string; message_id: string; user_id: string; r
 type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; category?: string | null; is_published: boolean };
+type EventBlastPlan = { id: string; name: string; unique_reach: number; duration_minutes: number; price_usd: number; bc_price: number | null };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
@@ -1459,6 +1460,7 @@ function EventsFeature({ userId }: { userId: string }) {
   const [publishedOnce, setPublishedOnce] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [promotionStatus, setPromotionStatus] = useState<{eligible:boolean;base_reach:number;notification_cap:number;is_vip:boolean}|null>(null);
+  const [blastPlans, setBlastPlans] = useState<EventBlastPlan[]>([]);
   const [blastEvent, setBlastEvent] = useState<EventRow | null>(null);
   const [blastScope, setBlastScope] = useState<'worldwide'|'country'|'state'|'city'|'area'>('worldwide');
   const [blastLocation, setBlastLocation] = useState<LocationValue>({country:'',state:'',city:'',area:''});
@@ -1466,8 +1468,12 @@ function EventsFeature({ userId }: { userId: string }) {
 
   async function load() {
     if (!supabase) return;
-    const { data: promotionData, error: promotionError } = await supabase.rpc('get_event_promotion_status_secure');
-    if (!promotionError && promotionData) setPromotionStatus(promotionData as {eligible:boolean;base_reach:number;notification_cap:number;is_vip:boolean});
+    const [promotionResult, planResult] = await Promise.all([
+      supabase.rpc('get_event_promotion_status_secure'),
+      supabase.rpc('get_event_blast_plans'),
+    ]);
+    if (!promotionResult.error && promotionResult.data) setPromotionStatus(promotionResult.data as {eligible:boolean;base_reach:number;notification_cap:number;is_vip:boolean});
+    if (!planResult.error) setBlastPlans((planResult.data ?? []) as EventBlastPlan[]);
     const { data, error } = await supabase.from('events')
       .select('id,creator_id,title,description,venue,country,state,city,area,starts_at,cover_url,category,is_published')
       .eq('is_published', true).order('starts_at', { ascending: true }).limit(60);
@@ -1635,6 +1641,37 @@ function EventsFeature({ userId }: { userId: string }) {
     } finally { setBlastBusy(false); }
   }
 
+  async function startPaidEventBlast(plan: EventBlastPlan) {
+    if (!supabase || !blastEvent || blastBusy) return;
+    if (blastEvent.creator_id !== userId) { setNotice('Only the event creator can promote this event.'); return; }
+    if (plan.bc_price == null) { setNotice('This plan has no BC price configured.'); return; }
+    if (blastScope !== 'worldwide' && !blastLocation.country) { setNotice('Choose a target country for this Event Blast.'); return; }
+    if (['state','city','area'].includes(blastScope) && !blastLocation.state) { setNotice('Choose a target state or province.'); return; }
+    if (['city','area'].includes(blastScope) && !blastLocation.city) { setNotice('Choose a target city.'); return; }
+    if (blastScope === 'area' && !blastLocation.area) { setNotice('Choose a target area.'); return; }
+    setBlastBusy(true); setNotice('');
+    try {
+      const { data, error } = await supabase.rpc('start_event_blast_secure', {
+        p_event_id: blastEvent.id,
+        p_plan_id: plan.id,
+        p_payment_method: 'bc',
+        p_target_scope: blastScope,
+        p_target_country: blastScope === 'worldwide' ? null : blastLocation.country,
+        p_target_state: ['state','city','area'].includes(blastScope) ? blastLocation.state : null,
+        p_target_city: ['city','area'].includes(blastScope) ? blastLocation.city : null,
+        p_target_area: blastScope === 'area' ? blastLocation.area : null,
+      });
+      if (error) throw error;
+      const result = data as {unique_reach?:number;bc_cost?:number}|null;
+      setBlastEvent(null);
+      setBlastScope('worldwide'); setBlastLocation({country:'',state:'',city:'',area:''});
+      setNotice(`Paid Event Blast started for ${Number(result?.unique_reach ?? plan.unique_reach).toLocaleString()} eligible people. ${Number(result?.bc_cost ?? plan.bc_price).toLocaleString()} BC was charged.`);
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not start the paid Event Blast. Please try again.');
+    } finally { setBlastBusy(false); }
+  }
+
   const filteredEvents = events.filter(item => {
     const haystack = `${item.title} ${item.description} ${item.venue || ''}`.toLowerCase();
     return (!searchText.trim() || haystack.includes(searchText.trim().toLowerCase()))
@@ -1648,7 +1685,7 @@ function EventsFeature({ userId }: { userId: string }) {
   return <div className="events-page">
     <div className="directory-toolbar"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><p className="feature-copy">Discover events, or create one for your community.</p></div><div className="event-toolbar-actions"><button type="button" className="secondary-button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(open => !open)}>{filtersOpen ? 'Close Filter ×' : 'Filter'}</button><button type="button" className="primary-button" onClick={() => { setNotice(''); setCreateEventOpen(true); }}>＋ Create Event</button></div></div>
     {filtersOpen && <section className="feature-panel event-filter-panel"><div className="section-title-row"><div><h2>Filter events</h2><p>Search by name, category and location.</p></div><button type="button" className="secondary-button" onClick={() => { setSearchText(''); setFilterCategory(''); setFilterLocation({country:'',state:'',city:'',area:''}); }}>Clear</button></div><label>Search events<input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="Event name or keyword…" /></label><label>Category<select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}><option value="">All categories</option>{eventCategories.map(category => <option key={category}>{category}</option>)}</select></label><LocationFields value={filterLocation} onChange={setFilterLocation} /></section>}
-    {blastEvent && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Promote event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">EVENT BLAST</p><h2>Promote {blastEvent.title}</h2></div><button type="button" className="create-modal-close" aria-label="Close Event Blast" onClick={() => setBlastEvent(null)}>×</button></header><p className="feature-copy">Send a targeted notification to people who may be interested in your event.</p><div className="event-blast-reach-card"><strong>{promotionStatus?.base_reach ?? 100} people · 24 hours</strong><span>{promotionStatus?.is_vip ? 'VIP free reach' : 'Standard free reach'} · one free Event Blast per calendar month</span></div><label>Audience<select value={blastScope} onChange={e => setBlastScope(e.target.value as typeof blastScope)}><option value="worldwide">Worldwide</option><option value="country">Country</option><option value="state">State / province</option><option value="city">City</option><option value="area">Area / local government</option></select></label>{blastScope !== 'worldwide' && <LocationFields value={blastLocation} onChange={setBlastLocation} />}<p className="draft-state">{promotionStatus?.eligible ? 'Your free Event Blast is available.' : 'Your free Event Blast has already been used this month.'} Paid blast plans can be configured by an administrator.</p><div className="form-submit-row"><button type="button" className="secondary-button" onClick={() => setBlastEvent(null)}>Cancel</button><button type="button" className="primary-button" disabled={blastBusy || !promotionStatus?.eligible} onClick={() => void startFreeEventBlast()}>{blastBusy ? 'Starting…' : 'Use free Event Blast ↗'}</button></div></section></div>}
+    {blastEvent && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Promote event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">EVENT BLAST</p><h2>Promote {blastEvent.title}</h2></div><button type="button" className="create-modal-close" aria-label="Close Event Blast" onClick={() => setBlastEvent(null)}>×</button></header><p className="feature-copy">Send a targeted notification to people who may be interested in your event.</p><div className="event-blast-reach-card"><strong>{promotionStatus?.base_reach ?? 100} people · 24 hours</strong><span>{promotionStatus?.is_vip ? 'VIP free reach' : 'Standard free reach'} · one free Event Blast per calendar month</span></div><label>Audience<select value={blastScope} onChange={e => setBlastScope(e.target.value as typeof blastScope)}><option value="worldwide">Worldwide</option><option value="country">Country</option><option value="state">State / province</option><option value="city">City</option><option value="area">Area / local government</option></select></label>{blastScope !== 'worldwide' && <LocationFields value={blastLocation} onChange={setBlastLocation} />}<p className="draft-state">{promotionStatus?.eligible ? 'Your free Event Blast is available.' : 'Your free Event Blast has already been used this month.'} Paid blast plans can be configured by an administrator.</p><div className="form-submit-row"><button type="button" className="secondary-button" onClick={() => setBlastEvent(null)}>Cancel</button><button type="button" className="primary-button" disabled={blastBusy || !promotionStatus?.eligible} onClick={() => void startFreeEventBlast()}>{blastBusy ? 'Starting…' : 'Use free Event Blast ↗'}</button></div><div className="event-blast-plans"><h3>Paid reach plans</h3><p>Pay from your BC wallet. Prices and reach are controlled by the admin dashboard.</p>{blastPlans.length ? blastPlans.map(plan => <article className="event-blast-plan" key={plan.id}><div><strong>{plan.name}</strong><span>{plan.unique_reach.toLocaleString()} people · {Math.max(1,Math.round(plan.duration_minutes/60))} hours</span></div><strong>{plan.bc_price == null ? 'Price not set' : `${plan.bc_price.toLocaleString()} BC`}</strong><button type="button" className="secondary-button" disabled={blastBusy || plan.bc_price == null} onClick={() => void startPaidEventBlast(plan)}>{blastBusy ? 'Starting…' : 'Promote'}</button></article>) : <p className="draft-state">No paid plans are available yet. Ask an administrator to configure them.</p>}</div></section></div>}
     {createEventOpen && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create an event"><section className="create-modal-card event-create-panel"><header className="create-modal-header"><div><p className="eyebrow">MAKE SOMETHING HAPPEN</p><h2>Publish an event</h2></div><button type="button" className="create-modal-close" aria-label="Close create event" onClick={() => setCreateEventOpen(false)}>×</button></header><p className="feature-copy">Create a real plan for your community. Your event is published once the form succeeds.</p>
       <form className="feature-form" onSubmit={publish}>
         <label>Event title<input value={title} onChange={e => { setTitle(e.target.value); setPublishedOnce(false); }} maxLength={160} required placeholder="What are we getting together for?" /></label>
