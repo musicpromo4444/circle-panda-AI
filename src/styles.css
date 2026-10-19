@@ -2286,3 +2286,44 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .sent-card-person { display:flex; align-items:center; gap:10px; min-width:0; }
 .sent-card-person>div { min-width:0; }
 .request-avatar.vip-avatar-frame { overflow:visible; flex-shrink:0; --vip-glow:rgba(255,205,92,.8); }
+
+
+/* Final header-only override: keep the BC coin artwork, but disable every outer
+   aura/glow layer on the header coin. Wallet coin artwork elsewhere is untouched. */
+.topbar .coin-token {
+  box-shadow:inset 0 0 0 2px #ffda55,inset 0 0 5px #fff2a6,0 2px 5px #0009!important;
+  filter:none!important;
+  animation:none!important;
+  text-shadow:none!important;
+}
+.topbar .coin-token::before,
+.topbar .coin-token::after {
+  content:none!important;
+  display:none!important;
+  animation:none!important;
+  filter:none!important;
+  box-shadow:none!important;
+}
+.topbar .coin-token .panda-coin-engraving {
+  filter:none!important;
+  box-shadow:none!important;
+}
+.topbar .coin-balance-chip,
+.topbar .coin-balance-chip:hover {
+  box-shadow:none!important;
+  filter:none!important;
+}
+.topbar .profile-chip,
+.topbar .profile-chip .avatar {
+  box-shadow:none!important;
+  filter:none!important;
+  animation:none!important;
+  text-shadow:none!important;
+}
+.topbar .profile-chip .avatar::before,
+.topbar .profile-chip .avatar::after {
+  content:none!important;
+  display:none!important;
+  animation:none!important;
+  box-shadow:none!important;
+}
