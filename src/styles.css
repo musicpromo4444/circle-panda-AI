@@ -2057,3 +2057,25 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 @media (max-width: 560px) {
   .event-owner-actions { align-items: stretch; flex-direction: column; }
 }
+
+
+.event-blast-plans { display: grid; gap: 0.7rem; margin-top: 1rem; }
+.event-blast-plans h3 { margin: 0; color: var(--text, #f2f5e9); }
+.event-blast-plans > p { margin: 0; color: var(--muted, #a8b7ac); font-size: 0.85rem; }
+.event-blast-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(226, 184, 77, 0.42);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.event-blast-plan > div { display: grid; gap: 0.25rem; min-width: 0; }
+.event-blast-plan > div strong { color: var(--text, #f2f5e9); }
+.event-blast-plan span { color: var(--muted, #a8b7ac); font-size: 0.78rem; }
+@media (max-width: 480px) {
+  .event-blast-plan { grid-template-columns: minmax(0, 1fr) auto; }
+  .event-blast-plan > button { grid-column: 1 / -1; }
+}
