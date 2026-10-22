@@ -21,6 +21,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
   const [gameScore,setGameScore] = useState(0);
   const [gameActive,setGameActive] = useState(false);
   const [coinDropSessionId,setCoinDropSessionId] = useState<string|null>(null);
+  const [slotsSessionId,setSlotsSessionId] = useState<string|null>(null);
   const [busy,setBusy] = useState(false);
   const [loading,setLoading] = useState(true);
   const [notice,setNotice] = useState('');
@@ -58,8 +59,13 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
         if(error) setNotice(error.message);
         else { const result=data as {score?:number;earned_bc?:number}; setGameScore(Number(result.score??gameScore)); setGameResult('Round complete · score '+Number(result.score??gameScore)+' · '+Number(result.earned_bc??0)+' BC net from collected items.'); setGameStep(3); window.dispatchEvent(new Event('circle-panda-wallet-updated')); }
       });
-    } else { setGameResult('Calculating slot results…'); setGameStep(3); }
-  },[gameSeconds,gameActive,selected?.activity_key,gameScore,coinDropSessionId]);
+    } else if(selected?.activity_key==='panda_slots' && slotsSessionId && supabase) {
+      void supabase.rpc('finish_daily_panda_slots',{p_session_id:slotsSessionId}).then(({data,error})=>{
+        if(error) setNotice(error.message);
+        else { const result=data as {result?:string}; setGameResult(result.result??'Slot round complete.'); setGameStep(3); }
+      });
+    } else { setGameResult('The round ended. Please restart the activity.'); setGameStep(0); }
+  },[gameSeconds,gameActive,selected?.activity_key,gameScore,coinDropSessionId,slotsSessionId]);
   useEffect(()=>{
     if(gameStep!==3) return;
     const timer=window.setTimeout(()=>{
@@ -148,7 +154,12 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:'start_round'});
     if(error){setNotice(error.message);setBusy(false);return;}
     setBusy(false);
-    if(selected.activity_key==='panda_slots') { setGameSeconds(60); setGameScore(0); setGameActive(true); setGameResult(''); return; }
+    if(selected.activity_key==='panda_slots') {
+      const {data,error}=await supabase.rpc('start_daily_panda_slots');
+      if(error){setNotice(error.message);setBusy(false);return;}
+      const session=data as {session_id:string;seconds_remaining:number};
+      setSlotsSessionId(session.session_id);setGameSeconds(Number(session.seconds_remaining??60));setGameScore(0);setGameActive(true);setGameResult('');return;
+    }
     const results:Record<string,string> = {
       wheel_spin:'The panda wheel is spinning…',guess_sponsor:'Checking your sponsor guess…',panda_cup_shuffle:'Shuffling the cups…',
       lucky_cards:'Shuffling your lucky cards…',secret_reveal:'Unlocking your secret prompt…',panda_puzzle:'Checking the puzzle…',
