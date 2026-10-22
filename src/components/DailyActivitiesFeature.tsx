@@ -76,7 +76,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     setBusy(true);setNotice('');
     const {data,error}=await supabase.rpc('complete_daily_activity',{p_activity_key:selected.activity_key});
     if(error) setNotice(error.message);
-    else {setGameResult('+'+Number((data as {reward_bc?:number})?.reward_bc??selected.reward_bc)+' BC earned!');setGameStep(2);await load();await onReward();}
+    else {setGameResult('+'+Number((data as {reward_bc?:number})?.reward_bc??selected.reward_bc)+' BC earned!');setGameStep(2);window.dispatchEvent(new Event('circle-panda-wallet-updated'));await load();await onReward();}
     setBusy(false);
   }
   function chooseOption(choice:string) { setGameResult('Round complete — '+choice+'.'); setGameStep(1); }
