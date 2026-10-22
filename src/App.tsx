@@ -4,9 +4,10 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
 import LocationFields, { CountryDropdown, type LocationValue } from './components/LocationFields';
 import CrushFeature from './components/CrushFeature';
+import HotSeatFeature from './HotSeatFeature';
 import VipCallControls from './components/VipCallControls';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'VIP' | 'Wallet' | 'Profile' | 'Admin';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'VIP' | 'Wallet' | 'Profile' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
@@ -26,6 +27,7 @@ const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Events', icon: '📅', hint: 'Find your next plan' },
   { name: 'Groups', icon: '👥', hint: 'Your people, your conversations' },
   { name: 'Messages', icon: '💬', hint: 'Requests and private chats' },
+  { name: 'HotSeat', icon: '🔥', hint: 'Questions, gifts and the next seat' },
   { name: 'VIP', icon: '✦', hint: 'Your Gold Circle membership and benefits' },
   { name: 'Wallet', icon: '👛', hint: 'Your Panda Coins and activity' }, 
   { name: 'Admin', icon: '🛡️', hint: 'Manage rewards and economy rules' },
@@ -606,8 +608,9 @@ export default function App() {
   </div>;
 }
 
-function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void }) {
+function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void; isAdmin:boolean }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
+  if (section === 'HotSeat') return <HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} isAdmin={isAdmin} />;
   if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={onOpenMessages} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'VIP') return <VipFeature userId={userId} onNavigate={onNavigate} />;
@@ -616,7 +619,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Admin') return <AdminFeature />;
-  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile'>, { icon: string; title: string; body: string; next: string[] }> = {
+  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
     'Events': { icon: '▦', title: 'Make plans worth showing up for', body: 'Discover events around you or publish one of your own. Event cards will connect directly to the creator.', next: ['Create and publish events', 'Attendance and attendee counts', 'Creator messaging and event boosts'] },
@@ -624,7 +627,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section
     'Messages': { icon: '↗', title: 'Every connection leads to a conversation', body: 'Message requests from dating, events, groups and the feed will live alongside your accepted chats.', next: ['Incoming and sent requests', 'Accept or decline requests', 'Private chats and unread indicators'] },
     'Wallet': { icon: '◈', title: 'Your Panda wallet', body: 'Your wallet and activity rewards will be managed by server-side rules, with balances that do not expire.', next: ['BC balance and transaction history', 'Activity XP and levels', 'VIP and reward controls'] },
   };
-  const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile'>];
+  const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>];
   return <section className="feature-panel"><div className="feature-icon">{item.icon}</div><p className="eyebrow">THE CIRCLE PANDA EXPERIENCE</p><h2>{item.title}</h2><p className="feature-copy">{item.body}</p><div className="feature-list">{item.next.map((next, i) => <div key={next}><span>{String(i + 1).padStart(2, '0')}</span>{next}<b>↗</b></div>)}</div><div className="feature-note"><span className="pulse" /> This section is being connected to the new backend in stages.</div></section>;
 }
 
