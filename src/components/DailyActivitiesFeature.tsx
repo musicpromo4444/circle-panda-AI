@@ -104,10 +104,14 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     else {setGameResult('+'+Number((data as {reward_bc?:number})?.reward_bc??selected.reward_bc)+' BC earned!');setGameStep(2);window.dispatchEvent(new Event('circle-panda-wallet-updated'));await load();await onReward();}
     setBusy(false);
   }
-  function chooseOption(choice:string) {
+  async function chooseOption(choice:string) {
+    if(!supabase || !selected || busy) return;
+    setBusy(true);setNotice('');
+    const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:choice});
+    if(error){setNotice(error.message);setBusy(false);return;}
     const random=(items:string[])=>items[Math.floor(Math.random()*items.length)];
     let outcome='Your choice has been recorded.';
-    switch(selected?.activity_key) {
+    switch(selected.activity_key) {
       case 'panda_cup_shuffle': outcome=random(['🎋 Golden bamboo found!','✨ A lucky sparkle!','🐼 The panda was hiding here!']); break;
       case 'lucky_cards': outcome=random(['🌟 Lucky star revealed!','🎋 Bamboo blessing revealed!','💛 Golden panda revealed!']); break;
       case 'mystery_box': outcome=random(['🎁 Surprise: golden sparkle!','🎁 Surprise: bamboo treasure!','🎁 Surprise: panda charm!']); break;
@@ -117,7 +121,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
       case 'secret_reveal': outcome=random(['Your secret prompt: What is one dream you rarely share?','Your secret prompt: What always makes you smile?','Your secret prompt: What would you try if fear disappeared?']); break;
       default: outcome='Round complete — '+choice+'.';
     }
-    setGameResult(outcome);setGameStep(3);
+    setGameResult(outcome);setGameStep(3);setBusy(false);
   }
   async function startCoinDrop() {
     if(!supabase || busy) return;
@@ -138,14 +142,19 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     else { const result=data as {score?:number}; setGameScore(Number(result.score??gameScore)); window.dispatchEvent(new Event('circle-panda-wallet-updated')); }
     setBusy(false);
   }
-  function playStep() {
-    if(selected?.activity_key==='panda_slots') { setGameSeconds(60); setGameScore(0); setGameActive(true); setGameResult(''); return; }
+  async function playStep() {
+    if(!supabase || !selected || busy) return;
+    setBusy(true);setNotice('');
+    const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:'start_round'});
+    if(error){setNotice(error.message);setBusy(false);return;}
+    setBusy(false);
+    if(selected.activity_key==='panda_slots') { setGameSeconds(60); setGameScore(0); setGameActive(true); setGameResult(''); return; }
     const results:Record<string,string> = {
       wheel_spin:'The panda wheel is spinning…',guess_sponsor:'Checking your sponsor guess…',panda_cup_shuffle:'Shuffling the cups…',
       lucky_cards:'Shuffling your lucky cards…',secret_reveal:'Unlocking your secret prompt…',panda_puzzle:'Checking the puzzle…',
       coin_drop:'Your Coin Drop round is complete!',panda_slots:'The slot result is ready!',mystery_box:'Opening your mystery box…',panda_target:'Locking onto the target…'
     };
-    setGameResult(results[selected?.activity_key??'']??'Calculating your result…');setGameStep(3);
+    setGameResult(results[selected.activity_key]??'Calculating your result…');setGameStep(3);
   }
   return <section className="daily-activities-panel">
     <div className="daily-activities-heading"><div><p className="eyebrow">YOUR 7-DAY CHALLENGE</p><h2>Daily Activities</h2><p>Claim your daily login reward, then complete the activity assigned for the day.</p></div><span className="daily-streak-mark">🐼 <b>{completed.length}/7</b><small>days complete</small></span></div>
