@@ -1844,7 +1844,6 @@ function WalletPandaCoin() { return <span className="wallet-store-coin-token"><P
 
 function WalletFeature({ userId }: { userId: string }) {
   const [bcBalance, setBcBalance] = useState(0);
-  const [isAdminWallet, setIsAdminWallet] = useState(false);
   const [wcBalance, setWcBalance] = useState(0);
   const [xpTotal, setXpTotal] = useState(0);
   const [levelName, setLevelName] = useState('Novice');
@@ -1868,7 +1867,6 @@ function WalletFeature({ userId }: { userId: string }) {
       supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle(),
     ]);
     const adminUnlimited = Boolean(adminResult.data);
-    setIsAdminWallet(adminUnlimited);
     if (walletResult.data) { setBcBalance(adminUnlimited ? 0 : Number(walletResult.data.bc_balance)); setWcBalance(Number(walletResult.data.wc_balance)); }
     if (xpResult.data) { setXpTotal(Number(xpResult.data.xp_total)); setLevelName(xpResult.data.level_name); }
     setTransactions((transactionResult.data ?? []) as WalletTransactionRow[]);
