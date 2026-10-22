@@ -64,3 +64,11 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Applied migration `admin_bypass_normal_group_member_gate` to active Supabase project `chcyncvieekjousgzlrg` and added matching migration `supabase/migrations/20261022121500_admin_bypass_normal_group_member_gate.sql`.
 - Normal users still need three members to open a regular group; active VIP members and admins bypass that threshold. Closed-group and membership checks remain enforced.
 - Still requires authenticated-browser regression testing; do not treat migration success as proof of the full user journey.
+
+
+## Group message authorization fix (2026-10-22)
+
+- A second audit found the `guard_group_chat_open()` message-insert trigger repeated the normal-group three-member check without considering role-based admin access. This could allow an admin to open a room but still block message sends when fewer than three members exist.
+- Applied `admin_bypass_group_message_gate` to the active Supabase project and committed the matching migration `supabase/migrations/20261022123000_admin_bypass_group_message_gate.sql`.
+- Normal-group three-member requirements remain for ordinary users. Closed-group checks, membership checks, VIP checks and group messaging settings remain enforced; platform admins are recognized for the group threshold and admin messaging permissions.
+- End-to-end authenticated testing remains outstanding.
