@@ -2624,3 +2624,8 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 :root[data-theme="light"] .hot-seat-video-empty p{color:#65748a}
 :root[data-theme="light"] .hot-seat-stream-form input{background:#fff;color:#253447;border-color:#d8e0eb}
 @media(max-width:720px){.hot-seat-stream-form{flex-direction:column;align-items:stretch}.hot-seat-stream-form>*{width:100%}}
+
+.hot-seat-header-shortcut{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 10px;border:1px solid #b68a36;border-radius:10px;background:linear-gradient(145deg,#3a2a1b,#171a25);color:#ffe1a0;font-size:15px;font-weight:900;box-shadow:inset 0 1px #fff3a633,0 0 13px #e8b94b18;white-space:nowrap}
+.hot-seat-header-shortcut small{font-size:8px;letter-spacing:.8px}
+.hot-seat-header-shortcut:hover{border-color:#ffdf8b;filter:brightness(1.1)}
+@media(max-width:760px){.hot-seat-header-shortcut{min-height:32px;padding:0 7px;border-radius:8px;font-size:17px}.hot-seat-header-shortcut small{display:none}.top-actions{gap:5px!important}}
