@@ -67,9 +67,14 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     if(error) setNotice(error.message); else {setNotice('Day '+day+' activity saved.');await load();}
     setBusy(false);
   }
-  function beginActivity(item:DailyActivityItem) {
+  async function beginActivity(item:DailyActivityItem) {
     if(item.is_ad_only){setNotice('Sponsored activity is listed, but rewards stay locked until verified ad playback is integrated.');return;}
-    setSelected(item);setGameStep(0);setGameResult('');
+    if(!supabase || busy) return;
+    setBusy(true);setNotice('');
+    const {error}=await supabase.rpc('start_daily_activity',{p_activity_key:item.activity_key});
+    if(error) {setNotice(error.message);setBusy(false);return;}
+    setSelected(item);setGameStep(0);setGameResult('');setGameSeconds(60);setGameScore(0);setGameActive(false);
+    setBusy(false);
   }
   async function finishActivity() {
     if(!supabase || !selected || busy) return;
