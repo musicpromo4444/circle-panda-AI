@@ -109,6 +109,7 @@ export default function App() {
     let alive = true;
     void (async () => {
       const { error } = await client.rpc('claim_economy_reward', { p_reward_key: 'daily_login_reward' });
+      await client.rpc('get_daily_activity_state');
       if (error || !alive) return;
       const { data } = await client.from('wallet_transactions').select('amount')
         .eq('user_id', userId).eq('reason', 'reward:daily_login_reward')
