@@ -2579,3 +2579,16 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 :root[data-theme="light"] .hot-seat-admin-panel>p:not(.eyebrow),:root[data-theme="light"] .hot-seat-admin-settings>label>span,:root[data-theme="light"] .hot-seat-admin-gifts>label>span,:root[data-theme="light"] .hot-seat-admin-activities>label>span{color:#596579}
 :root[data-theme="light"] .hot-seat-admin-settings>label,:root[data-theme="light"] .hot-seat-admin-gifts>label,:root[data-theme="light"] .hot-seat-admin-activities>label{background:#fff;border-color:#e5dfd1}
 :root[data-theme="light"] .hot-seat-admin-settings input,:root[data-theme="light"] .hot-seat-admin-gifts input{background:#fff;color:#29384d;border-color:#d7dfeb}
+
+.hot-seat-gift-burst{position:sticky;top:12px;z-index:5;display:flex;align-items:center;gap:13px;padding:12px 17px;border:1px solid #e9bf66;border-radius:15px;background:linear-gradient(115deg,#38271aee,#33263bee);box-shadow:0 15px 45px #0006;animation:hot-seat-gift-arrive .45s cubic-bezier(.2,.8,.2,1) both}
+.hot-seat-gift-burst>span{font-size:43px;filter:drop-shadow(0 5px 9px #ffce5d66);animation:hot-seat-gift-float 1.1s ease-in-out infinite alternate}
+.hot-seat-gift-burst>div{display:grid;gap:4px}
+.hot-seat-gift-burst strong{font-size:12px;color:#ffe2a1}
+.hot-seat-gift-burst small{font-size:9px;color:#ddc9a6}
+@keyframes hot-seat-gift-arrive{from{opacity:0;transform:translateY(-14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes hot-seat-gift-float{to{transform:translateY(-5px) rotate(-5deg)}}
+.hot-seat-five-minute-warning{display:inline-flex;align-items:center;border:1px solid #b64b4b;border-radius:999px;padding:8px 11px;background:#472323;color:#ffc1b7;font-size:9px;font-weight:900;letter-spacing:.6px;animation:hot-seat-warning-pulse 1.4s ease-in-out infinite}
+@keyframes hot-seat-warning-pulse{50%{box-shadow:0 0 0 4px #ff817c12}}
+.hot-seat-stats{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1000px){.hot-seat-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.hot-seat-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.hot-seat-five-minute-warning{font-size:8px}}
