@@ -1994,14 +1994,6 @@ function WalletFeature({ userId }: { userId: string }) {
     } finally { setBusy(false); }
   }
 
-  async function claimDailyReward() {
-    if (!supabase) return;
-    setBusy(true); setNotice('');
-    const { error } = await supabase.rpc('claim_economy_reward', { p_reward_key: 'daily_login_reward' });
-    if (error) setNotice(error.message);
-    else { setNotice('Daily login reward credited to your wallet.'); await load(); }
-    setBusy(false);
-  }
 
   function startFreeAdReward() {
     // No rewarded-ad provider or verified completion callback is configured in this
