@@ -49,3 +49,10 @@ Only work on the new `circle-panda-AI` repository and the `Circle Panda Rebuilt`
 - Finish the remaining visual consistency and production regression pass.
 
 Update this tracker as each vertical feature is implemented and tested so completed work is not re-listed as unfinished in later sessions.
+
+
+## VIP group authorization fix (2026-10-22)
+
+- Inspected the active Supabase `join_chat_group(uuid)` function and found a backend mismatch: it checked only the raw profile VIP flag, ignored VIP expiry, and did not allow admins whose VIP access is derived from `user_roles`.
+- Applied migration `fix_vip_group_join_admin_and_expiry` to the active Supabase project. The function now requires an unexpired VIP pass for non-admin VIP-room entry, recognizes the authoritative admin role, and permits admins through country restrictions while retaining those restrictions for regular members.
+- Added the matching migration file to the new GitHub repo in commit `de4e29c879a435c482dd64b0b13ca8f5e890ac8a`. Need verify deployment/build for the new commit and run signed-in acceptance tests for admin and normal VIP/non-VIP users; SQL migration success alone does not prove browser flows.
