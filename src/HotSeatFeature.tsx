@@ -98,10 +98,10 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
       setGiftTx((gt.data??[]) as HotGiftTx[]);
       setBids((b.data??[]) as HotBid[]);
       setActivities(((a.data??[]) as BreakActivity[]).filter(item=>item.enabled||isAdmin));
-      if(isAdmin){setAdminSettings(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)));setSettingDrafts(Object.fromEntries(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)).map(row=>[row.setting_key,String(row.numeric_value)])));}
-      setBalance(wallet.data ? Number(wallet.data.bc_balance) : null);
       const settingRows=(settingResult.data??[]) as HotSetting[];
       setPublicSettings(Object.fromEntries(settingRows.map(row=>[row.setting_key,Number(row.numeric_value)])));
+      if(isAdmin){setAdminSettings(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)));setSettingDrafts(Object.fromEntries(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)).map(row=>[row.setting_key,String(row.numeric_value))])));}
+      setBalance(wallet.data ? Number(wallet.data.bc_balance) : null);
       const pollRows=(pollResult.data??[]) as HotPoll[];setPolls(pollRows);
       setIsFollowingHost(Boolean(followResult.data));setHostFollowerCount(followCountResult.count??0);
       if(pollRows.length){const {data:votes}=await supabase.from('hot_seat_poll_votes').select('poll_id,user_id,option_index').in('poll_id',pollRows.map(p=>p.id));setPollVotes((votes??[]) as HotPollVote[]);}else setPollVotes([]);
@@ -128,13 +128,13 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
   const totalHostEarnings=hostGifts+questionEarnings;
   const totalGiftSpend=giftTx.reduce((sum,g)=>sum+Number(g.total_bc),0);
   const isPaused=Boolean(session?.paused_at&&session?.pause_until&&new Date(session.pause_until).getTime()>now);
+  const waterBreakMinutes=Number(publicSettings.water_break_minutes??60);
   const endTime=session?.status==='live'&&isPaused&&session?.pause_until?new Date(session.pause_until).getTime():session?.status==='live'&&session.ends_at?new Date(session.ends_at).getTime():session?.status==='water_break'&&session.break_started_at?new Date(session.break_started_at).getTime()+waterBreakMinutes*60*1000:null;
   const timeLeft=endTime?formatRemaining(endTime-now):null;
   const questionStandardCost=Number(publicSettings.question_standard_cost??25);
   const questionCustomCost=Number(publicSettings.question_custom_cost??75);
   const questionCost=questionType==='custom'?questionCustomCost:questionStandardCost;
   const hostSharePercent=Number(publicSettings.host_earnings_percent??20);
-  const waterBreakMinutes=Number(publicSettings.water_break_minutes??60);
   const pendingQuestions=questions.filter(q=>q.status==='pending');
 
   async function act(key:string,fn:()=>Promise<unknown>,success:string) {
