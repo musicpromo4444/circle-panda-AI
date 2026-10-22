@@ -180,11 +180,16 @@ export default function App() {
   useEffect(() => {
     if (!supabase || !session) { setCoinBalance(null); return; }
     let alive = true;
-    Promise.all([
-      supabase.from('wallet_accounts').select('bc_balance').eq('user_id', session.user.id).maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', session.user.id).eq('role', 'admin').maybeSingle(),
-    ]).then(([{ data: wallet }, { data: adminRole }]) => { if (alive) setCoinBalance(adminRole ? Number.POSITIVE_INFINITY : (wallet ? Number(wallet.bc_balance) : 0)); });
-    return () => { alive = false; };
+    const refreshWallet = async () => {
+      const [{data:wallet},{data:adminRole}] = await Promise.all([
+        supabase!.from('wallet_accounts').select('bc_balance').eq('user_id', session!.user.id).maybeSingle(),
+        supabase!.from('user_roles').select('role').eq('user_id', session!.user.id).eq('role', 'admin').maybeSingle(),
+      ]);
+      if (alive) setCoinBalance(adminRole ? Number.POSITIVE_INFINITY : (wallet ? Number(wallet.bc_balance) : 0));
+    };
+    void refreshWallet();
+    window.addEventListener('circle-panda-wallet-updated', refreshWallet);
+    return () => { alive = false; window.removeEventListener('circle-panda-wallet-updated', refreshWallet); };
   }, [session]);
 
   useEffect(() => {
@@ -562,7 +567,7 @@ export default function App() {
     <main className="main-area">
       <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><PandaCoinArtwork /></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="icon-button theme-toggle" title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><svg viewBox="0 0 24 24" aria-hidden="true">{theme==='dark' ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></> : <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></>}</svg></button><button className="icon-button notification-button" title="Notifications" aria-label="Notifications" onClick={() => setNotice('You are all caught up.')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button><button className="profile-chip profile-chip-icon-only" onClick={() => setSection('Profile')} title="Your profile" aria-label="Your profile"><span className="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2z"/></svg></span></button></div></header>
       <div className={`page-wrap page-${section.toLowerCase()}`}>
-<div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confessions' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div></div>
+<div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confessions' : section === 'HotSeat' ? 'Hot Seat' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div></div>
                 {(section === 'Home' || section === 'Confessions') && <div className="confession-shortcuts" aria-label="Circle Panda quick actions"><button type="button" className="confession-shortcut" onClick={() => setShowCrushUploadChoice(true)}><span className="shortcut-circle upload-3d"><span className="shortcut-symbol">＋</span></span><strong>Upload</strong><small>Upload your crush picture</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','wcw'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♡</span></span><strong className="shortcut-acronym">WCW</strong><small>Woman Crush Wednesday</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','mcm'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♛</span></span><strong className="shortcut-acronym">MCM</strong><small>Man Crush Monday</small></button></div>}
         {showCrushUploadChoice && <div className="onboarding-backdrop" onClick={() => setShowCrushUploadChoice(false)}><section className="onboarding-dialog crush-choice-dialog" role="dialog" aria-modal="true" aria-labelledby="crush-choice-title" onClick={event => event.stopPropagation()}>
           <button type="button" className="onboarding-close" aria-label="Close upload options" onClick={() => setShowCrushUploadChoice(false)}>×</button>
