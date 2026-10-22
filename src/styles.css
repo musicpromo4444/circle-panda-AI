@@ -2666,3 +2666,6 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 
 
 .daily-live-game{margin:18px 0;padding:16px;border:1px solid #d6b64d50;border-radius:17px;background:#ffffff06}.daily-live-game>strong{display:block;color:#f3d36e;font-size:1.15rem}.daily-score-meter{display:flex;justify-content:space-between;align-items:center;margin:12px 0;padding:10px;border-radius:12px;background:#0004;color:#c4ccc5}.daily-score-meter b{font-size:1.4rem;color:#f3d36e}.daily-slot-reels{display:flex;justify-content:center;gap:10px;margin:20px 0}.daily-slot-reels span{display:grid;place-items:center;width:68px;height:72px;border-radius:14px;border:1px solid #d6b64d75;background:linear-gradient(145deg,#e2c85d20,#ffffff08);font-size:2rem;box-shadow:inset 0 0 12px #d6b64d17}.daily-live-game p{color:#aeb8af;font-size:.85rem}
+
+
+.daily-reveal-spinner{display:grid;place-items:center;width:70px;height:70px;margin:12px auto;border-radius:50%;border:2px solid #d6b64d55;color:#f4d875;font-size:2.3rem;animation:dailyRevealSpin 1.1s linear infinite;box-shadow:0 0 24px #d6b64d26,inset 0 0 18px #d6b64d18}@keyframes dailyRevealSpin{from{transform:rotate(0deg) scale(.95)}50%{transform:rotate(180deg) scale(1.06)}to{transform:rotate(360deg) scale(.95)}}
