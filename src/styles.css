@@ -2660,3 +2660,6 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 
 .daily-game-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:18px 0}.daily-game-choices button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:92px;border:1px solid #d6b64d65;border-radius:15px;background:linear-gradient(145deg,#d7b74c18,#ffffff06);color:inherit;font-size:1.7rem;cursor:pointer}.daily-game-choices button:hover{border-color:#f4d875;background:#d7b74c24;transform:translateY(-2px)}.daily-game-choices small{font-size:.72rem;color:#d4d9d4}
 .daily-login-weekly-note{margin:5px 0 0;color:var(--muted,#9ea8a0);font-size:.78rem;line-height:1.5}
+
+
+.daily-login-earned{display:inline-flex;align-items:center;justify-content:center;margin:6px auto 10px;padding:12px 24px;border-radius:16px;border:1px solid #f2d26b;background:linear-gradient(135deg,#f9e8a3,#c89b2b);color:#241b05;font-size:1.7rem;font-weight:900;box-shadow:0 8px 24px #c79d3040}.daily-login-modal .daily-game-big-icon .wallet-store-coin-token{width:78px;height:78px}.daily-login-modal .secondary-button.full{margin-top:9px}
