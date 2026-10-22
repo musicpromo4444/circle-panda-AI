@@ -6,7 +6,7 @@ import LocationFields, { CountryDropdown, type LocationValue } from './component
 import CrushFeature from './components/CrushFeature';
 import VipCallControls from './components/VipCallControls';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'VIP' | 'Wallet' | 'Admin';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'VIP' | 'Wallet' | 'Profile' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
@@ -558,7 +558,7 @@ export default function App() {
       </button>)}
     </nav>
     <main className="main-area">
-      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><PandaCoinArtwork /></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="icon-button theme-toggle" title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><svg viewBox="0 0 24 24" aria-hidden="true">{theme==='dark' ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></> : <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></>}</svg></button><button className="icon-button notification-button" title="Notifications" aria-label="Notifications" onClick={() => setNotice('You are all caught up.')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button><button className="profile-chip profile-chip-icon-only" onClick={() => setSection('Wallet')} title="Your profile" aria-label="Your profile"><span className="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2z"/></svg></span></button></div></header>
+      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><PandaCoinArtwork /></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="icon-button theme-toggle" title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><svg viewBox="0 0 24 24" aria-hidden="true">{theme==='dark' ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></> : <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></>}</svg></button><button className="icon-button notification-button" title="Notifications" aria-label="Notifications" onClick={() => setNotice('You are all caught up.')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button><button className="profile-chip profile-chip-icon-only" onClick={() => setSection('Profile')} title="Your profile" aria-label="Your profile"><span className="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2z"/></svg></span></button></div></header>
       <div className={`page-wrap page-${section.toLowerCase()}`}>
 <div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confessions' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div></div>
                 {(section === 'Home' || section === 'Confessions') && <div className="confession-shortcuts" aria-label="Circle Panda quick actions"><button type="button" className="confession-shortcut" onClick={() => setShowCrushUploadChoice(true)}><span className="shortcut-circle upload-3d"><span className="shortcut-symbol">＋</span></span><strong>Upload</strong><small>Upload your crush picture</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','wcw'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♡</span></span><strong className="shortcut-acronym">WCW</strong><small>Woman Crush Wednesday</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','mcm'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♛</span></span><strong className="shortcut-acronym">MCM</strong><small>Man Crush Monday</small></button></div>}
@@ -612,6 +612,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate }: { section
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'VIP') return <VipFeature userId={userId} onNavigate={onNavigate} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
+  if (section === 'Profile') return <ProfileFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Admin') return <AdminFeature />;
@@ -1841,6 +1842,62 @@ function PandaCoinArtwork() {
 }
 function WalletPandaCoin() { return <span className="wallet-store-coin-token"><PandaCoinArtwork /></span>; }
 
+
+
+type ProfileEditRow = { id:string; username:string|null; display_name:string|null; avatar_url:string|null; country:string|null; state:string|null; area:string|null; date_of_birth:string|null; gender:string|null; bio:string|null; address_line:string|null; is_vip:boolean|null; vip_expires_at:string|null };
+function ProfileFeature({ userId }: { userId:string }) {
+  const [profile,setProfile] = useState<ProfileEditRow|null>(null);
+  const [draft,setDraft] = useState({username:'',display_name:'',country:'',state:'',area:'',date_of_birth:'',gender:'',bio:'',address_line:''});
+  const [admin,setAdmin] = useState(false);
+  const [loading,setLoading] = useState(true);
+  const [saving,setSaving] = useState(false);
+  const [notice,setNotice] = useState('');
+  async function load() {
+    if(!supabase) return;
+    setLoading(true);
+    const [p,r] = await Promise.all([
+      supabase.from('profiles').select('id,username,display_name,avatar_url,country,state,area,date_of_birth,gender,bio,address_line,is_vip,vip_expires_at').eq('id',userId).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle(),
+    ]);
+    if(p.error) setNotice(p.error.message);
+    if(p.data) {
+      const row=p.data as ProfileEditRow; setProfile(row);
+      setDraft({username:row.username||'',display_name:row.display_name||'',country:row.country||'',state:row.state||'',area:row.area||'',date_of_birth:row.date_of_birth||'',gender:row.gender||'',bio:row.bio||'',address_line:row.address_line||''});
+    }
+    setAdmin(Boolean(r.data)); setLoading(false);
+  }
+  useEffect(()=>{void load();},[userId]);
+  async function save(e:FormEvent<HTMLFormElement>) {
+    e.preventDefault(); if(!supabase||saving) return;
+    if(draft.username.trim().length>30 || draft.bio.length>500) {setNotice('Username must be 30 characters or fewer and bio must be 500 characters or fewer.');return;}
+    setSaving(true);setNotice('');
+    const payload={id:userId,username:draft.username.trim()||null,display_name:draft.display_name.trim()||null,country:draft.country.trim()||null,state:draft.state.trim()||null,area:draft.area.trim()||null,date_of_birth:draft.date_of_birth||null,gender:draft.gender||null,bio:draft.bio.trim()||null,address_line:draft.address_line.trim()||null,updated_at:new Date().toISOString()};
+    const {error}=await supabase.from('profiles').upsert(payload,{onConflict:'id'});
+    if(error) setNotice(error.message); else {setNotice('Profile saved. Your changes are stored in Circle Panda.');await load();}
+    setSaving(false);
+  }
+  const activeVip=admin || Boolean(profile?.is_vip && (!profile.vip_expires_at || new Date(profile.vip_expires_at).getTime()>Date.now()));
+  return <section className="feature-panel profile-feature-panel">
+    <div className="feature-icon">🐼</div><p className="eyebrow">YOUR CIRCLE PANDA IDENTITY</p><h2>Your profile</h2>
+    <p className="feature-copy">Keep your profile details current. These details can be reused across dating, groups and events. Coin purchases are available only in Wallet.</p>
+    {loading ? <div className="empty-state">Loading your profile…</div> : <>
+      <div className="profile-summary-card"><div className={activeVip?'post-avatar vip-avatar-frame '+getWeeklyVipAuraClass():'post-avatar'}>🐼</div><div><strong>{draft.display_name||draft.username||'Circle Panda member'}</strong><p>@{draft.username||'choose-a-username'}</p><span className={activeVip?'vip-member-label':''}>{admin?'ADMIN · UNLIMITED BC':activeVip?'VIP MEMBER':'STANDARD MEMBER'}</span></div></div>
+      <form className="profile-edit-form" onSubmit={save}>
+        <label>Display name<input value={draft.display_name} maxLength={80} onChange={e=>setDraft(v=>({...v,display_name:e.target.value}))} placeholder="How people see you"/></label>
+        <label>Username<input value={draft.username} maxLength={30} onChange={e=>setDraft(v=>({...v,username:e.target.value}))} placeholder="Choose a username"/></label>
+        <label>Date of birth<input type="date" value={draft.date_of_birth} max={new Date().toISOString().slice(0,10)} onChange={e=>setDraft(v=>({...v,date_of_birth:e.target.value}))}/></label>
+        <label>Gender<select value={draft.gender} onChange={e=>setDraft(v=>({...v,gender:e.target.value}))}><option value="">Prefer not to say</option><option value="woman">Woman</option><option value="man">Man</option><option value="non_binary">Non-binary</option><option value="other">Other</option></select></label>
+        <label>Country<input value={draft.country} maxLength={100} onChange={e=>setDraft(v=>({...v,country:e.target.value}))} placeholder="Country"/></label>
+        <label>State / province<input value={draft.state} maxLength={100} onChange={e=>setDraft(v=>({...v,state:e.target.value}))} placeholder="State or province"/></label>
+        <label>Area / city<input value={draft.area} maxLength={100} onChange={e=>setDraft(v=>({...v,area:e.target.value}))} placeholder="Area or city"/></label>
+        <label>Address (optional)<input value={draft.address_line} maxLength={250} onChange={e=>setDraft(v=>({...v,address_line:e.target.value}))} placeholder="Optional address"/></label>
+        <label className="profile-bio-field">About you<textarea value={draft.bio} maxLength={500} rows={4} onChange={e=>setDraft(v=>({...v,bio:e.target.value}))} placeholder="A little about yourself…"/></label>
+        {notice&&<div className="notice inline-notice">{notice}</div>}
+        <div className="profile-form-actions"><button type="submit" className="primary-button" disabled={saving}>{saving?'Saving profile…':'Save profile'}</button><button type="button" className="secondary-button" onClick={()=>void load()} disabled={saving}>Reset changes</button></div>
+      </form>
+    </>}
+  </section>;
+}
 
 function WalletFeature({ userId }: { userId: string }) {
   const [bcBalance, setBcBalance] = useState(0);
