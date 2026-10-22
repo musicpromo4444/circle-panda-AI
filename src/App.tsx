@@ -1901,6 +1901,7 @@ function ProfileFeature({ userId }: { userId:string }) {
 
 function WalletFeature({ userId }: { userId: string }) {
   const [bcBalance, setBcBalance] = useState(0);
+  const [isAdminUnlimited, setIsAdminUnlimited] = useState(false);
   const [wcBalance, setWcBalance] = useState(0);
   const [xpTotal, setXpTotal] = useState(0);
   const [levelName, setLevelName] = useState('Novice');
@@ -1924,6 +1925,7 @@ function WalletFeature({ userId }: { userId: string }) {
       supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle(),
     ]);
     const adminUnlimited = Boolean(adminResult.data);
+    setIsAdminUnlimited(adminUnlimited);
     if (walletResult.data) { setBcBalance(adminUnlimited ? 0 : Number(walletResult.data.bc_balance)); setWcBalance(Number(walletResult.data.wc_balance)); }
     if (xpResult.data) { setXpTotal(Number(xpResult.data.xp_total)); setLevelName(xpResult.data.level_name); }
     setTransactions((transactionResult.data ?? []) as WalletTransactionRow[]);
@@ -1986,7 +1988,7 @@ function WalletFeature({ userId }: { userId: string }) {
     <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" onClick={startFreeAdReward} title="Requires a verified rewarded-ad provider"><span aria-hidden="true">▷</span> Get 100 Free BC · Setup required <span aria-hidden="true">↗</span></button></div>
     <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your activity has value.</h2><p>BC balances do not expire. Rewards and message charges are processed by the backend.</p></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-    <div className="wallet-balance-grid"><article className="balance-card primary-balance"><span>PANDA COINS</span><strong>{loading ? '—' : bcBalance.toLocaleString()}</strong><small>BC · non-expiring balance</small></article><article className="balance-card"><span>WALLET COINS</span><strong>{loading ? '—' : wcBalance.toLocaleString()}</strong><small>WC balance</small></article><article className="balance-card"><span>EXPERIENCE POINTS</span><strong>{loading ? '—' : xpTotal.toLocaleString()}</strong><small>{levelName} level</small></article></div>
+    <div className="wallet-balance-grid"><article className="balance-card primary-balance"><span>PANDA COINS</span><strong>{loading ? '—' : isAdminUnlimited ? '∞' : bcBalance.toLocaleString()}</strong><small>{isAdminUnlimited ? 'ADMIN · UNLIMITED BC' : 'BC · non-expiring balance'}</small></article><article className="balance-card"><span>WALLET COINS</span><strong>{loading ? '—' : wcBalance.toLocaleString()}</strong><small>WC balance</small></article><article className="balance-card"><span>EXPERIENCE POINTS</span><strong>{loading ? '—' : xpTotal.toLocaleString()}</strong><small>{levelName} level</small></article></div>
     <div className="wallet-actions"><div><h3>Daily activity</h3><p>Claim the daily login reward once every 24 hours.</p></div><button className="primary-button" disabled={busy || loading} onClick={() => void claimDailyReward()}>{busy ? 'Checking…' : `Claim daily reward · +${settings.daily_login_reward ?? 3} BC`}</button></div>
     <section className="wallet-history"><div className="section-title-row"><div><h2>Wallet activity</h2><p>Latest rewards and message charges.</p></div><span className="count-pill">{transactions.length} RECORDS</span></div>
       {loading ? <div className="empty-state">Loading wallet…</div> : transactions.length ? transactions.map(t => <article className="transaction-row" key={t.id}><span className={t.amount >= 0 ? 'transaction-icon credit' : 'transaction-icon debit'}>{t.amount >= 0 ? '+' : '−'}</span><div><strong>{formatReason(t.reason)}</strong><small>{new Date(t.created_at).toLocaleString()}</small></div><b className={t.amount >= 0 ? 'amount-credit' : 'amount-debit'}>{t.amount > 0 ? '+' : ''}{t.amount} {t.currency}</b></article>) : <div className="empty-state compact"><p>Your wallet transactions will appear here.</p></div>}
