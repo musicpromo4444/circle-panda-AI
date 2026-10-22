@@ -16,6 +16,7 @@ type HotGiftTx = {id:string;session_id:string;sender_id:string;host_id:string;gi
 type HotBid = {id:string;session_id:string;bidder_id:string;amount_bc:number;status:string;created_at:string;decided_at:string|null};
 type BreakActivity = {id:string;title:string;description:string;activity_type:string;enabled:boolean;sort_order:number};
 type Props = {userId:string;onOpenWallet:()=>void;isAdmin?:boolean};
+type HotSetting = {setting_key:string;numeric_value:number};
 
 const reactionOptions = [{id:'like',emoji:'👍',label:'Like'},{id:'love',emoji:'❤️',label:'Love'},{id:'laugh',emoji:'😂',label:'Laugh'},{id:'wow',emoji:'😮',label:'Wow'},{id:'fire',emoji:'🔥',label:'Fire'},{id:'clap',emoji:'👏',label:'Clap'}];
 const formatRemaining = (ms:number) => { const sec=Math.max(0,Math.floor(ms/1000)); return [Math.floor(sec/3600),Math.floor((sec%3600)/60),sec%60].map(n=>String(n).padStart(2,'0')).join(':'); };
@@ -29,6 +30,9 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
   const [giftTx,setGiftTx]=useState<HotGiftTx[]>([]);
   const [bids,setBids]=useState<HotBid[]>([]);
   const [activities,setActivities]=useState<BreakActivity[]>([]);
+  const [adminSettings,setAdminSettings]=useState<HotSetting[]>([]);
+  const [settingDrafts,setSettingDrafts]=useState<Record<string,string>>({});
+  const [giftPriceDrafts,setGiftPriceDrafts]=useState<Record<string,string>>({});
   const [names,setNames]=useState<Record<string,string>>({});
   const [balance,setBalance]=useState<number|null>(null);
   const [now,setNow]=useState(Date.now());
@@ -61,10 +65,10 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
         supabase.from('hot_seat_questions').select('id,session_id,asker_id,body,question_type,status,answer,asked_at,answer_deadline,answered_at').eq('session_id',current.id).order('asked_at',{ascending:false}).limit(100),
         supabase.from('hot_seat_comments').select('id,session_id,user_id,body,created_at').eq('session_id',current.id).order('created_at',{ascending:true}).limit(200),
         supabase.from('hot_seat_reactions').select('id,session_id,user_id,reaction,created_at').eq('session_id',current.id),
-        supabase.from('hot_seat_gifts').select('id,name,emoji,price_bc,enabled,sort_order').eq('enabled',true).order('sort_order'),
+        supabase.from('hot_seat_gifts').select('id,name,emoji,price_bc,enabled,sort_order').order('sort_order'),
         supabase.from('hot_seat_gift_transactions').select('id,session_id,sender_id,host_id,gift_id,quantity,total_bc,host_earnings_bc,created_at').eq('session_id',current.id).order('created_at',{ascending:false}).limit(30),
         supabase.from('hot_seat_bids').select('id,session_id,bidder_id,amount_bc,status,created_at,decided_at').eq('session_id',current.id).in('status',['pending','selected','won','refunded','declined','expired']).order('amount_bc',{ascending:false}).limit(100),
-        supabase.from('hot_seat_water_break_activities').select('id,title,description,activity_type,enabled,sort_order').eq('enabled',true).order('sort_order'),
+        supabase.from('hot_seat_water_break_activities').select('id,title,description,activity_type,enabled,sort_order').order('sort_order'),
         supabase.from('wallet_accounts').select('bc_balance').eq('user_id',userId).maybeSingle(),
       ]);
       if (q.error) throw q.error;
@@ -73,10 +77,12 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
       setQuestions((q.data??[]) as HotQuestion[]);
       setComments((c.data??[]) as HotComment[]);
       setReactions((r.data??[]) as HotReaction[]);
-      setGifts((g.data??[]) as HotGift[]);
+      setGifts(((g.data??[]) as HotGift[]).filter(item=>item.enabled||isAdmin));
+      setGiftPriceDrafts(Object.fromEntries(((g.data??[]) as HotGift[]).map(item=>[item.id,String(item.price_bc)])));
       setGiftTx((gt.data??[]) as HotGiftTx[]);
       setBids((b.data??[]) as HotBid[]);
-      setActivities((a.data??[]) as BreakActivity[]);
+      setActivities(((a.data??[]) as BreakActivity[]).filter(item=>item.enabled||isAdmin));
+      if(isAdmin){const {data:settings}=await supabase.from('hot_seat_settings').select('setting_key,numeric_value').order('setting_key');const rows=(settings??[]) as HotSetting[];setAdminSettings(rows);setSettingDrafts(Object.fromEntries(rows.map(row=>[row.setting_key,String(row.numeric_value)])));}
       setBalance(wallet.data ? Number(wallet.data.bc_balance) : null);
       const ids=[current.host_id,...(q.data??[]).map((x:any)=>x.asker_id),...(c.data??[]).map((x:any)=>x.user_id),...(b.data??[]).map((x:any)=>x.bidder_id),...(gt.data??[]).flatMap((x:any)=>[x.sender_id,x.host_id])];
       const unique=[...new Set(ids)];
@@ -86,7 +92,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
       }
     } catch(e) {setNotice(e instanceof Error?e.message:'Could not load Hot Seat.');}
     finally {setLoading(false);}
-  },[userId]);
+  },[userId,isAdmin]);
 
   useEffect(()=>{void load();const poll=window.setInterval(()=>void load(),12000);const clock=window.setInterval(()=>setNow(Date.now()),1000);return()=>{window.clearInterval(poll);window.clearInterval(clock);};},[load]);
 
@@ -117,6 +123,10 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
   async function sendGift(gift:HotGift){if(!session||!supabase)return;await act('gift:'+gift.id,async()=>{const {error}=await supabase!.rpc('hot_seat_send_gift',{p_session_id:session.id,p_gift_id:gift.id,p_quantity:1});if(error)throw error;},gift.name+' gift sent!');}
   async function placeBid(e:FormEvent){e.preventDefault();if(!session||!supabase)return;const amount=Number(bidDraft);if(!Number.isSafeInteger(amount)||amount<1){setNotice('Enter a whole-number bid in BC.');return;}await act('bid',async()=>{const {error}=await supabase!.rpc('hot_seat_place_bid',{p_session_id:session.id,p_amount:amount});if(error)throw error;setBidDraft('');},'Your BC bid is escrowed. Non-selected bidders are refunded when the winner accepts.');}
   async function decideBid(accept:boolean){if(!topBid||!supabase)return;await act(accept?'accept-bid':'decline-bid',async()=>{const {error}=await supabase!.rpc('hot_seat_decide_bid',{p_bid_id:topBid.id,p_accept:accept});if(error)throw error;},accept?'You won the next Hot Seat. You have 15 minutes to prepare after accepting.':'You declined the seat; your bid was refunded.');}
+  async function saveAdminSetting(key:string){if(!supabase)return;const value=Number(settingDrafts[key]);if(!Number.isFinite(value)||value<0){setNotice('Enter a valid non-negative setting.');return;}await act('setting:'+key,async()=>{const {error}=await supabase!.rpc('hot_seat_admin_update_setting',{p_setting_key:key,p_numeric_value:value});if(error)throw error;},'Hot Seat setting saved.');}
+  async function toggleActivity(activity:BreakActivity){if(!supabase)return;await act('activity:'+activity.id,async()=>{const {error}=await supabase!.rpc('hot_seat_admin_set_activity',{p_activity_id:activity.id,p_enabled:!activity.enabled});if(error)throw error;},'Water-break activity updated.');}
+  async function saveGift(gift:HotGift){if(!supabase)return;const price=Number(giftPriceDrafts[gift.id]);if(!Number.isSafeInteger(price)||price<1){setNotice('Gift price must be a whole number of at least 1 BC.');return;}await act('gift-admin:'+gift.id,async()=>{const {error}=await supabase!.rpc('hot_seat_admin_update_gift',{p_gift_id:gift.id,p_price_bc:price,p_enabled:gift.enabled});if(error)throw error;},'Gift price saved.');}
+
 
   if(loading&&!session)return <section className="hot-seat-shell"><div className="hot-seat-loading">Loading Hot Seat…</div></section>;
   return <section className="hot-seat-shell">
@@ -145,6 +155,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
         <section className="hot-seat-card hot-seat-host-earnings"><p className="eyebrow">CREATOR REWARDS</p><h3>Host earnings</h3><strong>{hostGifts.toLocaleString()} BC</strong><p>20% of gift spend credited to the host. Reference conversion: 1,000 BC ≈ $0.75.</p><small>Total gift spend in this seat: {totalGiftSpend.toLocaleString()} BC</small></section>
       </aside>
     </div>
+    {isAdmin&&<section className="hot-seat-card hot-seat-admin-panel"><p className="eyebrow">OWNER CONTROL ROOM</p><h3>Hot Seat economy & water-break controls</h3><p>These controls save to the Hot Seat database. Gift prices are charged server-side; water-break activities can be enabled or disabled.</p><div className="hot-seat-admin-settings">{adminSettings.map(setting=><label key={setting.setting_key}><span>{setting.setting_key.replaceAll('_',' ')}</span><div><input type="number" min="0" step={setting.setting_key==='bc_per_usd_rate'?'0.01':'1'} value={settingDrafts[setting.setting_key]??String(setting.numeric_value)} onChange={e=>setSettingDrafts(prev=>({...prev,[setting.setting_key]:e.target.value}))}/><button className="hot-seat-quiet-button" disabled={Boolean(busy)||Number(settingDrafts[setting.setting_key])===Number(setting.numeric_value)} onClick={()=>void saveAdminSetting(setting.setting_key)}>{busy==='setting:'+setting.setting_key?'Saving…':'Save'}</button></div></label>)}</div><div className="hot-seat-admin-gifts"><strong>Gift catalogue pricing</strong>{gifts.map(g=><label key={g.id}><span>{g.emoji} {g.name}</span><div><input type="number" min="1" step="1" value={giftPriceDrafts[g.id]??String(g.price_bc)} onChange={e=>setGiftPriceDrafts(prev=>({...prev,[g.id]:e.target.value}))}/><button className="hot-seat-quiet-button" disabled={Boolean(busy)} onClick={()=>void saveGift(g)}>{busy==='gift-admin:'+g.id?'Saving…':'Save price'}</button></div></label>)}</div><div className="hot-seat-admin-activities"><strong>Water-break activities</strong>{activities.map(a=><label key={a.id}><span>{a.title}</span><button className="hot-seat-quiet-button" disabled={Boolean(busy)} onClick={()=>void toggleActivity(a)}>{a.enabled?'Disable':'Enable'}</button></label>)}</div></section>}
     <p className="hot-seat-footer-note">Hot Seat timers and BC charges are stored and checked on the server. Ads are reserved after each five questions/comments; live ad serving, movie playback and live video provider credentials still need configuration before public launch.</p>
   </section>;
 }
