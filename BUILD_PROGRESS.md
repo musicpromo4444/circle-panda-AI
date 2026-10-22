@@ -4,7 +4,7 @@ Last verified: 2026-10-22 (UTC)
 Repository: `musicpromo4444/circle-panda-AI`
 Active Supabase project: `chcyncvieekjousgzlrg` — **Circle Panda Rebuilt**
 Production URL: https://circle-panda-ai.vercel.app
-Latest source change: `ff1e26f89defe27c15a3e2a60ae5abf85141ab12` (coin purchase foreign-key index; deployment was building at last check).
+Latest source change: `646a20bbecd22d921246fe3a64ad66d88409345f` (admin wallet/VIP group access fixes; Vercel deployment READY).
 
 ## Scope guard
 
@@ -28,6 +28,13 @@ Only work on the new `circle-panda-AI` repository and the `Circle Panda Rebuilt`
 - **Google/Apple:** configure provider client credentials and redirect URLs in Supabase Auth, then enable the corresponding `google_auth_enabled` / `apple_auth_enabled` settings in Admin.
 - **Rewarded ads:** the reward UI must remain gated until an actual ad provider and its server-verifiable completion callback are configured. Never award BC based only on a button click.
 - **Live acceptance test:** real multi-user request/accept/decline/chat, purchase/webhook, and media flows still need a dedicated pair of test accounts and configured external providers. A successful build alone is not proof of those live flows.
+
+## Latest code changes (2026-10-22)
+
+- Admin wallet display now uses the requested `0 BC` unlimited sentinel in both the top header and Wallet view; the existing database message-charge trigger already bypasses BC deductions for accounts with the `admin` role, so this is not implemented as a fake huge balance.
+- VIP group page now recognizes the authoritative `user_roles.role = 'admin'` permission as VIP access, even if the profile VIP flag is stale. The backend still validates room entry; verify admin can enter Worldwide and Country rooms in a signed-in browser session.
+- GitHub commit `8c7c8ef8c1b803710d7ab784ae5abf85141ab12` had a Vercel type/build error; the follow-up cleanup commit `646a20bbecd22d921246fe3a64ad66d88409345f` is deployed as READY (`dpl_FpkpJWajLrwBudqNmQVBf3EJC7HS`). The earlier failed deployment is not the latest commit.
+- Remaining from the user's latest feedback: build a dedicated Profile page (remove any Buy Coin entry point from profile; purchases belong only in Wallet), verify real admin VIP group entry against Supabase, and then run the multi-account acceptance matrix.
 
 ## Current verified issues and next work order
 
