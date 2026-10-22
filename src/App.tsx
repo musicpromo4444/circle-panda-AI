@@ -178,8 +178,10 @@ export default function App() {
   useEffect(() => {
     if (!supabase || !session) { setCoinBalance(null); return; }
     let alive = true;
-    supabase.from('wallet_accounts').select('bc_balance').eq('user_id', session.user.id).maybeSingle()
-      .then(({ data }) => { if (alive) setCoinBalance(data ? Number(data.bc_balance) : 0); });
+    Promise.all([
+      supabase.from('wallet_accounts').select('bc_balance').eq('user_id', session.user.id).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id', session.user.id).eq('role', 'admin').maybeSingle(),
+    ]).then(([{ data: wallet }, { data: adminRole }]) => { if (alive) setCoinBalance(adminRole ? 0 : (wallet ? Number(wallet.bc_balance) : 0)); });
     return () => { alive = false; };
   }, [session]);
 
@@ -1842,6 +1844,7 @@ function WalletPandaCoin() { return <span className="wallet-store-coin-token"><P
 
 function WalletFeature({ userId }: { userId: string }) {
   const [bcBalance, setBcBalance] = useState(0);
+  const [isAdminWallet, setIsAdminWallet] = useState(false);
   const [wcBalance, setWcBalance] = useState(0);
   const [xpTotal, setXpTotal] = useState(0);
   const [levelName, setLevelName] = useState('Novice');
@@ -1856,21 +1859,24 @@ function WalletFeature({ userId }: { userId: string }) {
 
   async function load() {
     if (!supabase) return;
-    const [walletResult, xpResult, transactionResult, settingsResult, argumentsResult] = await Promise.all([
+    const [walletResult, xpResult, transactionResult, settingsResult, argumentsResult, adminResult] = await Promise.all([
       supabase.from('wallet_accounts').select('bc_balance,wc_balance').eq('user_id', userId).maybeSingle(),
       supabase.from('user_xp').select('xp_total,level_name').eq('user_id', userId).maybeSingle(),
       supabase.from('wallet_transactions').select('id,currency,amount,reason,created_at').eq('user_id', userId).order('created_at', {ascending:false}).limit(20),
       supabase.from('economy_settings').select('setting_key,numeric_value'),
       supabase.rpc('get_coin_packages'),
+      supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle(),
     ]);
-    if (walletResult.data) { setBcBalance(Number(walletResult.data.bc_balance)); setWcBalance(Number(walletResult.data.wc_balance)); }
+    const adminUnlimited = Boolean(adminResult.data);
+    setIsAdminWallet(adminUnlimited);
+    if (walletResult.data) { setBcBalance(adminUnlimited ? 0 : Number(walletResult.data.bc_balance)); setWcBalance(Number(walletResult.data.wc_balance)); }
     if (xpResult.data) { setXpTotal(Number(xpResult.data.xp_total)); setLevelName(xpResult.data.level_name); }
     setTransactions((transactionResult.data ?? []) as WalletTransactionRow[]);
     const map: Record<string,number> = {};
     (settingsResult.data ?? []).forEach((s: {setting_key:string;numeric_value:number}) => { map[s.setting_key] = Number(s.numeric_value); });
     setSettings(map);
     setCoinPackages((argumentsResult.data ?? []) as CoinPackage[]);
-    const error = walletResult.error || xpResult.error || transactionResult.error || settingsResult.error || argumentsResult.error;
+    const error = walletResult.error || xpResult.error || transactionResult.error || settingsResult.error || argumentsResult.error || adminResult.error;
     if (error) setNotice(error.message);
     setLoading(false);
   }
@@ -1978,7 +1984,8 @@ function GroupsFeature({ userId }: { userId: string }) {
   async function load() {
     if (!supabase) return;
     const { data: profile } = await supabase.from('profiles').select('is_vip,vip_expires_at,country').eq('id',userId).maybeSingle();
-    const activeVip = Boolean(profile?.is_vip) && (!profile?.vip_expires_at || new Date(profile.vip_expires_at).getTime() > Date.now());
+    const { data: adminRole } = await supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle();
+    const activeVip = Boolean(adminRole) || (Boolean(profile?.is_vip) && (!profile?.vip_expires_at || new Date(profile.vip_expires_at).getTime() > Date.now()));
     setMyVip(activeVip); setMyCountry(profile?.country || '');
     const { data, error } = await supabase.from('chat_groups')
       .select('id,creator_id,name,description,country_restriction,is_vip,created_at,closed_at,activated_at')
