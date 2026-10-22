@@ -149,14 +149,15 @@ begin
    v_setting_key := case v_dow when 1 then 'daily_login_monday' when 2 then 'daily_login_tuesday' when 3 then 'daily_login_wednesday' when 4 then 'daily_login_thursday' when 5 then 'daily_login_friday' when 6 then 'daily_login_saturday' else 'daily_login_sunday' end;
    select es.numeric_value into v_amount from public.economy_settings es where es.setting_key=v_setting_key;
    v_amount := coalesce(v_amount,case v_dow when 1 then 5 when 2 then 10 when 3 then 5 when 4 then 10 else 50 end);
-   v_cooldown := 86400;
+   v_cooldown := 0;
  else v_cooldown := 0;
  end if;
  insert into public.wallet_accounts(user_id,bc_balance) values(v_user_id,0) on conflict(user_id) do nothing;
  select wa.bc_balance into v_balance from public.wallet_accounts wa where wa.user_id=v_user_id for update;
  select max(wt.created_at) into v_last_claim from public.wallet_transactions wt where wt.user_id=v_user_id and wt.reason=v_reason;
  if p_reward_key='first_activity_reward' and v_last_claim is not null then raise exception 'Your first-activity reward has already been claimed'; end if;
- if v_last_claim is not null and v_cooldown>0 and v_last_claim>now()-make_interval(secs=>v_cooldown::double precision) then raise exception 'This reward is still on cooldown'; end if;
+ if p_reward_key='daily_login_reward' and v_last_claim is not null and (v_last_claim at time zone 'utc')::date=(now() at time zone 'utc')::date then raise exception 'Daily reward already claimed today'; end if;
+ if p_reward_key<>'daily_login_reward' and v_last_claim is not null and v_cooldown>0 and v_last_claim>now()-make_interval(secs=>v_cooldown::double precision) then raise exception 'This reward is still on cooldown'; end if;
  update public.wallet_accounts set bc_balance=bc_balance+v_amount,updated_at=now() where user_id=v_user_id;
  insert into public.wallet_transactions(user_id,currency,amount,reason) values(v_user_id,'BC',v_amount,v_reason);
  if p_reward_key='daily_login_reward' then
