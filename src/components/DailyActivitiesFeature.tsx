@@ -70,7 +70,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
         panda_slots:random(['🐼 🐼 🐼 — Panda jackpot!','🪙 🎋 🪙 — Bamboo bonus!','✨ 🐼 ✨ — Lucky panda!','🎋 🎋 🪙 — Keep trying!']),
         mystery_box:'Your mystery box is open!',panda_target:'Target round complete!'
       };
-      if(selected?.activity_key!=='coin_drop') setGameResult(reveals[selected?.activity_key??'']??gameResult);
+      if(selected?.activity_key==='wheel_spin'||selected?.activity_key==='panda_slots') setGameResult(reveals[selected.activity_key]??gameResult);
       setGameStep(1);
     },selected?.activity_key==='coin_drop'?4000:2200);
     return ()=>window.clearTimeout(timer);
