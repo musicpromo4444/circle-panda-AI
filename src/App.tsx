@@ -181,7 +181,7 @@ export default function App() {
     Promise.all([
       supabase.from('wallet_accounts').select('bc_balance').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', session.user.id).eq('role', 'admin').maybeSingle(),
-    ]).then(([{ data: wallet }, { data: adminRole }]) => { if (alive) setCoinBalance(adminRole ? 0 : (wallet ? Number(wallet.bc_balance) : 0)); });
+    ]).then(([{ data: wallet }, { data: adminRole }]) => { if (alive) setCoinBalance(adminRole ? Number.POSITIVE_INFINITY : (wallet ? Number(wallet.bc_balance) : 0)); });
     return () => { alive = false; };
   }, [session]);
 
