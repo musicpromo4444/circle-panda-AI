@@ -22,7 +22,7 @@ type HotSetting = {setting_key:string;numeric_value:number};
 
 const reactionOptions = [{id:'like',emoji:'👍',label:'Like'},{id:'love',emoji:'❤️',label:'Love'},{id:'laugh',emoji:'😂',label:'Laugh'},{id:'wow',emoji:'😮',label:'Wow'},{id:'fire',emoji:'🔥',label:'Fire'},{id:'clap',emoji:'👏',label:'Clap'}];
 const formatRemaining = (ms:number) => { const sec=Math.max(0,Math.floor(ms/1000)); return [Math.floor(sec/3600),Math.floor((sec%3600)/60),sec%60].map(n=>String(n).padStart(2,'0')).join(':'); };
-function youtubeEmbedUrl(raw:string|null|undefined):string|null {if(!raw)return null;try{const u=new URL(raw);let id='';if(u.hostname==='youtu.be')id=u.pathname.split('/').filter(Boolean)[0]||'';else if(['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'].includes(u.hostname)){id=u.searchParams.get('v')||u.pathname.match(/^\\/(?:live|embed|shorts)\\/([^/?]+)/)?.[1]||'';}return /^[A-Za-z0-9_-]{6,}$/.test(id)?'https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&mute=1&rel=0':null;}catch{return null;}}
+function youtubeEmbedUrl(raw:string|null|undefined):string|null {if(!raw)return null;try{const u=new URL(raw);let id='';if(u.hostname==='youtu.be')id=u.pathname.split('/').filter(Boolean)[0]||'';else if(['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'].includes(u.hostname)){id=u.searchParams.get('v')||'';if(!id){const segments=u.pathname.split('/').filter(Boolean);if(['live','embed','shorts'].includes(segments[0]||''))id=segments[1]||'';}}return /^[A-Za-z0-9_-]{6,}$/.test(id)?'https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&mute=1&rel=0':null;}catch{return null;}}
 
 export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props) {
   const [session,setSession]=useState<HotSession|null>(null);
