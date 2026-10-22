@@ -2629,3 +2629,21 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .hot-seat-header-shortcut small{font-size:8px;letter-spacing:.8px}
 .hot-seat-header-shortcut:hover{border-color:#ffdf8b;filter:brightness(1.1)}
 @media(max-width:760px){.hot-seat-header-shortcut{min-height:32px;padding:0 7px;border-radius:8px;font-size:17px}.hot-seat-header-shortcut small{display:none}.top-actions{gap:5px!important}}
+
+.hot-seat-giveaway-card{display:grid;gap:12px}
+.hot-seat-giveaway-form{display:grid;grid-template-columns:minmax(0,1fr) 130px auto;align-items:end;gap:8px;padding:12px;border:1px solid #51432c;border-radius:12px;background:#191e28}
+.hot-seat-giveaway-form>input,.hot-seat-giveaway-form label input{width:100%;min-width:0;border:1px solid #37445a;border-radius:9px;background:#0e1520;color:#edf3fb;padding:11px 12px;font:inherit;font-size:10px}
+.hot-seat-giveaway-form label{display:grid;gap:5px;color:#d9c18c;font-size:9px}
+.hot-seat-giveaway{display:flex;align-items:center;gap:13px;padding:12px;border:1px solid #51432c;border-radius:12px;background:linear-gradient(120deg,#2b251d,#171e2a)}
+.hot-seat-giveaway-prize{display:grid;justify-items:center;gap:4px;flex:0 0 76px;padding:10px 4px;border-radius:10px;background:#342819;border:1px solid #8a6a2f;font-size:24px}
+.hot-seat-giveaway-prize strong{font-size:9px;color:#ffdf8b;text-align:center}
+.hot-seat-giveaway-copy{display:grid;gap:7px;min-width:0;flex:1}
+.hot-seat-giveaway-copy>strong{font-size:11px;color:#f0e3c2}
+.hot-seat-giveaway-copy>small{font-size:8px;color:#cbb06b;font-weight:900;letter-spacing:.6px}
+.hot-seat-giveaway-copy>p{margin:0;color:#b6c2d1;font-size:10px}
+.hot-seat-giveaway-copy>button{justify-self:start}
+:root[data-theme="light"] .hot-seat-giveaway-form{background:#f6f8fb;border-color:#ded4bf}
+:root[data-theme="light"] .hot-seat-giveaway-form>input,:root[data-theme="light"] .hot-seat-giveaway-form label input{background:#fff;color:#253447;border-color:#d8e0eb}
+:root[data-theme="light"] .hot-seat-giveaway{background:#fff9eb;border-color:#e5d4ad}
+:root[data-theme="light"] .hot-seat-giveaway-copy>strong{color:#3e3a30}
+@media(max-width:720px){.hot-seat-giveaway-form{grid-template-columns:minmax(0,1fr)}.hot-seat-giveaway-form .hot-seat-gold-button{width:100%}}
