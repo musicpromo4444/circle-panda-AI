@@ -15,6 +15,8 @@ type HotGift = {id:string;name:string;emoji:string;price_bc:number;enabled:boole
 type HotGiftTx = {id:string;session_id:string;sender_id:string;host_id:string;gift_id:string;quantity:number;total_bc:number;host_earnings_bc:number;created_at:string};
 type HotBid = {id:string;session_id:string;bidder_id:string;amount_bc:number;status:string;created_at:string;decided_at:string|null};
 type BreakActivity = {id:string;title:string;description:string;activity_type:string;enabled:boolean;sort_order:number};
+type HotPoll = {id:string;session_id:string;host_id:string;question:string;options:string[];status:'open'|'closed';closes_at:string;created_at:string};
+type HotPollVote = {poll_id:string;user_id:string;option_index:number};
 type Props = {userId:string;onOpenWallet:()=>void;isAdmin?:boolean};
 type HotSetting = {setting_key:string;numeric_value:number};
 
@@ -34,6 +36,12 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
   const [publicSettings,setPublicSettings]=useState<Record<string,number>>({});
   const [settingDrafts,setSettingDrafts]=useState<Record<string,string>>({});
   const [giftPriceDrafts,setGiftPriceDrafts]=useState<Record<string,string>>({});
+  const [polls,setPolls]=useState<HotPoll[]>([]);
+  const [pollVotes,setPollVotes]=useState<HotPollVote[]>([]);
+  const [pollDraft,setPollDraft]=useState('');
+  const [pollOptionsDraft,setPollOptionsDraft]=useState('Yes\nNo');
+  const [isFollowingHost,setIsFollowingHost]=useState(false);
+  const [hostFollowerCount,setHostFollowerCount]=useState(0);
   const [names,setNames]=useState<Record<string,string>>({});
   const [balance,setBalance]=useState<number|null>(null);
   const [now,setNow]=useState(Date.now());
@@ -65,7 +73,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
       const current=((activeRows??[])[0] as HotSession|undefined) ?? bootRow ?? null;
       setSession(current);
       if (!current) {setLoading(false);return;}
-      const [q,c,r,g,gt,b,a,wallet,settingResult] = await Promise.all([
+      const [q,c,r,g,gt,b,a,wallet,settingResult,pollResult,followResult,followCountResult] = await Promise.all([
         supabase.from('hot_seat_questions').select('id,session_id,asker_id,body,question_type,status,answer,asked_at,answer_deadline,answered_at,host_earnings_bc').eq('session_id',current.id).order('asked_at',{ascending:false}),
         supabase.from('hot_seat_comments').select('id,session_id,user_id,body,created_at').eq('session_id',current.id).order('created_at',{ascending:true}).limit(200),
         supabase.from('hot_seat_reactions').select('id,session_id,user_id,reaction,created_at').eq('session_id',current.id),
@@ -75,6 +83,9 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
         supabase.from('hot_seat_water_break_activities').select('id,title,description,activity_type,enabled,sort_order').order('sort_order'),
         supabase.from('wallet_accounts').select('bc_balance').eq('user_id',userId).maybeSingle(),
         supabase.from('hot_seat_settings').select('setting_key,numeric_value'),
+        supabase.from('hot_seat_polls').select('id,session_id,host_id,question,options,status,closes_at,created_at').eq('session_id',current.id).order('created_at',{ascending:false}).limit(5),
+        supabase.from('hot_seat_follows').select('host_id').eq('host_id',current.host_id).eq('follower_id',userId).maybeSingle(),
+        supabase.from('hot_seat_follows').select('host_id',{count:'exact',head:true}).eq('host_id',current.host_id),
       ]);
       if (q.error) throw q.error;
       if (c.error) throw c.error;
@@ -91,6 +102,9 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
       setBalance(wallet.data ? Number(wallet.data.bc_balance) : null);
       const settingRows=(settingResult.data??[]) as HotSetting[];
       setPublicSettings(Object.fromEntries(settingRows.map(row=>[row.setting_key,Number(row.numeric_value)])));
+      const pollRows=(pollResult.data??[]) as HotPoll[];setPolls(pollRows);
+      setIsFollowingHost(Boolean(followResult.data));setHostFollowerCount(followCountResult.count??0);
+      if(pollRows.length){const {data:votes}=await supabase.from('hot_seat_poll_votes').select('poll_id,user_id,option_index').in('poll_id',pollRows.map(p=>p.id));setPollVotes((votes??[]) as HotPollVote[]);}else setPollVotes([]);
       const ids=[current.host_id,...(q.data??[]).map((x:any)=>x.asker_id),...(c.data??[]).map((x:any)=>x.user_id),...(b.data??[]).map((x:any)=>x.bidder_id),...(gt.data??[]).flatMap((x:any)=>[x.sender_id,x.host_id])];
       const unique=[...new Set(ids)];
       if(unique.length){
@@ -136,6 +150,11 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
   async function submitQuestion(e:FormEvent){e.preventDefault();if(!session||!supabase)return;const body=questionDraft.trim();if(!body)return;await act('question',async()=>{const {error}=await supabase!.rpc('hot_seat_ask_question',{p_session_id:session.id,p_body:body,p_question_type:questionType});if(error)throw error;setQuestionDraft('');},'Question sent.');}
   async function answerQuestion(e:FormEvent,q:HotQuestion){e.preventDefault();if(!supabase)return;const answer=(answerDrafts[q.id]||'').trim();if(!answer)return;await act('answer:'+q.id,async()=>{const {error}=await supabase!.rpc('hot_seat_answer_question',{p_question_id:q.id,p_answer:answer});if(error)throw error;setAnswerDrafts(prev=>({...prev,[q.id]:''}));},'Answer published to the Hot Seat.');}
   async function submitComment(e:FormEvent){e.preventDefault();if(!session||!supabase)return;const body=commentDraft.trim();if(!body)return;await act('comment',async()=>{const {error}=await supabase!.from('hot_seat_comments').insert({session_id:session.id,user_id:userId,body});if(error)throw error;setCommentDraft('');},'Comment posted.');}
+  async function toggleFollowHost(){if(!session||!supabase)return;await act('follow',async()=>{const {data,error}=await supabase!.rpc('hot_seat_toggle_follow',{p_host_id:session.host_id});if(error)throw error;setIsFollowingHost(Boolean((data as {following?:boolean}|null)?.following));},isFollowingHost?'Host unfollowed.':'Following the Hot Seat host.');}
+  async function createPoll(e:FormEvent){e.preventDefault();if(!session||!supabase)return;const options=pollOptionsDraft.split(/[\\n,]/).map(x=>x.trim()).filter(Boolean);if(options.length<2||options.length>6){setNotice('Add between two and six poll options, separated by new lines or commas.');return;}await act('create-poll',async()=>{const {error}=await supabase!.rpc('hot_seat_create_poll',{p_session_id:session.id,p_question:pollDraft.trim(),p_options:options});if(error)throw error;setPollDraft('');},'Poll published. The community has 15 minutes to vote.');}
+  async function votePoll(poll:HotPoll,index:number){if(!supabase)return;await act('vote-poll:'+poll.id,async()=>{const {error}=await supabase!.rpc('hot_seat_vote_poll',{p_poll_id:poll.id,p_option_index:index+1});if(error)throw error;},'Your vote has been recorded.');}
+  async function closePoll(poll:HotPoll){if(!supabase)return;await act('close-poll:'+poll.id,async()=>{const {error}=await supabase!.rpc('hot_seat_close_poll',{p_poll_id:poll.id});if(error)throw error;},'Poll closed.');}
+
   async function react(reaction:string){if(!session||!supabase)return;await act('reaction:'+reaction,async()=>{const {error}=await supabase!.rpc('hot_seat_toggle_reaction',{p_session_id:session.id,p_reaction:reaction});if(error)throw error;},'Reaction updated.');}
   async function sendGift(gift:HotGift){if(!session||!supabase)return;await act('gift:'+gift.id,async()=>{const {error}=await supabase!.rpc('hot_seat_send_gift',{p_session_id:session.id,p_gift_id:gift.id,p_quantity:1});if(error)throw error;},gift.name+' gift sent!');}
   async function placeBid(e:FormEvent){e.preventDefault();if(!session||!supabase)return;const amount=Number(bidDraft);if(!Number.isSafeInteger(amount)||amount<1){setNotice('Enter a whole-number bid in BC.');return;}await act('bid',async()=>{const {error}=await supabase!.rpc('hot_seat_place_bid',{p_session_id:session.id,p_amount:amount});if(error)throw error;setBidDraft('');},'Your BC bid is escrowed. Non-selected bidders are refunded when the winner accepts.');}
@@ -154,7 +173,8 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
     {session?.status==='preparing'&&session.host_id===userId&&<div className="hot-seat-callout"><div><strong>Your next Hot Seat is reserved!</strong><p>Accepting a winning bid gives you 15 minutes to prepare. Start when you are ready.</p></div><button className="hot-seat-gold-button" disabled={Boolean(busy)} onClick={()=>void startSession()}>{busy==='start'?'Starting…':'Go Live'}</button></div>}
     {session?.status==='bidding'&&currentHost&&!session.host_evicted_at&&<div className="hot-seat-callout"><div><strong>You have the seat.</strong><p>Start your three-hour session. Questions, comments, gifts and reactions are enabled once live.</p></div><button className="hot-seat-gold-button" disabled={Boolean(busy)} onClick={()=>void startSession()}>{busy==='start'?'Starting…':'Start Hot Seat'}</button></div>}
     {session?.host_evicted_at&&<div className="hot-seat-callout hot-seat-warning"><div><strong>The host was removed from the seat.</strong><p>{session.host_eviction_reason||'A question timed out without an answer. Bidding is open for the next host.'}</p></div></div>}
-    {(session?.status==='live'||session?.status==='water_break')&&<div className="hot-seat-host-strip"><div className="hot-seat-host-avatar">🐼</div><div><small>{session.status==='live'?'ON THE HOT SEAT':'CURRENT HOST · WATER BREAK'}</small><strong>{names[session.host_id]||'Panda host'} {currentHost?'(You)':''}</strong><p>{session.status==='live'?(isPaused?'The host has paused the room for up to 15 minutes.':'Answer the questions before their countdowns expire.'):'The host rests while the community enjoys break activities.'}</p></div>{currentHost&&session.status==='live'&&<button className="hot-seat-quiet-button" disabled={Boolean(busy)} onClick={()=>void togglePause()}>{busy==='pause'?'Updating…':isPaused?'Resume session':'Pause · 15 min'}</button>}{currentHost&&<button className="hot-seat-quiet-button" disabled={Boolean(busy)} onClick={()=>void endSession()}>Leave seat</button>}</div>}
+    {(session?.status==='live'||session?.status==='water_break')&&<div className="hot-seat-host-strip"><div className="hot-seat-host-avatar">🐼</div><div><small>{session.status==='live'?'ON THE HOT SEAT':'CURRENT HOST · WATER BREAK'}</small><strong>{names[session.host_id]||'Panda host'} {currentHost?'(You)':''}</strong><p>{session.status==='live'?(isPaused?'The host has paused the room for up to 15 minutes.':'Answer the questions before their countdowns expire.'):'The host rests while the community enjoys break activities.'}</p></div>{currentHost&&session.status==='live'&&<button className="hot-seat-quiet-button" disabled={Boolean(busy)} onClick={()=>void togglePause()}>{busy==='pause'?'Updating…':isPaused?'Resume session':'Pause · 15 min'}</button>}{!currentHost&&<button className="hot-seat-quiet-button" disabled={Boolean(busy)} onClick={()=>void toggleFollowHost()}>{isFollowingHost?'Following ✓':'Follow host'} · {hostFollowerCount}</button>}{currentHost&&<button className="hot-seat-quiet-button" disabled={Boolean(busy)} onClick={()=>void endSession()}>Leave seat</button>}</div>}
+    {session&&(session.status==='live'||session.status==='water_break')&&<section className="hot-seat-card hot-seat-polls-card"><div className="hot-seat-section-head"><div><p className="eyebrow">THE ROOM DECIDES</p><h3>Live polls & voting</h3><p>Hosts can run quick polls for up to 15 minutes. Each viewer gets one active vote per poll.</p></div><span className="hot-seat-section-count">{polls.filter(p=>p.status==='open'&&new Date(p.closes_at).getTime()>now).length} OPEN</span></div>{currentHost&&!isPaused&&<form className="hot-seat-poll-form" onSubmit={createPoll}><input value={pollDraft} onChange={e=>setPollDraft(e.target.value)} maxLength={300} placeholder="Ask the room a quick poll question…" required/><textarea value={pollOptionsDraft} onChange={e=>setPollOptionsDraft(e.target.value)} placeholder="One option per line (2–6 options)" required/><button className="hot-seat-gold-button" disabled={Boolean(busy)||!pollDraft.trim()}>{busy==='create-poll'?'Publishing…':'Publish poll'}</button></form>}{polls.map(poll=>{const mine=pollVotes.find(v=>v.poll_id===poll.id&&v.user_id===userId);const counts=poll.options.map((_,i)=>pollVotes.filter(v=>v.poll_id===poll.id&&v.option_index===i+1).length);const total=counts.reduce((sum,n)=>sum+n,0);const open=poll.status==='open'&&new Date(poll.closes_at).getTime()>now;return <article className="hot-seat-poll" key={poll.id}><div className="hot-seat-poll-head"><strong>{poll.question}</strong><small>{open?'VOTING OPEN':'POLL CLOSED'} · {total} votes</small></div>{poll.options.map((option,i)=><button type="button" key={option+'-'+i} className={'hot-seat-poll-option'+(mine?.option_index===i+1?' voted':'')} disabled={!open||currentHost||Boolean(busy)} onClick={()=>void votePoll(poll,i)}><span>{option}</span><b>{counts[i]}</b><i style={{width:(total?counts[i]/total*100:0)+'%'}}/></button>)}{currentHost&&open&&<button type="button" className="hot-seat-quiet-button" onClick={()=>void closePoll(poll)} disabled={Boolean(busy)}>Close poll</button>}</article>})}{!polls.length&&<div className="hot-seat-empty">No polls yet. The host can publish a poll while live or during the water break.</div>}</section>}
     {session?.status==='water_break'&&<div className="hot-seat-break-hub"><div className="hot-seat-break-heading"><span>💧</span><div><p className="eyebrow">RESET · RECHARGE · PLAY</p><h3>Water Break Hub</h3><p>The live seat rests for {waterBreakMinutes} minutes. Choose an activity while bidding continues.</p></div></div><div className="hot-seat-break-grid">{activities.map(a=><article key={a.id}><span>{a.activity_type==='giveaway'?'🎁':a.activity_type==='movie'?'🎬':a.activity_type==='comedy'?'😂':a.activity_type==='vip_glimpse'?'👑':a.activity_type==='secret_stalls'?'🏪':a.activity_type==='game'?'🎮':a.activity_type==='sponsored'?'🤝':'📺'}</span><strong>{a.title}</strong><p>{a.description}</p><small>{a.activity_type==='ad'?'ADMIN-SET AD SLOT':'WATER BREAK ACTIVITY'}</small></article>)}</div></div>}
     <div className="hot-seat-main-grid">
       <div className="hot-seat-primary-column">
