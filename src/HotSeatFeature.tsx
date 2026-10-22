@@ -100,7 +100,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false}:Props
       setActivities(((a.data??[]) as BreakActivity[]).filter(item=>item.enabled||isAdmin));
       const settingRows=(settingResult.data??[]) as HotSetting[];
       setPublicSettings(Object.fromEntries(settingRows.map(row=>[row.setting_key,Number(row.numeric_value)])));
-      if(isAdmin){setAdminSettings(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)));setSettingDrafts(Object.fromEntries(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)).map(row=>[row.setting_key,String(row.numeric_value))])));}
+      if(isAdmin){setAdminSettings(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)));setSettingDrafts(Object.fromEntries(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)).map(row=>[row.setting_key,String(row.numeric_value)])));}
       setBalance(wallet.data ? Number(wallet.data.bc_balance) : null);
       const pollRows=(pollResult.data??[]) as HotPoll[];setPolls(pollRows);
       setIsFollowingHost(Boolean(followResult.data));setHostFollowerCount(followCountResult.count??0);
