@@ -387,3 +387,24 @@ begin
 end $$;
 grant execute on function public.record_daily_activity_action(text,text) to authenticated;
 grant execute on function public.complete_daily_activity(text) to authenticated;
+
+
+-- Limit daily reward and activity RPCs to authenticated sessions.
+revoke execute on function public.claim_economy_reward(text) from public, anon;
+revoke execute on function public.get_daily_activity_state() from public, anon;
+revoke execute on function public.admin_set_daily_activity(integer,text,bigint,boolean) from public, anon;
+revoke execute on function public.start_daily_activity(text) from public, anon;
+revoke execute on function public.record_daily_activity_action(text,text) from public, anon;
+revoke execute on function public.complete_daily_activity(text) from public, anon;
+revoke execute on function public.start_daily_coin_drop() from public, anon;
+revoke execute on function public.daily_coin_drop_action(uuid,text) from public, anon;
+revoke execute on function public.finish_daily_coin_drop(uuid) from public, anon;
+grant execute on function public.claim_economy_reward(text) to authenticated;
+grant execute on function public.get_daily_activity_state() to authenticated;
+grant execute on function public.admin_set_daily_activity(integer,text,bigint,boolean) to authenticated;
+grant execute on function public.start_daily_activity(text) to authenticated;
+grant execute on function public.record_daily_activity_action(text,text) to authenticated;
+grant execute on function public.complete_daily_activity(text) to authenticated;
+grant execute on function public.start_daily_coin_drop() to authenticated;
+grant execute on function public.daily_coin_drop_action(uuid,text) to authenticated;
+grant execute on function public.finish_daily_coin_drop(uuid) to authenticated;
