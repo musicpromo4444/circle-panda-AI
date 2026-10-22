@@ -88,6 +88,9 @@ export default function App() {
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [crushPanelKey, setCrushPanelKey] = useState(0);
   const [showCrushUploadChoice, setShowCrushUploadChoice] = useState(false);
+  const [dailyRewardPopup, setDailyRewardPopup] = useState(false);
+  const [dailyRewardAmount, setDailyRewardAmount] = useState(0);
+  const dailyClaimedFor = useRef('');
 
   useEffect(() => {
     if (!supabase) return;
@@ -97,6 +100,23 @@ export default function App() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const client = supabase;
+    const userId = session?.user.id;
+    if (!client || !userId || dailyClaimedFor.current === userId) return;
+    dailyClaimedFor.current = userId;
+    let alive = true;
+    void (async () => {
+      const { error } = await client.rpc('claim_economy_reward', { p_reward_key: 'daily_login_reward' });
+      if (error || !alive) return;
+      const { data } = await client.from('wallet_transactions').select('amount')
+        .eq('user_id', userId).eq('reason', 'reward:daily_login_reward')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (alive) { setDailyRewardAmount(Number(data?.amount ?? 0)); setDailyRewardPopup(true); }
+    })();
+    return () => { alive = false; };
+  }, [session?.user.id]);
 
   useEffect(() => {
     const client = supabase;
@@ -594,6 +614,7 @@ export default function App() {
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
+    {dailyRewardPopup && !onboardingStep && <div className="daily-game-backdrop"><section className="daily-game-modal daily-login-modal" role="dialog" aria-modal="true" aria-labelledby="daily-login-title"><div className="daily-game-big-icon"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · DAILY REWARD</p><h2 id="daily-login-title">Your daily reward is here!</h2><div className="daily-login-earned">+{dailyRewardAmount} BC</div><p>Your weekday login reward has been added to your wallet. Your 7-Day Activities are ready too.</p><button type="button" className="primary-button full" onClick={()=>{setDailyRewardPopup(false);setSection('Wallet');}}>View 7-Day Activities →</button><button type="button" className="secondary-button full" onClick={()=>setDailyRewardPopup(false)}>Continue exploring</button></section></div>}
     {onboardingStep && <div className="onboarding-backdrop"><section className="onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
       {onboardingStep === 'tour' && <button type="button" className="onboarding-close" aria-label="Close introduction" onClick={() => void continueOnboarding('tour')} disabled={onboardingBusy}>×</button>}
       <div className="onboarding-panda" aria-hidden="true">🐼</div>
@@ -1998,7 +2019,7 @@ function WalletFeature({ userId }: { userId: string }) {
     <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your activity has value.</h2><p>BC balances do not expire. Rewards and message charges are processed by the backend.</p></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
     <div className="wallet-balance-grid"><article className="balance-card primary-balance"><span>PANDA COINS</span><strong>{loading ? '—' : isAdminUnlimited ? '∞' : bcBalance.toLocaleString()}</strong><small>{isAdminUnlimited ? 'ADMIN · UNLIMITED BC' : 'BC · non-expiring balance'}</small></article><article className="balance-card"><span>WALLET COINS</span><strong>{loading ? '—' : wcBalance.toLocaleString()}</strong><small>WC balance</small></article><article className="balance-card"><span>EXPERIENCE POINTS</span><strong>{loading ? '—' : xpTotal.toLocaleString()}</strong><small>{levelName} level</small></article></div>
-    <div className="wallet-actions"><div><h3>Daily login reward</h3><p>Claim once every 24 hours. Monday 5 BC · Tuesday 10 BC · Wednesday 5 BC · Thursday 10 BC · Friday–Sunday 50 BC.</p></div><button className="primary-button" disabled={busy || loading} onClick={() => void claimDailyReward()}>{busy ? 'Checking…' : `Claim today's daily reward`}</button></div>
+    <div className="wallet-actions"><div><h3>Daily login reward</h3><p>Credited automatically at your first app open when eligible. Monday 5 BC · Tuesday 10 BC · Wednesday 5 BC · Thursday 10 BC · Friday–Sunday 50 BC.</p></div><span className="daily-completed-label">Automatic reward</span></div>
     <DailyActivitiesFeature userId={userId} onReward={load} />
     <section className="wallet-history"><div className="section-title-row"><div><h2>Wallet activity</h2><p>Latest rewards and message charges.</p></div><span className="count-pill">{transactions.length} RECORDS</span></div>
       {loading ? <div className="empty-state">Loading wallet…</div> : transactions.length ? transactions.map(t => <article className="transaction-row" key={t.id}><span className={t.amount >= 0 ? 'transaction-icon credit' : 'transaction-icon debit'}>{t.amount >= 0 ? '+' : '−'}</span><div><strong>{formatReason(t.reason)}</strong><small>{new Date(t.created_at).toLocaleString()}</small></div><b className={t.amount >= 0 ? 'amount-credit' : 'amount-debit'}>{t.amount > 0 ? '+' : ''}{t.amount} {t.currency}</b></article>) : <div className="empty-state compact"><p>Your wallet transactions will appear here.</p></div>}
