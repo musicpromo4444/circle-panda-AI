@@ -2592,3 +2592,20 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .hot-seat-stats{grid-template-columns:repeat(5,minmax(0,1fr))}
 @media(max-width:1000px){.hot-seat-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:720px){.hot-seat-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.hot-seat-five-minute-warning{font-size:8px}}
+
+.hot-seat-polls-card{display:grid;gap:12px}
+.hot-seat-poll-form{display:grid;gap:8px;padding:12px;border:1px solid #354155;border-radius:12px;background:#121a27}
+.hot-seat-poll-form input,.hot-seat-poll-form textarea{width:100%;border:1px solid #37445a;border-radius:9px;background:#0e1520;color:#edf3fb;padding:11px 12px;font:inherit;font-size:11px}
+.hot-seat-poll-form textarea{min-height:70px;resize:vertical}
+.hot-seat-poll{display:grid;gap:8px;padding:13px;border:1px solid #364052;border-radius:12px;background:#151e2b}
+.hot-seat-poll-head{display:grid;gap:5px;margin-bottom:3px}
+.hot-seat-poll-head strong{font-size:12px;color:#f0f4fb}
+.hot-seat-poll-head small{font-size:8px;color:#d8b86f;letter-spacing:.7px;font-weight:900}
+.hot-seat-poll-option{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 11px;border:1px solid #3a4659;border-radius:9px;background:#111a27;color:#cbd6e5;text-align:left;font-size:10px}
+.hot-seat-poll-option>i{position:absolute;z-index:-1;left:0;top:0;bottom:0;background:#b98a3929;transition:width .3s ease}
+.hot-seat-poll-option b{color:#f2d18b;font-size:10px}
+.hot-seat-poll-option.voted{border-color:#d3a952;background:#352b1b;color:#ffe4a6}
+.hot-seat-poll-option:disabled{cursor:default;opacity:1}
+:root[data-theme="light"] .hot-seat-poll-form,:root[data-theme="light"] .hot-seat-poll{background:#f6f8fb;border-color:#d8e0eb}
+:root[data-theme="light"] .hot-seat-poll-form input,:root[data-theme="light"] .hot-seat-poll-form textarea,:root[data-theme="light"] .hot-seat-poll-option{background:#fff;color:#31435b;border-color:#d5dfeb}
+:root[data-theme="light"] .hot-seat-poll-head strong{color:#27364a}
