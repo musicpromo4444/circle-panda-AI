@@ -64,8 +64,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     if(gameStep!==3) return;
     const timer=window.setTimeout(()=>{
       const reveals:Record<string,string>={wheel_spin:'The panda wheel has stopped!',guess_sponsor:'Sponsor guess recorded!',panda_cup_shuffle:'Cup choice revealed!',lucky_cards:'Your lucky card is revealed!',secret_reveal:'Your secret prompt is revealed!',panda_puzzle:'Puzzle round completed!',panda_slots:'Slots calculated · result revealed!',mystery_box:'Your mystery box is open!',panda_target:'Target round complete!'};
-      if(selected?.activity_key==='coin_drop') return;
-      setGameResult(reveals[selected?.activity_key??'']??gameResult);
+      if(selected?.activity_key!=='coin_drop') setGameResult(reveals[selected?.activity_key??'']??gameResult);
       setGameStep(1);
     },selected?.activity_key==='coin_drop'?4000:2200);
     return ()=>window.clearTimeout(timer);
