@@ -34,13 +34,15 @@ Only work on the new `circle-panda-AI` repository and the `Circle Panda Rebuilt`
 - Admin wallet display now uses the requested `0 BC` unlimited sentinel in both the top header and Wallet view; the existing database message-charge trigger already bypasses BC deductions for accounts with the `admin` role, so this is not implemented as a fake huge balance.
 - VIP group page now recognizes the authoritative `user_roles.role = 'admin'` permission as VIP access, even if the profile VIP flag is stale. The backend still validates room entry; verify admin can enter Worldwide and Country rooms in a signed-in browser session.
 - GitHub commit `8c7c8ef8c1b803710d7ab784ae5abf85141ab12` had a Vercel type/build error; the follow-up cleanup commit `646a20bbecd22d921246fe3a64ad66d88409345f` is deployed as READY (`dpl_FpkpJWajLrwBudqNmQVBf3EJC7HS`). The earlier failed deployment is not the latest commit.
-- Remaining from the user's latest feedback: build a dedicated Profile page (remove any Buy Coin entry point from profile; purchases belong only in Wallet), verify real admin VIP group entry against Supabase, and then run the multi-account acceptance matrix.
+- Dedicated Profile page is now implemented: editable profile fields save to `profiles`; the header profile icon opens Profile; Buy Coin remains in Wallet only. The profile page shows account/VIP/admin status and the requested admin `0 BC` unlimited sentinel.
+- Fixed the Profile section TypeScript route and verified production deployment `dpl_2f6eCZqmjqPZxvWwvow9K1x5ygAF` is **READY**, built from commit `238c4622cd8308046bb5490351cd6b90e97f3df2`, aliased to `https://circle-panda-ai.vercel.app`.
+- The production build succeeds but reports a very large `city` chunk (~8 MB minified). Track bundle splitting as a performance task; it does not block this deployment.
 
 ## Current verified issues and next work order
 
 - Supabase security advisor: one RLS-without-policy finding remains on `signup_rate_limits` (intentionally server-side); a warning remains for `get_public_auth_provider_settings()`, which is a SECURITY DEFINER function that returns only the two public booleans for Google/Apple sign-in availability. Review its exposure before changing permissions because signup needs these flags.
 - Performance advisor reports 45 RLS policies that may re-evaluate auth expressions per row. Optimize these carefully in targeted migrations and preserve each policy's semantics.
-- Latest Vercel deployment for the new index commit was still **BUILDING** at the last check; verify it reaches READY and that production alias points to the latest commit.
+- Verify admin can enter Worldwide and Country VIP rooms in an authenticated browser session and test the database `ensure_vip_group` / `join_chat_group` path. Admin bypass is present in `ensure_vip_group`; inspect `join_chat_group` for matching backend authorization.
 - Finish provider setup and verify a Paystack test purchase end-to-end, including webhook replay/idempotency.
 - Configure rewarded ads and verify server-side reward completion.
 - Run the full request-to-DM matrix across Dating, Events, Groups and WCW/MCM using two test accounts.
