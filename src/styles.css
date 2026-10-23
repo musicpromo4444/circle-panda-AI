@@ -2710,3 +2710,11 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .hot-seat-shell .hot-seat-main-grid{display:none!important}
 .hot-seat-shell .hot-seat-stats,.hot-seat-shell .hot-seat-giveaway-card,.hot-seat-shell .hot-seat-polls-card,.hot-seat-shell .hot-seat-break-hub,.hot-seat-shell .hot-seat-footer-note{display:none!important}
 @media(max-width:640px){.hot-seat-shell .hot-seat-live-actions{right:7px!important;top:38%!important;width:48px!important;gap:13px!important;padding:4px 0!important}.hot-seat-shell .hot-seat-live-actions button{width:42px!important;min-height:42px!important;font-size:17px!important}.hot-seat-shell .hot-seat-live-actions button span{font-size:7px!important}.hot-seat-shell .hot-seat-stage-card{padding:16px!important;margin-right:40px!important;width:calc(100% - 40px)!important}.hot-seat-shell .hot-seat-hero{margin-right:40px!important}.hot-seat-shell .hot-seat-callout{margin-right:40px!important}}
+
+.hot-seat-comments-inbox-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:0 2px}
+.hot-seat-inbox-label{font-size:10px;font-weight:900;letter-spacing:.2em;color:#e9c976}
+.hot-seat-comments-inbox{position:relative;display:flex;align-items:center;gap:8px;padding:8px 13px;border:1px solid rgba(239,202,107,.42);border-radius:22px;background:rgba(12,17,29,.85);color:#f8e8bb;font-size:12px;font-weight:800;box-shadow:0 3px 14px rgba(0,0,0,.22)}
+.hot-seat-inbox-icon{font-size:18px;line-height:1}
+.hot-seat-comments-inbox b{display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:20px;background:#efc96a;color:#171321;font-size:10px}
+.hot-seat-comments-inbox .hot-seat-unread-light{top:-3px!important;left:-3px!important}
+@media(max-width:640px){.hot-seat-comments-inbox-row{margin-right:40px}}
