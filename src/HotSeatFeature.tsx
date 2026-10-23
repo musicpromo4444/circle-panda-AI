@@ -29,7 +29,6 @@ function youtubeEmbedUrl(raw:string|null|undefined):string|null {if(!raw)return 
 export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminOnly=false}:Props) {
   const [session,setSession]=useState<HotSession|null>(null);
   const [activePanel,setActivePanel]=useState<'host'|'questions'|'comments'|'gifts'|'reactions'|'bids'|null>(null);
-  const [commentsSeen,setCommentsSeen]=useState(0);
   const [questionsSeen,setQuestionsSeen]=useState(0);
   const [questions,setQuestions]=useState<HotQuestion[]>([]);
   const [comments,setComments]=useState<HotComment[]>([]);
@@ -184,7 +183,6 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
   const questionCost=questionType==='custom'?questionCustomCost:questionStandardCost;
   const hostSharePercent=Number(publicSettings.host_earnings_percent??20);
   const pendingQuestions=questions.filter(q=>q.status==='pending');
-  const unreadComments=Math.max(0,comments.length-commentsSeen);
   const unreadQuestions=Math.max(0,pendingQuestions.length-questionsSeen);
 
   async function act(key:string,fn:()=>Promise<unknown>,success:string) {
@@ -236,7 +234,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
       </aside>
       <button type="button" className="hot-seat-giveaway-float" onClick={()=>setActivePanel('gifts')}><span>🎁</span><b>GIVEAWAY</b></button>
       <div className="hot-seat-topic-overlay"><span>🔥 CURRENT HOT TOPIC</span><strong>{session?.title||'What is one thing you pretend to understand but absolutely do not?'}</strong></div>
-      <button type="button" className="hot-seat-comment-preview" onClick={()=>{setActivePanel('comments');setCommentsSeen(comments.length);}}><span>◉ CHAT:</span><p>{comments[comments.length-1]?.body||'Join the conversation…'}</p><b>{names[comments[comments.length-1]?.user_id||'']||'Panda'}</b></button>
+      <button type="button" className="hot-seat-comment-preview" onClick={()=>{setActivePanel('comments');}}><span>◉ CHAT:</span><p>{comments[comments.length-1]?.body||'Join the conversation…'}</p><b>{names[comments[comments.length-1]?.user_id||'']||'Panda'}</b></button>
       <form className="hot-seat-stage-compose" onSubmit={submitComment}><input value={commentDraft} onChange={e=>setCommentDraft(e.target.value)} maxLength={1000} placeholder="Ask or comment anonymously…" aria-label="Ask or comment anonymously" required/><button type="submit" disabled={Boolean(busy)||!commentDraft.trim()} aria-label="Send comment">➤</button></form>
     </div>
     {notice&&<div className="notice hot-seat-notice" role="status">{notice}<button type="button" onClick={()=>setNotice('')}>×</button></div>}
