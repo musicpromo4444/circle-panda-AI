@@ -134,7 +134,35 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
     finally {setLoading(false);}
   },[userId,isAdmin]);
 
-  useEffect(()=>{void load();const poll=window.setInterval(()=>void load(),12000);const clock=window.setInterval(()=>setNow(Date.now()),1000);return()=>{window.clearInterval(poll);window.clearInterval(clock);};},[load]);
+  useEffect(()=>{
+    void load();
+    // Subscribe for instant room updates; keep a slower poll as a mobile-network fallback.
+    const poll=window.setInterval(()=>void load(),30000);
+    const clock=window.setInterval(()=>setNow(Date.now()),1000);
+    let channel:any=null;
+    const sessionId=session?.id;
+    if(supabase&&sessionId){
+      channel=supabase.channel('hot-seat-live-'+sessionId);
+      const roomTables=[
+        'hot_seat_sessions','hot_seat_questions','hot_seat_comments','hot_seat_reactions',
+        'hot_seat_gift_transactions','hot_seat_bids','hot_seat_giveaways',
+        'hot_seat_giveaway_entries','hot_seat_polls','hot_seat_poll_votes','hot_seat_follows'
+      ];
+      for(const table of roomTables){
+        const scoped=['hot_seat_sessions','hot_seat_questions','hot_seat_comments','hot_seat_reactions','hot_seat_gift_transactions','hot_seat_bids','hot_seat_giveaways','hot_seat_polls'].includes(table);
+        channel=channel.on('postgres_changes',{
+          event:'*',schema:'public',table,
+          ...(scoped?{filter:(table==='hot_seat_sessions'?'id':'session_id')+'=eq.'+sessionId}:{})
+        },()=>{void load();});
+      }
+      channel.subscribe();
+    }
+    return()=>{
+      window.clearInterval(poll);
+      window.clearInterval(clock);
+      if(channel&&supabase)void supabase.removeChannel(channel);
+    };
+  },[load,session?.id]);
   useEffect(()=>{if(!giftTx.length)return;const newest=giftTx[0];if(seenGiftId.current===null){seenGiftId.current=newest.id;return;}if(seenGiftId.current!==newest.id){seenGiftId.current=newest.id;setGiftBurst(newest);const timer=window.setTimeout(()=>setGiftBurst(null),4500);return()=>window.clearTimeout(timer);}},[giftTx]);
 
   const currentHost=session?.host_id===userId;
