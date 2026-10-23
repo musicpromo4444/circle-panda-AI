@@ -28,7 +28,7 @@ function youtubeEmbedUrl(raw:string|null|undefined):string|null {if(!raw)return 
 
 export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminOnly=false}:Props) {
   const [session,setSession]=useState<HotSession|null>(null);
-  const [activePanel,setActivePanel]=useState<'questions'|'comments'|'gifts'|'reactions'|'bids'|null>(null);
+  const [activePanel,setActivePanel]=useState<'host'|'questions'|'comments'|'gifts'|'reactions'|'bids'|null>(null);
   const [commentsSeen,setCommentsSeen]=useState(0);
   const [questionsSeen,setQuestionsSeen]=useState(0);
   const [questions,setQuestions]=useState<HotQuestion[]>([]);
@@ -228,12 +228,11 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
       <div className="hot-seat-stage-top"><button type="button" className="hot-seat-exit-pill" onClick={()=>window.history.back()}>← Exit</button><span className={'hot-seat-status status-'+(session?.status||'offline')}>{session?.status==='live'&&isPaused?'⏸ PAUSED':session?.status==='live'?'● LIVE':session?.status==='water_break'?'💧 BREAK':session?.status==='bidding'?'🔨 BIDDING':'OFFLINE'}</span><span className="hot-seat-mode-pill">🔥 Hot Seat</span>{timeLeft&&<span className="hot-seat-timer">{timeLeft}</span>}</div>
       <div className="hot-seat-stage-empty"><div className="hot-seat-blur-scene" aria-hidden="true"><span>🐼</span><span>🔥</span><span>💬</span><span>💛</span></div><div className="hot-seat-stage-host"><div className="hot-seat-host-avatar">🐼</div><strong>{names[session?.host_id||'']||'Circle Panda Host'}</strong><small>{session?.status==='live'?'HOST · LIVE NOW':'HOT SEAT COMMUNITY'}</small></div></div>
       <aside className="hot-seat-floating-actions" aria-label="Hot Seat actions">
-        <button type="button" onClick={()=>void toggleFollowHost()} aria-label="Follow host"><span className="hot-seat-follow-panda">🐼<i>+</i></span></button>
-        <button type="button" onClick={()=>void react('like')} aria-label="Like Hot Seat">♡<small>{likeCount.toLocaleString()}</small></button>
-        <button type="button" onClick={()=>{setActivePanel('comments');setCommentsSeen(comments.length);}} aria-label={unreadComments>0?unreadComments+" unread comments":"Open comments"}>○<small>{comments.length}{unreadComments>0?' · NEW':''}</small></button>
-        <button type="button" onClick={()=>setActivePanel('gifts')} aria-label="Send a gift">♔<small>Gift</small></button>
-        <button type="button" onClick={()=>setActivePanel('questions')} aria-label="Ask a question">❓<small>Ask</small></button>
-        <button type="button" onClick={()=>{if(navigator.share)void navigator.share({title:'Circle Panda Hot Seat',text:'Join the Hot Seat on Circle Panda'}).catch(()=>{});else setNotice('Share Circle Panda Hot Seat with your friends.');}} aria-label="Share Hot Seat">⌯<small>Share</small></button>
+        <button type="button" onClick={()=>setActivePanel('host')} aria-label="Open Hot Seat host profile"><span className="hot-seat-follow-panda">🐼</span><small>Host</small></button>
+        <button type="button" onClick={()=>setActivePanel('reactions')} aria-label="Choose a reaction">❤️<small>React</small></button>
+        <button type="button" onClick={()=>setActivePanel('gifts')} aria-label="Send a gift">🎁<small>Gift</small></button>
+        <button type="button" onClick={()=>setActivePanel('questions')} aria-label="Ask a question">❓<small>Question</small></button>
+        <button type="button" onClick={()=>setActivePanel('bids')} aria-label="Bid for the Hot Seat">🔨<small>Bid</small></button>
       </aside>
       <button type="button" className="hot-seat-giveaway-float" onClick={()=>setActivePanel('gifts')}><span>🎁</span><b>GIVEAWAY</b></button>
       <div className="hot-seat-topic-overlay"><span>🔥 CURRENT HOT TOPIC</span><strong>{session?.title||'What is one thing you pretend to understand but absolutely do not?'}</strong></div>
