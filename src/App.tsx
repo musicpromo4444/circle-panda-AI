@@ -2574,7 +2574,8 @@ function AdminFeature() {
   const [notice, setNotice] = useState('');
 
   async function loadOverview() {
-    if (!supabase) { setMetricsLoading(false); return; }
+    const client = supabase;
+    if (!client) { setMetricsLoading(false); return; }
     setMetricsLoading(true);
     const checks = [
       { label:'Registered users', table:'profiles', detail:'Accounts with a profile' },
@@ -2589,7 +2590,7 @@ function AdminFeature() {
       { label:'Hot Seat sessions', table:'hot_seat_sessions', detail:'Hot Seat sessions' },
     ];
     const results = await Promise.all(checks.map(async item => {
-      let query = supabase.from(item.table).select('*', { count:'exact', head:true });
+      let query = client.from(item.table).select('*', { count:'exact', head:true });
       if (item.column) query = query.eq(item.column, true);
       const { count, error } = await query;
       return { label:item.label, value:error ? '—' : (count ?? 0).toLocaleString(), detail:error ? 'Restricted or unavailable to this session' : item.detail };
