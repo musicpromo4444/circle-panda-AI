@@ -2780,3 +2780,37 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .hot-seat-action-drawer>header{position:sticky;top:0;background:#10191e;z-index:2}.hot-seat-action-drawer .hot-seat-card{background:#111c22;border-color:#2d4149}
 @media(min-width:761px){.hot-seat-live-stage{height:min(86dvh,900px);min-height:640px;border-radius:20px}.hot-seat-shell:has(.hot-seat-live-stage){max-width:740px;margin:0 auto}.hot-seat-minimal-header{border-radius:15px 15px 0 0}.hot-seat-floating-actions{right:22px}.hot-seat-topic-overlay{left:24px;right:95px}.hot-seat-comment-preview{left:24px;right:95px}.hot-seat-stage-compose{left:24px;right:24px}}
 @media(max-width:420px){.hot-seat-minimal-header>strong{font-size:14px}.hot-seat-balance-chip{font-size:10px;padding:7px}.hot-seat-floating-actions{right:8px;gap:10px}.hot-seat-floating-actions button{width:48px;min-height:48px;font-size:29px}.hot-seat-topic-overlay{right:66px;bottom:103px;padding:11px}.hot-seat-topic-overlay strong{font-size:12px}.hot-seat-comment-preview{right:66px;bottom:60px}.hot-seat-giveaway-float{left:7px}.hot-seat-giveaway-float span{width:54px;height:54px}}
+
+/* Final reference-match override: Hot Seat is an immersive full-screen live canvas. */
+body:has(.hot-seat-shell){overflow:hidden!important;background:#02090f!important}
+body:has(.hot-seat-shell) .topbar,
+body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
+.hot-seat-shell:has(.hot-seat-live-stage){position:fixed!important;inset:0!important;z-index:999!important;width:100vw!important;height:100dvh!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#02090f!important;border:0!important;border-radius:0!important}
+.hot-seat-shell:has(.hot-seat-live-stage)>.hot-seat-minimal-header{display:none!important}
+.hot-seat-live-stage{position:absolute!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:0!important;max-height:none!important;border-radius:0!important;overflow:hidden!important;background:radial-gradient(ellipse at 50% 38%,#0e6074 0%,#064052 38%,#031b25 70%,#01080d 100%)!important}
+.hot-seat-stage-empty{background:linear-gradient(180deg,rgba(0,13,20,.08) 0%,rgba(0,15,22,.04) 42%,rgba(0,8,13,.62) 74%,#00060a 100%)!important}
+.hot-seat-blur-scene{inset:-8%!important;opacity:.27!important;filter:blur(18px)!important;background:radial-gradient(ellipse at 48% 36%,#3e9bad 0%,#146175 30%,transparent 68%)!important}
+.hot-seat-blur-scene span:first-child{font-size:clamp(220px,65vw,620px)!important;opacity:.35}
+.hot-seat-stage-top{top:max(18px,env(safe-area-inset-top))!important;left:16px!important;right:16px!important;display:grid!important;grid-template-columns:auto 1fr auto!important;gap:8px!important}
+.hot-seat-stage-top .hot-seat-status{justify-self:center!important}
+.hot-seat-exit-pill{padding:11px 15px!important}
+.hot-seat-mode-pill{padding:11px 15px!important;white-space:nowrap!important}
+.hot-seat-stage-host{left:24px!important;bottom:24%!important}
+.hot-seat-floating-actions{right:12px!important;top:38%!important;gap:15px!important}
+.hot-seat-floating-actions button{width:56px!important;height:56px!important;min-height:56px!important;background:rgba(2,15,22,.78)!important;border:1px solid rgba(255,255,255,.28)!important;box-shadow:0 3px 18px #0008!important;backdrop-filter:blur(8px)!important}
+.hot-seat-floating-actions button:nth-child(4){color:#ffc52b!important;border-color:#dca72d!important}
+.hot-seat-giveaway-float{left:18px!important;bottom:28%!important}
+.hot-seat-topic-overlay{left:16px!important;right:88px!important;bottom:122px!important;padding:14px 16px!important;background:rgba(1,12,18,.88)!important;border:1px solid rgba(255,255,255,.13)!important;border-radius:25px!important;backdrop-filter:blur(14px)!important}
+.hot-seat-comment-preview{left:16px!important;right:88px!important;bottom:64px!important;min-height:44px!important;padding:10px 13px!important;background:rgba(1,10,15,.88)!important;border:1px solid rgba(255,255,255,.19)!important;border-radius:25px!important;backdrop-filter:blur(12px)!important}
+.hot-seat-stage-compose{left:16px!important;right:16px!important;bottom:max(12px,env(safe-area-inset-bottom))!important;gap:10px!important}
+.hot-seat-stage-compose input{height:49px!important;padding:0 17px!important;background:rgba(1,9,14,.94)!important;border-color:rgba(255,255,255,.25)!important;font-size:14px!important}
+.hot-seat-stage-compose button{width:49px!important;height:49px!important}
+.hot-seat-shell:has(.hot-seat-live-stage) .hot-seat-stats,
+.hot-seat-shell:has(.hot-seat-live-stage)>.hot-seat-host-strip,
+.hot-seat-shell:has(.hot-seat-live-stage)>.hot-seat-callout,
+.hot-seat-shell:has(.hot-seat-live-stage)>.hot-seat-card,
+.hot-seat-shell:has(.hot-seat-live-stage)>.hot-seat-main-grid,
+.hot-seat-shell:has(.hot-seat-live-stage)>.hot-seat-break-hub{display:none!important}
+.hot-seat-notice,.hot-seat-gift-burst{position:fixed!important;z-index:1005!important;top:70px!important;left:12px!important;right:12px!important}
+.hot-seat-action-backdrop{position:fixed!important;inset:0!important;z-index:1010!important}
+@media(max-height:700px){.hot-seat-floating-actions{top:34%!important;gap:9px!important}.hot-seat-floating-actions button{width:46px!important;height:46px!important;min-height:46px!important}.hot-seat-giveaway-float{bottom:30%!important}.hot-seat-giveaway-float span{width:48px!important;height:48px!important}.hot-seat-topic-overlay{bottom:115px!important}.hot-seat-comment-preview{bottom:61px!important}}
