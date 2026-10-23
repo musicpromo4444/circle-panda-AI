@@ -2514,7 +2514,7 @@ function VipAdminControls() {
     else setMembers((data ?? []) as VipAdminMember[]);
     setLoading(false);
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); void loadSponsors(); }, []);
 
   async function setMembership(member: VipAdminMember, active: boolean) {
     if (!supabase || busyId) return;
@@ -2560,9 +2560,14 @@ type CoinPackageAdmin = CoinPackage & { enabled:boolean };
 type CoinPackageAdminDraft = { name:string; coins:string; price_ngn:string; enabled:boolean; sort_order:string };
 type EventBlastPlanDraft = { name:string; unique_reach:string; duration_minutes:string; price_usd:string; bc_price:string; enabled:boolean };
 type AdminMetric = { label:string; value:string; detail:string };
+type SponsorCampaignRow = { id:string; sponsor_name:string; campaign_name:string; description:string; format:string; target_url:string|null; countries:string[]; status:string; starts_at:string; ends_at:string; budget_naira:number; cpm_naira:number; target_impressions:number; impressions:number; clicks:number; created_at:string };
 function AdminFeature() {
   const [metrics, setMetrics] = useState<AdminMetric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(true);
+  const [sponsorCampaigns, setSponsorCampaigns] = useState<SponsorCampaignRow[]>([]);
+  const [sponsorLoading, setSponsorLoading] = useState(false);
+  const [sponsorBusy, setSponsorBusy] = useState('');
+  const [sponsorDraft, setSponsorDraft] = useState({ sponsor_name:'', campaign_name:'', description:'', format:'feed_card', target_url:'', countries:'Nigeria', starts_at:new Date().toISOString().slice(0,16), ends_at:new Date(Date.now()+7*86400000).toISOString().slice(0,16), budget_naira:'', cpm_naira:'', target_impressions:'' });
   const [settings, setSettings] = useState<EconomySettingRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string,string>>({});
   const [blastPlans, setBlastPlans] = useState<EventBlastAdminPlan[]>([]);
@@ -2572,6 +2577,53 @@ function AdminFeature() {
   const [busyKey, setBusyKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+
+  async function loadSponsors() {
+    const client = supabase;
+    if (!client) return;
+    setSponsorLoading(true);
+    const { data, error } = await client.from('sponsor_campaigns').select('id,sponsor_name,campaign_name,description,format,target_url,countries,status,starts_at,ends_at,budget_naira,cpm_naira,target_impressions,impressions,clicks,created_at').order('created_at',{ascending:false}).limit(100);
+    if (error) setNotice(error.message);
+    else setSponsorCampaigns((data ?? []) as SponsorCampaignRow[]);
+    setSponsorLoading(false);
+  }
+
+  async function createSponsorCampaign() {
+    const client = supabase;
+    if (!client) return;
+    const { data:userData, error:userError } = await client.auth.getUser();
+    if (userError || !userData.user) { setNotice('Sign in again before creating a campaign.'); return; }
+    const budget = Number(sponsorDraft.budget_naira), cpm = Number(sponsorDraft.cpm_naira), impressions = Number(sponsorDraft.target_impressions);
+    const starts = new Date(sponsorDraft.starts_at), ends = new Date(sponsorDraft.ends_at);
+    const countries = sponsorDraft.countries.split(',').map(x=>x.trim()).filter(Boolean);
+    if (!sponsorDraft.sponsor_name.trim() || !sponsorDraft.campaign_name.trim() || !sponsorDraft.description.trim() || !countries.length || !Number.isFinite(budget) || budget<=0 || !Number.isFinite(cpm) || cpm<=0 || !Number.isSafeInteger(impressions) || impressions<1 || !Number.isFinite(starts.getTime()) || !Number.isFinite(ends.getTime()) || ends<=starts) {
+      setNotice('Complete all required campaign fields. Budget and CPM must be positive, impressions must be a positive whole number, and end time must follow start time.'); return;
+    }
+    setSponsorBusy('create'); setNotice('');
+    const { error } = await client.from('sponsor_campaigns').insert({
+      sponsor_name:sponsorDraft.sponsor_name.trim(), campaign_name:sponsorDraft.campaign_name.trim(), description:sponsorDraft.description.trim(),
+      format:sponsorDraft.format, target_url:sponsorDraft.target_url.trim() || null, countries, status:'draft',
+      starts_at:starts.toISOString(), ends_at:ends.toISOString(), budget_naira:budget, cpm_naira:cpm,
+      target_impressions:impressions, created_by:userData.user.id
+    });
+    if (error) setNotice(error.message);
+    else {
+      setNotice('Campaign saved as draft. It will not serve until an administrator activates it and its schedule is current.');
+      setSponsorDraft(prev=>({...prev,sponsor_name:'',campaign_name:'',description:'',target_url:'',budget_naira:'',cpm_naira:'',target_impressions:''}));
+      await loadSponsors(); await loadOverview();
+    }
+    setSponsorBusy('');
+  }
+
+  async function updateSponsorStatus(id:string,status:string) {
+    const client = supabase;
+    if (!client) return;
+    setSponsorBusy(id); setNotice('');
+    const { error } = await client.from('sponsor_campaigns').update({status}).eq('id',id);
+    if (error) setNotice(error.message);
+    else { setNotice('Campaign status updated.'); await loadSponsors(); await loadOverview(); }
+    setSponsorBusy('');
+  }
 
   async function loadOverview() {
     const client = supabase;
@@ -2689,7 +2741,7 @@ function AdminFeature() {
       <a href="#admin-economy">🪙 <strong>BC economy & rewards</strong><span>Manage database-backed reward values</span></a>
       <a href="#admin-coins">💰 <strong>Coin store packages</strong><span>Configure coin bundles and NGN prices</span></a>
       <a href="#admin-blast">📣 <strong>Event Blast</strong><span>Configure reach, duration and plan prices</span></a>
-      <a href="#admin-sponsors">🤝 <strong>Sponsors & ads</strong><span>Campaign records are present; campaign management UI remains to be built</span></a>
+      <a href="#admin-sponsors">🤝 <strong>Sponsors & ads</strong><span>Create draft campaigns, manage delivery status and review campaign performance</span></a>
       <a href="#admin-moderation">🛡️ <strong>Safety & moderation</strong><span>Report records exist; moderation actions remain to be connected</span></a>
     </div>
     <div id="admin-vip" className="admin-dashboard-section"><h3>Account & VIP management</h3><VipAdminControls /></div>
@@ -2697,7 +2749,31 @@ function AdminFeature() {
     {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div id="admin-economy" className="admin-dashboard-section"><h3>BC economy & rewards</h3><div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div></div> : <div id="admin-economy" className="empty-state"><p>No economy settings were found.</p></div>}
     <section id="admin-coins" className="admin-coin-packages admin-dashboard-section"><div><p className="eyebrow">WALLET STORE</p><h3>BC coin packages</h3><p className="feature-copy">Set the BC amount and NGN price for each bundle. Checkout stays unavailable until a payment provider is configured.</p></div>{coinPackages.length ? coinPackages.map(pack=>{const draft=coinPackageDrafts[pack.id] || {name:pack.name,coins:String(pack.coins),price_ngn:pack.price_ngn==null?'':String(pack.price_ngn),enabled:pack.enabled,sort_order:String(pack.sort_order)};return <article className="admin-coin-package-row" key={pack.id}><div className="admin-blast-plan-id"><strong>{pack.id} BC package</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><div className="admin-coin-package-fields"><label>Package name<input value={draft.name} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,name:e.target.value}}))}/></label><label>Coins<input type="number" min="1" step="1" value={draft.coins} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,coins:e.target.value}}))}/></label><label>Price (NGN)<input type="number" min="0" step="0.01" value={draft.price_ngn} placeholder="Set price" onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,price_ngn:e.target.value}}))}/></label><label>Sort order<input type="number" step="1" value={draft.sort_order} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,sort_order:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='coin:'+pack.id} onClick={()=>void saveCoinPackage(pack.id)}>{busyKey==='coin:'+pack.id?'Saving…':'Save package'}</button></article>}) : <div className="empty-state">No coin packages configured.</div>}</section>
     <section id="admin-blast" className="admin-blast-plans admin-dashboard-section"><div><p className="eyebrow">EVENT PROMOTION</p><h3>Event Blast plans</h3><p className="feature-copy">Set paid reach, duration and BC pricing here. Changes apply to new Event Blasts.</p></div>{blastPlans.length ? blastPlans.map(plan=>{const draft=planDrafts[plan.id] || {name:plan.name,unique_reach:String(plan.unique_reach),duration_minutes:String(plan.duration_minutes),price_usd:String(plan.price_usd),bc_price:plan.bc_price == null?'':String(plan.bc_price),enabled:plan.enabled};return <article className="admin-blast-plan-row" key={plan.id}><div className="admin-blast-plan-id"><strong>{plan.id}</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><label>Plan name<input value={draft.name} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,name:e.target.value}}))}/></label><div className="admin-blast-plan-fields"><label>Unique reach<input type="number" min="1" step="1" value={draft.unique_reach} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,unique_reach:e.target.value}}))}/></label><label>Duration (minutes)<input type="number" min="1" step="1" value={draft.duration_minutes} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,duration_minutes:e.target.value}}))}/></label><label>Price (USD)<input type="number" min="0" step="0.01" value={draft.price_usd} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,price_usd:e.target.value}}))}/></label><label>Price (BC)<input type="number" min="0" step="1" value={draft.bc_price} placeholder="Unavailable" onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,bc_price:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='blast:'+plan.id} onClick={()=>void saveBlastPlan(plan.id)}>{busyKey==='blast:'+plan.id?'Saving…':'Save plan'}</button></article>}) : <div className="empty-state">No Event Blast plans are configured.</div>}</section>
-    <section id="admin-sponsors" className="admin-dashboard-section admin-placeholder-section"><p className="eyebrow">REVENUE OPERATIONS</p><h3>Sponsors & advertising</h3><p className="feature-copy">Sponsor campaign records are stored in the database. Campaign creation, approval, delivery controls, ad-provider integration and performance reporting are not yet wired into this dashboard. No campaign is presented as running unless the backend confirms it.</p></section>
+    <section id="admin-sponsors" className="admin-dashboard-section">
+      <p className="eyebrow">REVENUE OPERATIONS</p><h3>Sponsor campaigns</h3>
+      <p className="feature-copy">Campaign records use the database's admin-only row policies. New campaigns start as drafts and are not delivered automatically; ad network integration remains separate work.</p>
+      <div className="admin-sponsor-form">
+        <label>Sponsor / brand name<input value={sponsorDraft.sponsor_name} onChange={e=>setSponsorDraft(p=>({...p,sponsor_name:e.target.value}))} placeholder="Sponsor name"/></label>
+        <label>Campaign name<input value={sponsorDraft.campaign_name} onChange={e=>setSponsorDraft(p=>({...p,campaign_name:e.target.value}))} placeholder="Campaign title"/></label>
+        <label>Ad format<select value={sponsorDraft.format} onChange={e=>setSponsorDraft(p=>({...p,format:e.target.value}))}><option value="feed_card">Feed card</option><option value="banner">Banner</option><option value="interstitial">Interstitial</option><option value="rewarded_video">Rewarded video</option><option value="event_sponsor">Event sponsor</option></select></label>
+        <label>Target URL (optional)<input type="url" value={sponsorDraft.target_url} onChange={e=>setSponsorDraft(p=>({...p,target_url:e.target.value}))} placeholder="https://…"/></label>
+        <label className="admin-sponsor-wide">Description<textarea value={sponsorDraft.description} onChange={e=>setSponsorDraft(p=>({...p,description:e.target.value}))} rows={3} placeholder="What should users know about this campaign?"/></label>
+        <label>Countries (comma-separated)<input value={sponsorDraft.countries} onChange={e=>setSponsorDraft(p=>({...p,countries:e.target.value}))} placeholder="Nigeria, Ghana"/></label>
+        <label>Budget (NGN)<input type="number" min="1" value={sponsorDraft.budget_naira} onChange={e=>setSponsorDraft(p=>({...p,budget_naira:e.target.value}))}/></label>
+        <label>CPM (NGN per 1,000 impressions)<input type="number" min="1" value={sponsorDraft.cpm_naira} onChange={e=>setSponsorDraft(p=>({...p,cpm_naira:e.target.value}))}/></label>
+        <label>Target impressions<input type="number" min="1" step="1" value={sponsorDraft.target_impressions} onChange={e=>setSponsorDraft(p=>({...p,target_impressions:e.target.value}))}/></label>
+        <label>Start date/time<input type="datetime-local" value={sponsorDraft.starts_at} onChange={e=>setSponsorDraft(p=>({...p,starts_at:e.target.value}))}/></label>
+        <label>End date/time<input type="datetime-local" value={sponsorDraft.ends_at} onChange={e=>setSponsorDraft(p=>({...p,ends_at:e.target.value}))}/></label>
+      </div>
+      <button className="primary-button" disabled={sponsorBusy==='create'} onClick={()=>void createSponsorCampaign()}>{sponsorBusy==='create'?'Saving draft…':'Create draft campaign'}</button>
+      <div className="admin-sponsor-list-heading"><h4>Campaign inventory</h4><button className="secondary-button" disabled={sponsorLoading} onClick={()=>void loadSponsors()}>{sponsorLoading?'Refreshing…':'Refresh campaigns'}</button></div>
+      {sponsorLoading ? <div className="empty-state">Loading campaigns…</div> : sponsorCampaigns.length ? <div className="admin-sponsor-campaign-list">{sponsorCampaigns.map(campaign=><article className="admin-sponsor-campaign" key={campaign.id}>
+        <div className="admin-sponsor-campaign-top"><div><strong>{campaign.campaign_name}</strong><small>{campaign.sponsor_name} · {campaign.format.replaceAll('_',' ')}</small></div><span className={'admin-status-pill status-'+campaign.status}>{campaign.status}</span></div>
+        <p>{campaign.description}</p><div className="admin-sponsor-stats"><span>Budget <strong>₦{Number(campaign.budget_naira).toLocaleString()}</strong></span><span>CPM <strong>₦{Number(campaign.cpm_naira).toLocaleString()}</strong></span><span>Impressions <strong>{Number(campaign.impressions).toLocaleString()} / {Number(campaign.target_impressions).toLocaleString()}</strong></span><span>Clicks <strong>{Number(campaign.clicks).toLocaleString()}</strong></span></div>
+        <small>{campaign.countries.join(', ')} · {new Date(campaign.starts_at).toLocaleString()} – {new Date(campaign.ends_at).toLocaleString()}</small>
+        <div className="admin-sponsor-actions"><label>Delivery status<select value={campaign.status} disabled={sponsorBusy===campaign.id} onChange={e=>void updateSponsorStatus(campaign.id,e.target.value)}><option value="draft">Draft</option><option value="paused">Paused</option><option value="active">Active</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>{campaign.target_url && <a href={campaign.target_url} target="_blank" rel="noreferrer">Open target ↗</a>}</div>
+      </article>)}</div> : <div className="empty-state">No sponsor campaigns yet. Create a draft above.</div>}
+    </section>
     <section id="admin-moderation" className="admin-dashboard-section admin-placeholder-section"><p className="eyebrow">TRUST & SAFETY</p><h3>Safety & moderation</h3><p className="feature-copy">Confession reports exist in the database. A complete review queue, content hide/remove actions, account restrictions and immutable admin audit history still need protected backend actions before moderators can safely use them.</p></section>
   </section>;
 }
