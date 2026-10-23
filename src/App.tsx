@@ -2736,6 +2736,7 @@ function AdminFeature() {
     <p className="feature-copy">Live operational overview and controls for the new Circle Panda backend. A dash means the current admin session could not read that table; it is not reported as zero.</p>
     <div className="admin-overview-heading"><div><h3>Platform overview</h3><p className="feature-copy">Live counts from the connected database.</p></div><button className="primary-button" onClick={()=>void loadOverview()} disabled={metricsLoading}>{metricsLoading?'Refreshing…':'Refresh overview'}</button></div>
     <div className="admin-metric-grid">{metrics.map(metric=><article className="admin-metric-card" key={metric.label}><span>{metric.label}</span><strong>{metricsLoading?'…':metric.value}</strong><small>{metric.detail}</small></article>)}</div>
+    <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><p className="feature-copy">Platform-wide Hot Seat settings are managed here, not on the public Hot Seat page.</p><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></div>
     <div className="admin-module-grid">
       <a href="#admin-vip">👑 <strong>Account & VIP management</strong><span>Find users and manage VIP access</span></a>
       <a href="#admin-economy">🪙 <strong>BC economy & rewards</strong><span>Manage database-backed reward values</span></a>
