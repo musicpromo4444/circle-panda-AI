@@ -2514,7 +2514,7 @@ function VipAdminControls() {
     else setMembers((data ?? []) as VipAdminMember[]);
     setLoading(false);
   }
-  useEffect(() => { void load(); void loadSponsors(); }, []);
+  useEffect(() => { void load(); }, []);
 
   async function setMembership(member: VipAdminMember, active: boolean) {
     if (!supabase || busyId) return;
@@ -2684,7 +2684,7 @@ function AdminFeature() {
     }
     setLoading(false);
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); void loadSponsors(); }, []);
 
   async function save(key: string) {
     if (!supabase) return;
