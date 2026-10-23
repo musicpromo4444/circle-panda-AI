@@ -103,6 +103,9 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
       if (q.error) throw q.error;
       if (c.error) throw c.error;
       if (r.error) throw r.error;
+      for (const result of [g,gt,b,a,wallet,settingResult,pollResult,followResult,followCountResult,giveawayResult]) {
+        if (result.error) throw result.error;
+      }
       setQuestions((q.data??[]) as HotQuestion[]);
       setComments((c.data??[]) as HotComment[]);
       setReactions((r.data??[]) as HotReaction[]);
