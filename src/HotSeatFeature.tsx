@@ -119,14 +119,15 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
       if(isAdmin){setAdminSettings(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)));setSettingDrafts(Object.fromEntries(settingRows.filter(row=>!['comment_ad_interval','question_ad_interval'].includes(row.setting_key)).map(row=>[row.setting_key,String(row.numeric_value)])));}
       setBalance(wallet.data ? Number(wallet.data.bc_balance) : null);
       const giveawayRows=(giveawayResult.data??[]) as HotGiveaway[];setGiveaways(giveawayRows);
-      if(giveawayRows.length){const {data:entries}=await supabase.from('hot_seat_giveaway_entries').select('giveaway_id,user_id,created_at').in('giveaway_id',giveawayRows.map(g=>g.id));setGiveawayEntries((entries??[]) as HotGiveawayEntry[]);}else setGiveawayEntries([]);
+      if(giveawayRows.length){const {data:entries,error:entriesError}=await supabase.from('hot_seat_giveaway_entries').select('giveaway_id,user_id,created_at').in('giveaway_id',giveawayRows.map(g=>g.id));if(entriesError)throw entriesError;setGiveawayEntries((entries??[]) as HotGiveawayEntry[]);}else setGiveawayEntries([]);
       const pollRows=(pollResult.data??[]) as HotPoll[];setPolls(pollRows);
       setIsFollowingHost(Boolean(followResult.data));setHostFollowerCount(followCountResult.count??0);
-      if(pollRows.length){const {data:votes}=await supabase.from('hot_seat_poll_votes').select('poll_id,user_id,option_index').in('poll_id',pollRows.map(p=>p.id));setPollVotes((votes??[]) as HotPollVote[]);}else setPollVotes([]);
+      if(pollRows.length){const {data:votes,error:votesError}=await supabase.from('hot_seat_poll_votes').select('poll_id,user_id,option_index').in('poll_id',pollRows.map(p=>p.id));if(votesError)throw votesError;setPollVotes((votes??[]) as HotPollVote[]);}else setPollVotes([]);
       const ids=[current.host_id,...(q.data??[]).map((x:any)=>x.asker_id),...(c.data??[]).map((x:any)=>x.user_id),...(b.data??[]).map((x:any)=>x.bidder_id),...(gt.data??[]).flatMap((x:any)=>[x.sender_id,x.host_id]),...giveawayRows.flatMap(g=>[g.host_id,g.winner_id].filter(Boolean))];
       const unique=[...new Set(ids)];
       if(unique.length){
-        const {data:profiles}=await supabase.from('profiles').select('id,display_name,username').in('id',unique);
+        const {data:profiles,error:profilesError}=await supabase.from('profiles').select('id,display_name,username').in('id',unique);
+        if(profilesError)throw profilesError;
         setNames(Object.fromEntries((profiles??[]).map((p:any)=>[p.id,p.display_name||p.username||'Panda'])));
       }
     } catch(e) {setNotice(e instanceof Error?e.message:'Could not load Hot Seat.');}
