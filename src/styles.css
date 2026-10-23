@@ -2672,3 +2672,21 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 
 
 .daily-login-ad-slot{display:flex;align-items:center;justify-content:center;min-height:42px;width:100%;margin:6px 0 12px;border:1px dashed #d6b64d65;border-radius:10px;background:#d6b64d08;color:#aeb8af;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}.daily-streak-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:16px 0}.daily-streak-day{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;padding:8px 2px;border:1px solid #d6b64d4a;border-radius:9px;background:linear-gradient(150deg,#d6b64d17,#ffffff03)}.daily-streak-day small{font-size:.6rem;color:#c9c4ad}.daily-streak-day strong{font-size:.9rem;color:#f4d875}.daily-streak-day span{font-size:.55rem;color:#aeb8af}@media(max-width:390px){.daily-streak-strip{gap:2px}.daily-streak-day{padding:7px 1px}.daily-streak-day small{font-size:.53rem}.daily-streak-day strong{font-size:.78rem}}
+
+
+/* Circle Panda admin control-room dashboard */
+.admin-overview-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:24px 0 14px;flex-wrap:wrap}
+.admin-overview-heading h3,.admin-dashboard-section>h3,.admin-dashboard-section h3{margin:0 0 6px}
+.admin-metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:12px 0 24px}
+.admin-metric-card{display:flex;flex-direction:column;gap:8px;min-width:0;padding:16px;border:1px solid rgba(196,151,51,.32);border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(189,143,40,.06));box-shadow:0 8px 22px rgba(0,0,0,.08)}
+.admin-metric-card>span{font-size:.84rem;opacity:.82}
+.admin-metric-card>strong{font-size:1.8rem;line-height:1.15;color:var(--gold,#d9ad45);font-variant-numeric:tabular-nums}
+.admin-metric-card>small{font-size:.75rem;line-height:1.35;opacity:.65}
+.admin-module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px;margin:16px 0 28px}
+.admin-module-grid>a{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;padding:16px;border:1px solid rgba(196,151,51,.26);border-radius:14px;background:rgba(255,255,255,.035);transition:transform .18s ease,border-color .18s ease}
+.admin-module-grid>a:hover{transform:translateY(-2px);border-color:rgba(196,151,51,.72)}
+.admin-module-grid>a strong{font-size:.95rem}
+.admin-module-grid>a span{font-size:.8rem;line-height:1.4;opacity:.7}
+.admin-dashboard-section{scroll-margin-top:20px;margin-top:24px;padding-top:20px;border-top:1px solid rgba(196,151,51,.2)}
+.admin-placeholder-section{padding:18px;border:1px dashed rgba(196,151,51,.4);border-radius:14px}
+@media(max-width:560px){.admin-overview-heading{align-items:stretch}.admin-overview-heading .primary-button{width:100%}.admin-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-metric-card{padding:12px}.admin-metric-card>strong{font-size:1.5rem}.admin-module-grid{grid-template-columns:1fr}}
