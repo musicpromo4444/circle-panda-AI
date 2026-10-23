@@ -69,14 +69,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
   useEffect(()=>{
     if(gameStep!==3) return;
     const timer=window.setTimeout(()=>{
-      const random=(items:string[])=>items[Math.floor(Math.random()*items.length)];
-      const reveals:Record<string,string>={
-        wheel_spin:random(['Wheel stopped on Bamboo!','Wheel stopped on Golden Panda!','Wheel stopped on Lucky Star!','Wheel stopped on Green Aura!']),
-        guess_sponsor:'Sponsor guess recorded!',panda_cup_shuffle:'Cup choice revealed!',lucky_cards:'Your lucky card is revealed!',secret_reveal:'Your secret prompt is revealed!',panda_puzzle:'Puzzle round completed!',
-        panda_slots:random(['🐼 🐼 🐼 — Panda jackpot!','🪙 🎋 🪙 — Bamboo bonus!','✨ 🐼 ✨ — Lucky panda!','🎋 🎋 🪙 — Keep trying!']),
-        mystery_box:'Your mystery box is open!',panda_target:'Target round complete!'
-      };
-      if(selected?.activity_key==='wheel_spin') setGameResult(reveals[selected.activity_key]??gameResult);
+      if(selected?.activity_key==='wheel_spin') setGameResult('Wheel round complete. No prize outcome is configured for this activity yet.');
       setGameStep(1);
     },selected?.activity_key==='coin_drop'?4000:2200);
     return ()=>window.clearTimeout(timer);
@@ -115,18 +108,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     setBusy(true);setNotice('');
     const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:choice});
     if(error){setNotice(error.message);setBusy(false);return;}
-    const random=(items:string[])=>items[Math.floor(Math.random()*items.length)];
-    let outcome='Your choice has been recorded.';
-    switch(selected.activity_key) {
-      case 'panda_cup_shuffle': outcome=random(['🎋 Golden bamboo found!','✨ A lucky sparkle!','🐼 The panda was hiding here!']); break;
-      case 'lucky_cards': outcome=random(['🌟 Lucky star revealed!','🎋 Bamboo blessing revealed!','💛 Golden panda revealed!']); break;
-      case 'mystery_box': outcome=random(['🎁 Surprise: golden sparkle!','🎁 Surprise: bamboo treasure!','🎁 Surprise: panda charm!']); break;
-      case 'panda_target': outcome=random(['🎯 Bullseye! Great aim!','🎯 Close shot! Try again tomorrow.','🎯 Target hit — nice work!']); break;
-      case 'panda_puzzle': outcome=random(['🧩 Puzzle clue found: panda eyes!','🧩 Puzzle clue found: golden coin!','🧩 Puzzle clue found: bamboo!']); break;
-      case 'guess_sponsor': outcome='Your sponsor guess was recorded: '+choice+'.'; break;
-      case 'secret_reveal': outcome=random(['Your secret prompt: What is one dream you rarely share?','Your secret prompt: What always makes you smile?','Your secret prompt: What would you try if fear disappeared?']); break;
-      default: outcome='Round complete — '+choice+'.';
-    }
+    const outcome='Choice recorded: '+choice+'. The configured daily BC reward is claimed separately after you complete the activity.';
     setGameResult(outcome);setGameStep(3);setBusy(false);
   }
   async function startCoinDrop() {
