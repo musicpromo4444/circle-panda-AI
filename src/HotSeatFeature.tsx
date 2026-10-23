@@ -31,8 +31,6 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
   const [activePanel,setActivePanel]=useState<'questions'|'comments'|'gifts'|'reactions'|'bids'|null>(null);
   const [commentsSeen,setCommentsSeen]=useState(0);
   const [questionsSeen,setQuestionsSeen]=useState(0);
-  const unreadComments=Math.max(0,comments.length-commentsSeen);
-  const unreadQuestions=Math.max(0,pendingQuestions.length-questionsSeen);
   const [questions,setQuestions]=useState<HotQuestion[]>([]);
   const [comments,setComments]=useState<HotComment[]>([]);
   const [reactions,setReactions]=useState<HotReaction[]>([]);
@@ -154,6 +152,8 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
   const questionCost=questionType==='custom'?questionCustomCost:questionStandardCost;
   const hostSharePercent=Number(publicSettings.host_earnings_percent??20);
   const pendingQuestions=questions.filter(q=>q.status==='pending');
+  const unreadComments=Math.max(0,comments.length-commentsSeen);
+  const unreadQuestions=Math.max(0,pendingQuestions.length-questionsSeen);
 
   async function act(key:string,fn:()=>Promise<unknown>,success:string) {
     if(busy)return;setBusy(key);setNotice('');
