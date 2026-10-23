@@ -675,7 +675,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: 
   if (section === 'Profile') return <ProfileFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
-  if (section === 'Admin') return <AdminFeature />;
+  if (section === 'Admin') return <AdminFeature userId={userId} />;
   const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
@@ -2561,7 +2561,7 @@ type CoinPackageAdminDraft = { name:string; coins:string; price_ngn:string; enab
 type EventBlastPlanDraft = { name:string; unique_reach:string; duration_minutes:string; price_usd:string; bc_price:string; enabled:boolean };
 type AdminMetric = { label:string; value:string; detail:string };
 type SponsorCampaignRow = { id:string; sponsor_name:string; campaign_name:string; description:string; format:string; target_url:string|null; countries:string[]; status:string; starts_at:string; ends_at:string; budget_naira:number; cpm_naira:number; target_impressions:number; impressions:number; clicks:number; created_at:string };
-function AdminFeature() {
+function AdminFeature({userId}:{userId:string}) {
   const [metrics, setMetrics] = useState<AdminMetric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [sponsorCampaigns, setSponsorCampaigns] = useState<SponsorCampaignRow[]>([]);
