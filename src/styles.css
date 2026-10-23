@@ -2718,3 +2718,25 @@ textarea:focus, select:focus, [contenteditable="true"]:focus {
 .hot-seat-comments-inbox b{display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:20px;background:#efc96a;color:#171321;font-size:10px}
 .hot-seat-comments-inbox .hot-seat-unread-light{top:-3px!important;left:-3px!important}
 @media(max-width:640px){.hot-seat-comments-inbox-row{margin-right:40px}}
+
+/* Old Circle Panda Hot Seat visual treatment: full live canvas, blurred fallback, restrained controls. */
+.hot-seat-shell .hot-seat-stage-card{position:relative;isolation:isolate;min-height:calc(100dvh - 250px);padding:0!important;overflow:hidden;border:1px solid rgba(255,255,255,.12)!important;border-radius:26px!important;background:#090d18!important}
+.hot-seat-shell .hot-seat-stage-card>.hot-seat-section-head{position:absolute;top:14px;left:14px;right:14px;z-index:3;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:16px;background:rgba(4,7,15,.48);backdrop-filter:blur(10px)}
+.hot-seat-shell .hot-seat-stage-card>.hot-seat-section-head>div>p:not(.eyebrow){display:none}
+.hot-seat-shell .hot-seat-stage-card>.hot-seat-section-head h3{font-size:16px}
+.hot-seat-shell .hot-seat-video-frame,.hot-seat-shell .hot-seat-video-empty{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:100%!important;border:0!important;border-radius:0!important}
+.hot-seat-shell .hot-seat-video-frame iframe{width:100%!important;height:100%!important;min-height:100%!important;object-fit:cover}
+.hot-seat-blurred-live{display:grid!important;place-items:center!important;overflow:hidden!important;background:radial-gradient(ellipse at 68% 30%,rgba(174,79,64,.5),transparent 40%),radial-gradient(ellipse at 28% 72%,rgba(45,95,139,.55),transparent 44%),linear-gradient(145deg,#151d31,#100f1d 48%,#292033)!important}
+.hot-seat-blur-scene{position:absolute;inset:-30px;display:flex;align-items:center;justify-content:space-around;gap:28px;filter:blur(18px);opacity:.65;transform:scale(1.18);font-size:clamp(64px,20vw,150px);pointer-events:none}
+.hot-seat-blur-message{position:relative;z-index:2;max-width:260px;margin:100px 64px 0 12px;padding:14px 16px;border:1px solid rgba(255,255,255,.16);border-radius:18px;background:rgba(5,8,16,.42);backdrop-filter:blur(14px);text-align:center;color:#fff}
+.hot-seat-blur-message strong{font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+.hot-seat-blur-message p{margin-top:6px;font-size:11px;line-height:1.5;color:rgba(255,255,255,.72)}
+.hot-seat-blur-live-dot{display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:#f45c67;box-shadow:0 0 0 3px rgba(244,92,103,.16)}
+.hot-seat-shell .hot-seat-live-actions{top:40%!important;right:10px!important;bottom:auto!important;gap:15px!important;background:transparent!important;backdrop-filter:none!important}
+.hot-seat-shell .hot-seat-live-actions button{background:rgba(4,7,15,.42)!important;border-color:rgba(255,255,255,.26)!important;box-shadow:0 4px 14px rgba(0,0,0,.24)!important}
+.hot-seat-shell .hot-seat-live-actions button[aria-expanded="true"]{background:rgba(226,183,86,.24)!important;border-color:rgba(255,218,136,.7)!important}
+.hot-seat-shell .hot-seat-live-actions button .hot-seat-unread-light{animation:none!important;box-shadow:none!important}
+.hot-seat-shell .hot-seat-comments-inbox{background:rgba(5,8,16,.4)!important;box-shadow:none!important;backdrop-filter:blur(12px)}
+.hot-seat-shell .hot-seat-comments-inbox .hot-seat-unread-light{animation:none!important;box-shadow:none!important}
+.hot-seat-shell .hot-seat-hero{position:relative;z-index:2;background:linear-gradient(110deg,rgba(13,18,31,.84),rgba(75,38,48,.55))!important;backdrop-filter:blur(18px)}
+@media(max-width:640px){.hot-seat-shell .hot-seat-stage-card{min-height:calc(100dvh - 300px)!important;margin-right:0!important;width:100%!important}.hot-seat-shell .hot-seat-stage-card>.hot-seat-section-head{top:12px;left:12px;right:60px}.hot-seat-shell .hot-seat-video-frame iframe{height:100dvh!important}.hot-seat-blur-message{margin:80px 54px 0 8px}.hot-seat-shell .hot-seat-live-actions{right:5px!important;top:42%!important;gap:14px!important}.hot-seat-shell .hot-seat-live-actions button{background:rgba(4,7,15,.35)!important}}
