@@ -110,3 +110,11 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Replaced free-text country/state/area fields on the Profile page with the shared searchable location selectors, keeping saved values in the existing profile fields.
 - The seven-day login reward strip now reads the weekday amounts from `economy_settings` rather than showing hardcoded values. The actual credit remains calculated by the database's server-side daily-login reward function.
 - Profile selector and styling changes reached READY at `https://circle-panda-ai.vercel.app`. Daily-login popup change reached READY in the deployment immediately before the profile selector commits.
+
+## Feed post reporting and moderation review context (2026-10-24)
+
+- Added a private Report action to feed/confession cards with reason selection and optional details. Reports are submitted through `report_feed_post_secure`; the backend rejects self-reports and duplicate reports.
+- Added `feed_content_reports` with RLS enabled and direct client table access revoked. Extended the admin-only moderation queue and audit actions to include feed-post reports.
+- The moderation queue now receives a limited content preview for reported feed posts so administrators can understand what was reported without opening unrestricted table access.
+- Supabase migrations applied and tracked: `20261024160000_feed_post_reporting_and_moderation_queue.sql` and `20261024161000_admin_moderation_report_content_preview.sql`.
+- The feed-report UI commit reached READY before the reported-content preview change; the latest preview/style and migration-file deployments are still building/queued and must reach READY before this full flow is verified.
