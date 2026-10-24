@@ -67,10 +67,6 @@ export default function App() {
   const [signupCountry, setSignupCountry] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
-  const [moderationReports,setModerationReports] = useState<ModerationReportRow[]>([]);
-  const [moderationLoading,setModerationLoading] = useState(false);
-  const [moderationBusy,setModerationBusy] = useState('');
-  const [moderationNotes,setModerationNotes] = useState<Record<string,string>>({});
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [vipPostIds, setVipPostIds] = useState<Set<string>>(() => new Set());
   const [, setIsVipMember] = useState(false);
@@ -2567,6 +2563,10 @@ type AdminMetric = { label:string; value:string; detail:string };
 type SponsorCampaignRow = { id:string; sponsor_name:string; campaign_name:string; description:string; format:string; target_url:string|null; countries:string[]; status:string; starts_at:string; ends_at:string; budget_naira:number; cpm_naira:number; target_impressions:number; impressions:number; clicks:number; created_at:string };
 type ModerationReportRow = { report_type:'crush'|'group_user'; report_id:string; target_user_id:string; group_id:string|null; reporter_id:string; reason:string; details:string; created_at:string; review_status:'open'|'reviewed'|'dismissed'; reviewed_at:string|null; review_note:string };
 function AdminFeature({userId}:{userId:string}) {
+  const [moderationReports,setModerationReports] = useState<ModerationReportRow[]>([]);
+  const [moderationLoading,setModerationLoading] = useState(false);
+  const [moderationBusy,setModerationBusy] = useState('');
+  const [moderationNotes,setModerationNotes] = useState<Record<string,string>>({});
   const [metrics, setMetrics] = useState<AdminMetric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [sponsorCampaigns, setSponsorCampaigns] = useState<SponsorCampaignRow[]>([]);
