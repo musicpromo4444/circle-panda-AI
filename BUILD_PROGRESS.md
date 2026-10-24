@@ -87,3 +87,12 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Added responsive rise/fade keyframes in `src/styles.css`, with a reduced-motion fallback.
 - Vercel build for the source commit `f5ec5ac5db95a6768b1e03d22071318380326de7` completed successfully and reached READY. The later CSS-only commit is queued for its own production build check.
 - Existing build warning remains: the deferred city data chunk is approximately 8 MB minified. Track bundle splitting separately; it did not fail the build.
+
+## Hot Seat action rail + admin moderation queue (2026-10-24)
+
+- Hid the legacy duplicate four-button Hot Seat rail. The immersive stage now uses the requested five right-side actions only; the bottom comment bar remains in place. The CSS change reached READY in deployment `circle-panda-9ip9ip46k-replystagepro-6977.vercel.app`.
+- Replaced the Admin Dashboard's moderation placeholder with a report queue for existing crush/profile and group-member reports. Admins can add internal notes, mark reports reviewed, or dismiss them.
+- Applied Supabase migration `admin_moderation_review_queue_and_audit` to project `chcyncvieekjousgzlrg`. It adds RLS-protected review records and an audit log, plus admin-only RPCs that validate the actor and report before recording a review action. Direct client table access is revoked.
+- Matching migration is tracked at `supabase/migrations/20261024150000_admin_moderation_review_queue_and_audit.sql`.
+- The moderation UI TypeScript scope issue was fixed in commit `577162fcbe53a043a1e944a034d8513e6d51990f`, whose deployment reached READY. The latest source including the migration-file commit is still building; confirm READY before treating the current combined deployment as verified.
+- Scope note: this is a report review/audit queue, not an automatic content-removal or account-suspension system. Those require separate protected moderation policies/actions and end-to-end testing.
