@@ -2562,7 +2562,10 @@ type EventBlastPlanDraft = { name:string; unique_reach:string; duration_minutes:
 type AdminMetric = { label:string; value:string; detail:string };
 type SponsorCampaignRow = { id:string; sponsor_name:string; campaign_name:string; description:string; format:string; target_url:string|null; countries:string[]; status:string; starts_at:string; ends_at:string; budget_naira:number; cpm_naira:number; target_impressions:number; impressions:number; clicks:number; created_at:string };
 type ModerationReportRow = { report_type:'crush'|'group_user'; report_id:string; target_user_id:string; group_id:string|null; reporter_id:string; reason:string; details:string; created_at:string; review_status:'open'|'reviewed'|'dismissed'; reviewed_at:string|null; review_note:string; reporter_label?:string; target_label?:string };
+type AdminAuditRow = { id:number; actor_id:string; actor_label:string; action:string; target_type:string; target_id:string|null; details:Record<string,unknown>; created_at:string };
 function AdminFeature({userId}:{userId:string}) {
+  const [auditRows,setAuditRows] = useState<AdminAuditRow[]>([]);
+  const [auditLoading,setAuditLoading] = useState(false);
   const [moderationReports,setModerationReports] = useState<ModerationReportRow[]>([]);
   const [moderationLoading,setModerationLoading] = useState(false);
   const [moderationBusy,setModerationBusy] = useState('');
@@ -2582,6 +2585,16 @@ function AdminFeature({userId}:{userId:string}) {
   const [busyKey, setBusyKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+
+  async function loadAuditHistory() {
+    const client = supabase;
+    if (!client) return;
+    setAuditLoading(true);
+    const {data,error} = await client.rpc('admin_list_audit_history',{p_limit:50});
+    if (error) setNotice(error.message);
+    else setAuditRows((data??[]) as AdminAuditRow[]);
+    setAuditLoading(false);
+  }
 
   async function loadModeration() {
     const client = supabase;
@@ -2620,7 +2633,7 @@ function AdminFeature({userId}:{userId:string}) {
       p_note:(moderationNotes[key]||'').trim(),
     });
     if (error) setNotice(error.message);
-    else { setNotice(action==='reviewed'?'Report marked as reviewed and recorded in the admin audit log.':'Report dismissed and recorded in the admin audit log.'); await loadModeration(); }
+    else { setNotice(action==='reviewed'?'Report marked as reviewed and recorded in the admin audit log.':'Report dismissed and recorded in the admin audit log.'); await loadModeration(); await loadAuditHistory(); }
     setModerationBusy('');
   }
 
@@ -2730,7 +2743,7 @@ function AdminFeature({userId}:{userId:string}) {
     }
     setLoading(false);
   }
-  useEffect(() => { void load(); void loadSponsors(); void loadModeration(); }, []);
+  useEffect(() => { void load(); void loadSponsors(); void loadModeration(); void loadAuditHistory(); }, []);
 
   async function save(key: string) {
     if (!supabase) return;
@@ -2836,6 +2849,10 @@ function AdminFeature({userId}:{userId:string}) {
           <div className="admin-moderation-actions"><button className="primary-button" disabled={Boolean(moderationBusy)} onClick={()=>void reviewModerationReport(report,'reviewed')}>{moderationBusy===key?'Saving…':'Mark reviewed'}</button><button className="secondary-button" disabled={Boolean(moderationBusy)} onClick={()=>void reviewModerationReport(report,'dismissed')}>Dismiss report</button></div>
         </article>;
       })}</div> : <div className="empty-state">No reports have been submitted. New reports will appear here.</div>}
+      <section className="admin-dashboard-section admin-audit-section">
+        <div className="admin-sponsor-list-heading"><div><p className="eyebrow">ACCOUNTABILITY</p><h3>Recent admin audit history</h3></div><button className="secondary-button" disabled={auditLoading} onClick={()=>void loadAuditHistory()}>{auditLoading?'Refreshing…':'Refresh history'}</button></div>
+        {auditLoading&&!auditRows.length?<div className="empty-state">Loading audit history…</div>:auditRows.length?<div className="admin-audit-list">{auditRows.map(row=><article className="admin-audit-row" key={row.id}><div><strong>{row.action.replaceAll('_',' ')}</strong><small>{row.actor_label} · {new Date(row.created_at).toLocaleString()}</small></div><div><span>{row.target_type.replaceAll('_',' ')}</span>{row.target_id&&<code>{row.target_id.slice(0,8)}</code>}</div>{typeof row.details?.note==='string'&&row.details.note&&<p>{row.details.note}</p>}</article>)}</div>:<div className="empty-state">No administrator actions have been recorded yet.</div>}
+      </section>
     </section>
   </section>;
 }
