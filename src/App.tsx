@@ -67,6 +67,10 @@ export default function App() {
   const [signupCountry, setSignupCountry] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [moderationReports,setModerationReports] = useState<ModerationReportRow[]>([]);
+  const [moderationLoading,setModerationLoading] = useState(false);
+  const [moderationBusy,setModerationBusy] = useState('');
+  const [moderationNotes,setModerationNotes] = useState<Record<string,string>>({});
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [vipPostIds, setVipPostIds] = useState<Set<string>>(() => new Set());
   const [, setIsVipMember] = useState(false);
@@ -2561,6 +2565,7 @@ type CoinPackageAdminDraft = { name:string; coins:string; price_ngn:string; enab
 type EventBlastPlanDraft = { name:string; unique_reach:string; duration_minutes:string; price_usd:string; bc_price:string; enabled:boolean };
 type AdminMetric = { label:string; value:string; detail:string };
 type SponsorCampaignRow = { id:string; sponsor_name:string; campaign_name:string; description:string; format:string; target_url:string|null; countries:string[]; status:string; starts_at:string; ends_at:string; budget_naira:number; cpm_naira:number; target_impressions:number; impressions:number; clicks:number; created_at:string };
+type ModerationReportRow = { report_type:'crush'|'group_user'; report_id:string; target_user_id:string; group_id:string|null; reporter_id:string; reason:string; details:string; created_at:string; review_status:'open'|'reviewed'|'dismissed'; reviewed_at:string|null; review_note:string };
 function AdminFeature({userId}:{userId:string}) {
   const [metrics, setMetrics] = useState<AdminMetric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(true);
@@ -2577,6 +2582,40 @@ function AdminFeature({userId}:{userId:string}) {
   const [busyKey, setBusyKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+
+  async function loadModeration() {
+    const client = supabase;
+    if (!client) return;
+    setModerationLoading(true);
+    const {data,error} = await client.rpc('admin_list_moderation_reports');
+    if (error) setNotice(error.message);
+    else {
+      const rows = (data ?? []) as ModerationReportRow[];
+      setModerationReports(rows);
+      setModerationNotes(previous => {
+        const next = {...previous};
+        rows.forEach(row => { const key = row.report_type+':'+row.report_id; if (next[key]===undefined) next[key]=row.review_note||''; });
+        return next;
+      });
+    }
+    setModerationLoading(false);
+  }
+
+  async function reviewModerationReport(report:ModerationReportRow, action:'reviewed'|'dismissed') {
+    const client = supabase;
+    if (!client) return;
+    const key = report.report_type+':'+report.report_id;
+    setModerationBusy(key); setNotice('');
+    const {error} = await client.rpc('admin_review_moderation_report',{
+      p_report_type:report.report_type,
+      p_report_id:report.report_id,
+      p_action:action,
+      p_note:(moderationNotes[key]||'').trim(),
+    });
+    if (error) setNotice(error.message);
+    else { setNotice(action==='reviewed'?'Report marked as reviewed and recorded in the admin audit log.':'Report dismissed and recorded in the admin audit log.'); await loadModeration(); }
+    setModerationBusy('');
+  }
 
   async function loadSponsors() {
     const client = supabase;
@@ -2684,7 +2723,7 @@ function AdminFeature({userId}:{userId:string}) {
     }
     setLoading(false);
   }
-  useEffect(() => { void load(); void loadSponsors(); }, []);
+  useEffect(() => { void load(); void loadSponsors(); void loadModeration(); }, []);
 
   async function save(key: string) {
     if (!supabase) return;
@@ -2775,6 +2814,21 @@ function AdminFeature({userId}:{userId:string}) {
         <div className="admin-sponsor-actions"><label>Delivery status<select value={campaign.status} disabled={sponsorBusy===campaign.id} onChange={e=>void updateSponsorStatus(campaign.id,e.target.value)}><option value="draft">Draft</option><option value="paused">Paused</option><option value="active">Active</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>{campaign.target_url && <a href={campaign.target_url} target="_blank" rel="noreferrer">Open target ↗</a>}</div>
       </article>)}</div> : <div className="empty-state">No sponsor campaigns yet. Create a draft above.</div>}
     </section>
-    <section id="admin-moderation" className="admin-dashboard-section admin-placeholder-section"><p className="eyebrow">TRUST & SAFETY</p><h3>Safety & moderation</h3><p className="feature-copy">Confession reports exist in the database. A complete review queue, content hide/remove actions, account restrictions and immutable admin audit history still need protected backend actions before moderators can safely use them.</p></section>
+    <section id="admin-moderation" className="admin-dashboard-section admin-moderation-section">
+      <p className="eyebrow">TRUST & SAFETY</p><h3>Safety & moderation</h3>
+      <p className="feature-copy">Review user and group-member reports. Every review or dismissal is saved server-side with an administrator audit entry. This queue does not silently remove content or suspend accounts.</p>
+      <div className="admin-sponsor-list-heading"><h4>Report queue · {moderationReports.filter(report=>report.review_status==='open').length} open</h4><button className="secondary-button" disabled={moderationLoading} onClick={()=>void loadModeration()}>{moderationLoading?'Refreshing…':'Refresh reports'}</button></div>
+      {moderationLoading&&!moderationReports.length ? <div className="empty-state">Loading reports…</div> : moderationReports.length ? <div className="admin-moderation-list">{moderationReports.map(report=>{
+        const key=report.report_type+':'+report.report_id;
+        return <article className="admin-moderation-report" key={key}>
+          <div className="admin-moderation-report-head"><div><strong>{report.report_type==='crush'?'Crush / profile report':'Group member report'}</strong><small>Reported {new Date(report.created_at).toLocaleString()}</small></div><span className={'admin-status-pill status-'+report.review_status}>{report.review_status.replaceAll('_',' ')}</span></div>
+          <div className="admin-moderation-meta"><span>Report ID <code>{report.report_id.slice(0,8)}</code></span><span>Reporter <code>{report.reporter_id.slice(0,8)}</code></span><span>Target user <code>{report.target_user_id.slice(0,8)}</code></span>{report.group_id&&<span>Group <code>{report.group_id.slice(0,8)}</code></span>}</div>
+          <p><strong>Reason:</strong> {report.reason}</p>{report.details&&<p>{report.details}</p>}
+          <label>Internal review note<textarea value={moderationNotes[key]??report.review_note??''} maxLength={2000} rows={2} placeholder="Record what was checked and why…" onChange={event=>setModerationNotes(previous=>({...previous,[key]:event.target.value}))}/></label>
+          {report.reviewed_at&&<small>Last reviewed {new Date(report.reviewed_at).toLocaleString()}{report.review_note?' · '+report.review_note:''}</small>}
+          <div className="admin-moderation-actions"><button className="primary-button" disabled={Boolean(moderationBusy)} onClick={()=>void reviewModerationReport(report,'reviewed')}>{moderationBusy===key?'Saving…':'Mark reviewed'}</button><button className="secondary-button" disabled={Boolean(moderationBusy)} onClick={()=>void reviewModerationReport(report,'dismissed')}>Dismiss report</button></div>
+        </article>;
+      })}</div> : <div className="empty-state">No reports have been submitted. New reports will appear here.</div>}
+    </section>
   </section>;
 }
