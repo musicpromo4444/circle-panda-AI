@@ -118,3 +118,11 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - The moderation queue now receives a limited content preview for reported feed posts so administrators can understand what was reported without opening unrestricted table access.
 - Supabase migrations applied and tracked: `20261024160000_feed_post_reporting_and_moderation_queue.sql` and `20261024161000_admin_moderation_report_content_preview.sql`.
 - The feed-report UI commit reached READY before the reported-content preview change; the latest preview/style and migration-file deployments are still building/queued and must reach READY before this full flow is verified.
+
+## Hot Seat water-break accessibility and final moderation fixes (2026-10-24)
+
+- Restored room activities, polls, and giveaways inside the fullscreen action drawer without adding a sixth floating icon. Viewers can reach the room activities from Questions; hosts can also open it from the Host drawer.
+- Disabled the question and comment inputs when the room is offline or not interactive, so users no longer see enabled forms that silently do nothing.
+- Feed post reporting now shows the selected post preview and keeps submission errors visible inside the modal. The report flow is backed by the private report table and admin-only queue/audit functions.
+- Corrected an admin moderation mapping issue: crush reports reference a `crush_posts` row, so the queue now resolves the actual target profile through `crush_posts.user_id` and shows the caption preview instead of treating the crush-post ID as a user ID.
+- Current app code reached READY at `https://circle-panda-ai.vercel.app` on commit `c6b13fd106fdbf7989d93e397a9bace2f983ae1e`. Production build still reports a large, lazily loaded city-data chunk (~8 MB minified); initial builds succeed, but location-selector bundle splitting remains a performance follow-up.
