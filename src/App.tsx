@@ -2561,7 +2561,7 @@ type CoinPackageAdminDraft = { name:string; coins:string; price_ngn:string; enab
 type EventBlastPlanDraft = { name:string; unique_reach:string; duration_minutes:string; price_usd:string; bc_price:string; enabled:boolean };
 type AdminMetric = { label:string; value:string; detail:string };
 type SponsorCampaignRow = { id:string; sponsor_name:string; campaign_name:string; description:string; format:string; target_url:string|null; countries:string[]; status:string; starts_at:string; ends_at:string; budget_naira:number; cpm_naira:number; target_impressions:number; impressions:number; clicks:number; created_at:string };
-type ModerationReportRow = { report_type:'crush'|'group_user'; report_id:string; target_user_id:string; group_id:string|null; reporter_id:string; reason:string; details:string; created_at:string; review_status:'open'|'reviewed'|'dismissed'; reviewed_at:string|null; review_note:string };
+type ModerationReportRow = { report_type:'crush'|'group_user'; report_id:string; target_user_id:string; group_id:string|null; reporter_id:string; reason:string; details:string; created_at:string; review_status:'open'|'reviewed'|'dismissed'; reviewed_at:string|null; review_note:string; reporter_label?:string; target_label?:string };
 function AdminFeature({userId}:{userId:string}) {
   const [moderationReports,setModerationReports] = useState<ModerationReportRow[]>([]);
   const [moderationLoading,setModerationLoading] = useState(false);
@@ -2591,7 +2591,14 @@ function AdminFeature({userId}:{userId:string}) {
     if (error) setNotice(error.message);
     else {
       const rows = (data ?? []) as ModerationReportRow[];
-      setModerationReports(rows);
+      const profileIds = [...new Set(rows.flatMap(row=>[row.reporter_id,row.target_user_id]).filter(Boolean))];
+      let labels:Record<string,string> = {};
+      if (profileIds.length) {
+        const {data:profiles} = await client.from('profiles').select('id,display_name,username').in('id',profileIds);
+        labels = Object.fromEntries((profiles??[]).map((profile:{id:string;display_name:string|null;username:string|null})=>[profile.id,profile.display_name||profile.username||profile.id.slice(0,8)]));
+      }
+      const enriched = rows.map(row=>({...row,reporter_label:labels[row.reporter_id]||row.reporter_id.slice(0,8),target_label:labels[row.target_user_id]||row.target_user_id.slice(0,8)}));
+      setModerationReports(enriched);
       setModerationNotes(previous => {
         const next = {...previous};
         rows.forEach(row => { const key = row.report_type+':'+row.report_id; if (next[key]===undefined) next[key]=row.review_note||''; });
@@ -2822,7 +2829,7 @@ function AdminFeature({userId}:{userId:string}) {
         const key=report.report_type+':'+report.report_id;
         return <article className="admin-moderation-report" key={key}>
           <div className="admin-moderation-report-head"><div><strong>{report.report_type==='crush'?'Crush / profile report':'Group member report'}</strong><small>Reported {new Date(report.created_at).toLocaleString()}</small></div><span className={'admin-status-pill status-'+report.review_status}>{report.review_status.replaceAll('_',' ')}</span></div>
-          <div className="admin-moderation-meta"><span>Report ID <code>{report.report_id.slice(0,8)}</code></span><span>Reporter <code>{report.reporter_id.slice(0,8)}</code></span><span>Target user <code>{report.target_user_id.slice(0,8)}</code></span>{report.group_id&&<span>Group <code>{report.group_id.slice(0,8)}</code></span>}</div>
+          <div className="admin-moderation-meta"><span>Report ID <code>{report.report_id.slice(0,8)}</code></span><span>Reporter <strong>{report.reporter_label||report.reporter_id.slice(0,8)}</strong></span><span>Target user <strong>{report.target_label||report.target_user_id.slice(0,8)}</strong></span>{report.group_id&&<span>Group <code>{report.group_id.slice(0,8)}</code></span>}</div>
           <p><strong>Reason:</strong> {report.reason}</p>{report.details&&<p>{report.details}</p>}
           <label>Internal review note<textarea value={moderationNotes[key]??report.review_note??''} maxLength={2000} rows={2} placeholder="Record what was checked and why…" onChange={event=>setModerationNotes(previous=>({...previous,[key]:event.target.value}))}/></label>
           {report.reviewed_at&&<small>Last reviewed {new Date(report.reviewed_at).toLocaleString()}{report.review_note?' · '+report.review_note:''}</small>}
