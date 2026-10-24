@@ -72,3 +72,11 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Applied `admin_bypass_group_message_gate` to the active Supabase project and committed the matching migration `supabase/migrations/20261022123000_admin_bypass_group_message_gate.sql`.
 - Normal-group three-member requirements remain for ordinary users. Closed-group checks, membership checks, VIP checks and group messaging settings remain enforced; platform admins are recognized for the group threshold and admin messaging permissions.
 - End-to-end authenticated testing remains outstanding.
+
+## Hot Seat stage alignment (2026-10-24)
+
+- Updated `src/HotSeatFeature.tsx` in commit `51d485b0a07b292f0dcd4c54226085d1c3280b29`.
+- Removed the extra floating giveaway shortcut so the right-side stage rail contains the five requested actions: host profile, reaction picker, gifts, questions, and next-seat bidding. Giveaway entry remains accessible through the feature's giveaway area.
+- Changed the bottom preview label from “CHAT” to “COMMENTS” and removed the misleading “anonymously” comment placeholder because comments are stored with the signed-in user's ID.
+- Confirmed the active Supabase project's Realtime publication includes Hot Seat sessions, comments, reactions, gift transactions, bids, questions, polls, giveaway entries, and follows.
+- Production deployment for this commit was still building at the time of this checkpoint. Wait for READY and inspect build logs before calling the change verified.
