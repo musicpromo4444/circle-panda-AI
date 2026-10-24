@@ -233,10 +233,9 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
         <button type="button" onClick={()=>setActivePanel('questions')} aria-label="Ask a question">❓<small>Question</small></button>
         <button type="button" onClick={()=>setActivePanel('bids')} aria-label="Bid for the Hot Seat">🔨<small>Bid</small></button>
       </aside>
-      <button type="button" className="hot-seat-giveaway-float" onClick={()=>setActivePanel('gifts')}><span>🎁</span><b>GIVEAWAY</b></button>
       <div className="hot-seat-topic-overlay"><span>🔥 CURRENT HOT TOPIC</span><strong>{session?.title||'What is one thing you pretend to understand but absolutely do not?'}</strong></div>
-      <button type="button" className="hot-seat-comment-preview" onClick={()=>{setActivePanel('comments');}}><span>◉ CHAT:</span><p>{comments[comments.length-1]?.body||'Join the conversation…'}</p><b>{names[comments[comments.length-1]?.user_id||'']||'Panda'}</b></button>
-      <form className="hot-seat-stage-compose" onSubmit={submitComment}><input value={commentDraft} onChange={e=>setCommentDraft(e.target.value)} maxLength={1000} placeholder="Ask or comment anonymously…" aria-label="Ask or comment anonymously" required/><button type="submit" disabled={Boolean(busy)||!commentDraft.trim()} aria-label="Send comment">➤</button></form>
+      <button type="button" className="hot-seat-comment-preview" onClick={()=>{setActivePanel('comments');}}><span>◉ COMMENTS:</span><p>{comments[comments.length-1]?.body||'Join the conversation…'}</p><b>{names[comments[comments.length-1]?.user_id||'']||'Panda'}</b></button>
+      <form className="hot-seat-stage-compose" onSubmit={submitComment}><input value={commentDraft} onChange={e=>setCommentDraft(e.target.value)} maxLength={1000} placeholder="Add a comment…" aria-label="Add a comment" required/><button type="submit" disabled={Boolean(busy)||!commentDraft.trim()} aria-label="Send comment">➤</button></form>
     </div>
     {notice&&<div className="notice hot-seat-notice" role="status">{notice}<button type="button" onClick={()=>setNotice('')}>×</button></div>}
     {giftBurst&&<div className="hot-seat-gift-burst" role="status"><span>{gifts.find(g=>g.id===giftBurst.gift_id)?.emoji||'🎁'}</span><div><strong>{names[giftBurst.sender_id]||'A Panda'} sent a gift!</strong><small>{gifts.find(g=>g.id===giftBurst.gift_id)?.name||'Hot Seat gift'} · {giftBurst.total_bc} BC</small></div></div>}
