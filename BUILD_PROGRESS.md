@@ -80,3 +80,10 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Changed the bottom preview label from “CHAT” to “COMMENTS” and removed the misleading “anonymously” comment placeholder because comments are stored with the signed-in user's ID.
 - Confirmed the active Supabase project's Realtime publication includes Hot Seat sessions, comments, reactions, gift transactions, bids, questions, polls, giveaway entries, and follows.
 - Production deployment for this commit was still building at the time of this checkpoint. Wait for READY and inspect build logs before calling the change verified.
+
+## Hot Seat reaction animation (2026-10-24)
+
+- Added a live reaction overlay in `src/HotSeatFeature.tsx`: successful reaction toggles now emit the selected emoji into a short-lived floating animation; removing a reaction does not emit a new burst.
+- Added responsive rise/fade keyframes in `src/styles.css`, with a reduced-motion fallback.
+- Vercel build for the source commit `f5ec5ac5db95a6768b1e03d22071318380326de7` completed successfully and reached READY. The later CSS-only commit is queued for its own production build check.
+- Existing build warning remains: the deferred city data chunk is approximately 8 MB minified. Track bundle splitting separately; it did not fail the build.
