@@ -2847,3 +2847,7 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .admin-audit-row>div{display:grid;gap:4px}.admin-audit-row>div:first-child strong{font-size:12px;text-transform:capitalize}.admin-audit-row small,.admin-audit-row span{font-size:10px;color:var(--muted,#9aa7b9)}.admin-audit-row code{font-size:10px;color:inherit}.admin-audit-row p{grid-column:1/-1;margin:0;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
 :root[data-theme="light"] .admin-audit-row{background:#f8f9fc;border-color:#dce1eb}
 @media(max-width:520px){.admin-audit-row{grid-template-columns:1fr}.admin-audit-row>div:nth-child(2){display:flex;align-items:center;gap:8px}}
+.profile-edit-form .profile-location-editor{grid-column:1/-1;display:grid;gap:8px;min-width:0}
+.profile-location-heading{margin:0;font-size:.9rem;font-weight:750}
+.profile-edit-form .profile-location-editor .location-fields{margin:0}
+@media(max-width:600px){.profile-edit-form .profile-location-editor{grid-column:auto}}
