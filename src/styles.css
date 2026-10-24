@@ -2851,3 +2851,10 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .profile-location-heading{margin:0;font-size:.9rem;font-weight:750}
 .profile-edit-form .profile-location-editor .location-fields{margin:0}
 @media(max-width:600px){.profile-edit-form .profile-location-editor{grid-column:auto}}
+
+.report-post-dialog{max-width:520px}
+.report-post-form{display:grid;gap:14px;margin-top:16px}
+.report-post-form>label{display:grid;gap:7px;text-align:left;font-size:12px;font-weight:750}
+.report-post-form select,.report-post-form textarea{width:100%;min-width:0;border:1.5px solid rgba(217,174,70,.75);border-radius:12px;padding:12px;background:var(--input-bg,rgba(20,26,32,.72));color:inherit;font:inherit}
+.report-post-form textarea{resize:vertical}
+.post-actions button:last-child{color:#c5a66a}
