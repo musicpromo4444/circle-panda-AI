@@ -2815,6 +2815,9 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .hot-seat-action-backdrop{position:fixed!important;inset:0!important;z-index:1010!important}
 @media(max-height:700px){.hot-seat-floating-actions{top:34%!important;gap:9px!important}.hot-seat-floating-actions button{width:46px!important;height:46px!important;min-height:46px!important}.hot-seat-giveaway-float{bottom:30%!important}.hot-seat-giveaway-float span{width:48px!important;height:48px!important}.hot-seat-topic-overlay{bottom:115px!important}.hot-seat-comment-preview{bottom:61px!important}}
 
+/* Keep exactly the five right-rail actions inside the full-screen stage; hide the legacy duplicate action rail. */
+.hot-seat-shell:has(.hot-seat-live-stage)>.hot-seat-live-actions{display:none!important}
+
 /* Hot Seat: reactions rise through the live stage after a successful reaction. */
 .hot-seat-floating-reactions{position:absolute;z-index:5;left:38%;bottom:100px;display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none}
 .hot-seat-floating-reaction{display:block;font-size:clamp(26px,5vw,42px);line-height:1;filter:drop-shadow(0 3px 8px #0009);animation:hot-seat-reaction-rise 2.35s cubic-bezier(.18,.68,.3,1) both}
