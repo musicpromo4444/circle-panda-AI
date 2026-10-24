@@ -2859,3 +2859,4 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .report-post-form textarea{resize:vertical}
 .post-actions button:last-child{color:#c5a66a}
 .admin-reported-content{margin:0;padding:12px 14px;border-left:3px solid #d6a63d;border-radius:0 10px 10px 0;background:rgba(214,166,61,.08);font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.report-post-preview{margin:12px 0 0;padding:12px 14px;border-left:3px solid #d6a63d;border-radius:0 10px 10px 0;background:rgba(214,166,61,.08);font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
