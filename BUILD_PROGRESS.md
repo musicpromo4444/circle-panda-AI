@@ -96,3 +96,11 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Matching migration is tracked at `supabase/migrations/20261024150000_admin_moderation_review_queue_and_audit.sql`.
 - The moderation UI TypeScript scope issue was fixed in commit `577162fcbe53a043a1e944a034d8513e6d51990f`, whose deployment reached READY. The latest source including the migration-file commit is still building; confirm READY before treating the current combined deployment as verified.
 - Scope note: this is a report review/audit queue, not an automatic content-removal or account-suspension system. Those require separate protected moderation policies/actions and end-to-end testing.
+
+## Hot Seat lifecycle controls and moderation audit display (2026-10-24)
+
+- Fixed an important fullscreen-flow gap: the external host/stream controls were hidden by the immersive stage CSS. The Host action drawer now exposes Go Live / Start Hot Seat, Pause / Resume, End Hot Seat, and stream URL Save / Clear controls when the signed-in user is authorized.
+- Hot Seat comments, questions, reactions, and gifts now explicitly require a live room or water break; the bottom comment composer is disabled when the room is offline or not interactive. Bid attempts now give a clear notice when no eligible round exists.
+- Added an admin-only audit-history RPC and visible recent audit list in the Admin Dashboard. The database role check is enforced in the RPC; anonymous execution is revoked.
+- Verified the owner account `circlepandaapp@gmail.com` currently has `user_roles.role='admin'` and permanent VIP access in the active new Circle Panda Supabase project.
+- Production deployment for the host/stream controls reached READY at `https://circle-panda-ai.vercel.app`. Later audit-history UI styling is in its own deployment build and should be checked before considering that latest revision verified.
