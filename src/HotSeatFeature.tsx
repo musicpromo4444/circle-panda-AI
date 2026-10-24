@@ -63,6 +63,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
   const [busy,setBusy]=useState('');
   const [notice,setNotice]=useState('');
   const [giftBurst,setGiftBurst]=useState<HotGiftTx|null>(null);
+  const [floatingReactions,setFloatingReactions]=useState<Array<{id:number;emoji:string}>>([]);
   const seenGiftId=useRef<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [expandedComments,setExpandedComments]=useState(true);
@@ -209,7 +210,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
   async function drawGiveaway(giveaway:HotGiveaway){if(!supabase)return;await act('draw-giveaway:'+giveaway.id,async()=>{const {error}=await supabase!.rpc('hot_seat_draw_giveaway',{p_giveaway_id:giveaway.id});if(error)throw error;},'Giveaway drawn. The winner received the BC prize.');}
 
 
-  async function react(reaction:string){if(!session||!supabase)return;await act('reaction:'+reaction,async()=>{const {error}=await supabase!.rpc('hot_seat_toggle_reaction',{p_session_id:session.id,p_reaction:reaction});if(error)throw error;},'Reaction updated.');}
+  async function react(reaction:string){if(!session||!supabase)return;await act('reaction:'+reaction,async()=>{const {data,error}=await supabase!.rpc('hot_seat_toggle_reaction',{p_session_id:session.id,p_reaction:reaction});if(error)throw error;const result=data as {active?:boolean}|null;if(result?.active){const emoji=reactionOptions.find(item=>item.id===reaction)?.emoji||'❤️';const id=Date.now()+Math.random();setFloatingReactions(current=>[...current,{id,emoji}].slice(-8));window.setTimeout(()=>setFloatingReactions(current=>current.filter(item=>item.id!==id),2400);}},'Reaction updated.');}
   async function sendGift(gift:HotGift){if(!session||!supabase)return;await act('gift:'+gift.id,async()=>{const {error}=await supabase!.rpc('hot_seat_send_gift',{p_session_id:session.id,p_gift_id:gift.id,p_quantity:1});if(error)throw error;},gift.name+' gift sent!');}
   async function placeBid(e:FormEvent){e.preventDefault();if(!session||!supabase)return;const amount=Number(bidDraft);if(!Number.isSafeInteger(amount)||amount<1){setNotice('Enter a whole-number bid in BC.');return;}await act('bid',async()=>{const {error}=await supabase!.rpc('hot_seat_place_bid',{p_session_id:session.id,p_amount:amount});if(error)throw error;setBidDraft('');},'Your BC bid is escrowed. Non-selected bidders are refunded when the winner accepts.');}
   async function decideBid(accept:boolean){if(!topBid||!supabase)return;await act(accept?'accept-bid':'decline-bid',async()=>{const {error}=await supabase!.rpc('hot_seat_decide_bid',{p_bid_id:topBid.id,p_accept:accept});if(error)throw error;},accept?'You won the next Hot Seat. You have 15 minutes to prepare after accepting.':'You declined the seat; your bid was refunded.');}
@@ -226,6 +227,7 @@ export default function HotSeatFeature({userId,onOpenWallet,isAdmin=false,adminO
     <div className="hot-seat-live-stage">
       <div className="hot-seat-stage-top"><button type="button" className="hot-seat-exit-pill" onClick={()=>window.history.back()}>← Exit</button><span className={'hot-seat-status status-'+(session?.status||'offline')}>{session?.status==='live'&&isPaused?'⏸ PAUSED':session?.status==='live'?'● LIVE':session?.status==='water_break'?'💧 BREAK':session?.status==='bidding'?'🔨 BIDDING':'OFFLINE'}</span><span className="hot-seat-mode-pill">🔥 Hot Seat</span>{timeLeft&&<span className="hot-seat-timer">{timeLeft}</span>}</div>
       <div className={'hot-seat-stage-empty'+(streamEmbed?' hot-seat-stage-connected':'')}>{streamEmbed?<iframe className="hot-seat-stage-stream" src={streamEmbed} title="Circle Panda Hot Seat live stream" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/>:<><div className="hot-seat-blur-scene" aria-hidden="true"><span>🐼</span><span>🔥</span><span>💬</span><span>💛</span></div><div className="hot-seat-stage-host"><div className="hot-seat-host-avatar">🐼</div><strong>{names[session?.host_id||'']||'Circle Panda Host'}</strong><small>{session?.status==='live'?'HOST · LIVE NOW':'HOT SEAT COMMUNITY'}</small></div></>}</div>
+      <div className="hot-seat-floating-reactions" aria-live="polite" aria-label="Live reactions">{floatingReactions.map(item=><span key={item.id} className="hot-seat-floating-reaction">{item.emoji}</span>)}</div>
       <aside className="hot-seat-floating-actions" aria-label="Hot Seat actions">
         <button type="button" onClick={()=>setActivePanel('host')} aria-label="Open Hot Seat host profile"><span className="hot-seat-follow-panda">🐼</span><small>Host</small></button>
         <button type="button" onClick={()=>setActivePanel('reactions')} aria-label="Choose a reaction">❤️<small>React</small></button>
