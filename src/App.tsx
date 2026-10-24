@@ -1950,9 +1950,7 @@ function ProfileFeature({ userId }: { userId:string }) {
         <label>Username<input value={draft.username} maxLength={30} onChange={e=>setDraft(v=>({...v,username:e.target.value}))} placeholder="Choose a username"/></label>
         <label>Date of birth<input type="date" value={draft.date_of_birth} max={new Date().toISOString().slice(0,10)} onChange={e=>setDraft(v=>({...v,date_of_birth:e.target.value}))}/></label>
         <label>Gender<select value={draft.gender} onChange={e=>setDraft(v=>({...v,gender:e.target.value}))}><option value="">Prefer not to say</option><option value="woman">Woman</option><option value="man">Man</option><option value="non_binary">Non-binary</option><option value="other">Other</option></select></label>
-        <label>Country<input value={draft.country} maxLength={100} onChange={e=>setDraft(v=>({...v,country:e.target.value}))} placeholder="Country"/></label>
-        <label>State / province<input value={draft.state} maxLength={100} onChange={e=>setDraft(v=>({...v,state:e.target.value}))} placeholder="State or province"/></label>
-        <label>Area / city<input value={draft.area} maxLength={100} onChange={e=>setDraft(v=>({...v,area:e.target.value}))} placeholder="Area or city"/></label>
+        <div className="profile-location-editor"><p className="profile-location-heading">Location</p><LocationFields value={{country:draft.country,state:draft.state,city:draft.area,area:draft.area}} onChange={location=>setDraft(v=>({...v,country:location.country,state:location.state,area:location.area}))} /></div>
         <label>Address (optional)<input value={draft.address_line} maxLength={250} onChange={e=>setDraft(v=>({...v,address_line:e.target.value}))} placeholder="Optional address"/></label>
         <label className="profile-bio-field">About you<textarea value={draft.bio} maxLength={500} rows={4} onChange={e=>setDraft(v=>({...v,bio:e.target.value}))} placeholder="A little about yourself…"/></label>
         {notice&&<div className="notice inline-notice">{notice}</div>}
