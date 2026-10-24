@@ -104,3 +104,9 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Added an admin-only audit-history RPC and visible recent audit list in the Admin Dashboard. The database role check is enforced in the RPC; anonymous execution is revoked.
 - Verified the owner account `circlepandaapp@gmail.com` currently has `user_roles.role='admin'` and permanent VIP access in the active new Circle Panda Supabase project.
 - Production deployment for the host/stream controls reached READY at `https://circle-panda-ai.vercel.app`. Later audit-history UI styling is in its own deployment build and should be checked before considering that latest revision verified.
+
+## Profile locations and admin-controlled login streak display (2026-10-24)
+
+- Replaced free-text country/state/area fields on the Profile page with the shared searchable location selectors, keeping saved values in the existing profile fields.
+- The seven-day login reward strip now reads the weekday amounts from `economy_settings` rather than showing hardcoded values. The actual credit remains calculated by the database's server-side daily-login reward function.
+- Profile selector and styling changes reached READY at `https://circle-panda-ai.vercel.app`. Daily-login popup change reached READY in the deployment immediately before the profile selector commits.
