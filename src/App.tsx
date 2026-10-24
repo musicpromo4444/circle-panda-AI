@@ -667,7 +667,7 @@ export default function App() {
 
 function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void; isAdmin:boolean }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
-  if (section === 'HotSeat') return <HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} isAdmin={isAdmin} />;
+  if (section === 'HotSeat') return <HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} onOpenMessages={() => onNavigate('Messages')} isAdmin={isAdmin} />;
   if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={onOpenMessages} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'VIP') return <VipFeature userId={userId} onNavigate={onNavigate} />;
