@@ -2823,3 +2823,20 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .hot-seat-floating-reaction{display:block;font-size:clamp(26px,5vw,42px);line-height:1;filter:drop-shadow(0 3px 8px #0009);animation:hot-seat-reaction-rise 2.35s cubic-bezier(.18,.68,.3,1) both}
 @keyframes hot-seat-reaction-rise{0%{opacity:0;transform:translate3d(0,24px,0) scale(.65) rotate(-8deg)}12%{opacity:1;transform:translate3d(-4px,0,0) scale(1.08) rotate(5deg)}72%{opacity:.95}100%{opacity:0;transform:translate3d(18px,-260px,0) scale(.8) rotate(12deg)}}
 @media(prefers-reduced-motion:reduce){.hot-seat-floating-reaction{animation-duration:.01ms;animation-iteration-count:1}}
+
+/* Admin trust-and-safety review queue */
+.admin-moderation-list{display:grid;gap:14px;margin-top:12px}
+.admin-moderation-report{display:grid;gap:12px;padding:17px;border:1px solid #a77b3d66;border-radius:18px;background:linear-gradient(145deg,rgba(27,34,47,.96),rgba(18,24,35,.98))}
+.admin-moderation-report-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.admin-moderation-report-head>div{display:grid;gap:5px}.admin-moderation-report-head small,.admin-moderation-report>small{font-size:11px;color:var(--muted,#9aa7b9)}
+.admin-moderation-meta{display:flex;flex-wrap:wrap;gap:7px}
+.admin-moderation-meta span{padding:5px 8px;border:1px solid rgba(255,255,255,.1);border-radius:9px;color:var(--muted,#aab4c5);font-size:10px}
+.admin-moderation-meta code{color:inherit;font-size:10px}
+.admin-moderation-report>p{margin:0;line-height:1.55;overflow-wrap:anywhere}
+.admin-moderation-report>label{display:grid;gap:7px;font-size:12px;font-weight:700}
+.admin-moderation-report>label textarea{width:100%;resize:vertical;min-height:62px;padding:10px;border:1px solid rgba(226,183,86,.45);border-radius:11px;background:rgba(0,0,0,.16);color:inherit;font:inherit}
+.admin-moderation-actions{display:flex;flex-wrap:wrap;gap:9px}
+.admin-moderation-actions button{min-height:40px}
+:root[data-theme="light"] .admin-moderation-report{background:linear-gradient(145deg,#fff,#f7f8fc);border-color:#d7dce6}
+:root[data-theme="light"] .admin-moderation-meta span{border-color:#d9dfe9}
+@media(max-width:600px){.admin-moderation-report{padding:13px}.admin-moderation-report-head{align-items:flex-start}.admin-moderation-actions{display:grid;grid-template-columns:1fr 1fr}.admin-moderation-actions button{padding-inline:8px}}
