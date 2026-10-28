@@ -8,7 +8,7 @@ import HotSeatFeature from './HotSeatFeature';
 import DailyActivitiesFeature from './components/DailyActivitiesFeature';
 import VipCallControls from './components/VipCallControls';
 
-type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'VIP' | 'Wallet' | 'Profile' | 'Admin';
+type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'DailyActivities' | 'VIP' | 'Wallet' | 'Profile' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
@@ -29,6 +29,7 @@ const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Groups', icon: '👥', hint: 'Your people, your conversations' },
   { name: 'Messages', icon: '💬', hint: 'Requests and private chats' },
   { name: 'HotSeat', icon: '🔥', hint: 'Questions, gifts and the next seat' },
+  { name: 'DailyActivities', icon: '🎯', hint: 'Games, challenges, sweepstakes and giveaways' },
   { name: 'VIP', icon: '✦', hint: 'Your Gold Circle membership and benefits' },
   { name: 'Wallet', icon: '👛', hint: 'Your Panda Coins and activity' }, 
   { name: 'Admin', icon: '🛡️', hint: 'Manage rewards and economy rules' },
@@ -690,7 +691,8 @@ export default function App() {
 
 function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void; isAdmin:boolean }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
-  if (section === 'HotSeat') return <HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} onOpenMessages={() => onNavigate('Messages')} isAdmin={isAdmin} />;
+  if (section === 'HotSeat') return <HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} onOpenMessages={() => onNavigate('Messages')} isAdmin={false} />;
+  if (section === 'DailyActivities') return <DailyActivitiesFeature userId={userId} onReward={async () => { window.dispatchEvent(new Event('circle-panda-wallet-updated')); }} />;
   if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={onOpenMessages} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'VIP') return <VipFeature userId={userId} onNavigate={onNavigate} />;
@@ -698,7 +700,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: 
   if (section === 'Profile') return <ProfileFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
-  if (section === 'Admin') return <AdminFeature userId={userId} />;
+  if (section === 'Admin') return isAdmin ? <AdminFeature userId={userId} /> : <section className="feature-panel"><h2>Administrator access required</h2><p className="feature-copy">Configuration pages are available only to authorized Circle Panda administrators.</p></section>;
   const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
@@ -2063,7 +2065,6 @@ function WalletFeature({ userId }: { userId: string }) {
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
     <div className="wallet-balance-grid"><article className="balance-card primary-balance"><span>PANDA COINS</span><strong>{loading ? '—' : isAdminUnlimited ? '∞' : bcBalance.toLocaleString()}</strong><small>{isAdminUnlimited ? 'ADMIN · UNLIMITED BC' : 'BC · non-expiring balance'}</small></article><article className="balance-card"><span>WALLET COINS</span><strong>{loading ? '—' : wcBalance.toLocaleString()}</strong><small>WC balance</small></article><article className="balance-card"><span>EXPERIENCE POINTS</span><strong>{loading ? '—' : xpTotal.toLocaleString()}</strong><small>{levelName} level</small></article></div>
     <div className="wallet-actions"><div><h3>Daily login reward</h3><p>Credited automatically at your first app open when eligible. Monday 5 BC · Tuesday 10 BC · Wednesday 5 BC · Thursday 10 BC · Friday–Sunday 50 BC.</p></div><span className="daily-completed-label">Automatic reward</span></div>
-    <DailyActivitiesFeature userId={userId} onReward={load} />
     <section className="wallet-history"><div className="section-title-row"><div><h2>Wallet activity</h2><p>Latest rewards and message charges.</p></div><span className="count-pill">{transactions.length} RECORDS</span></div>
       {loading ? <div className="empty-state">Loading wallet…</div> : transactions.length ? transactions.map(t => <article className="transaction-row" key={t.id}><span className={t.amount >= 0 ? 'transaction-icon credit' : 'transaction-icon debit'}>{t.amount >= 0 ? '+' : '−'}</span><div><strong>{formatReason(t.reason)}</strong><small>{new Date(t.created_at).toLocaleString()}</small></div><b className={t.amount >= 0 ? 'amount-credit' : 'amount-debit'}>{t.amount > 0 ? '+' : ''}{t.amount} {t.currency}</b></article>) : <div className="empty-state compact"><p>Your wallet transactions will appear here.</p></div>}
     </section>
