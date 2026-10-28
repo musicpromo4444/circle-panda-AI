@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 
-type SectionName = 'Confessions' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'DailyActivities' | 'VIP' | 'Wallet';
+type SectionName = 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'DailyActivities' | 'VIP' | 'Wallet';
 type ActionType = 'navigate' | 'popup' | 'ad' | 'giveaway';
 type SlotConfig = {
   slot_key: string;
@@ -31,7 +31,7 @@ const LIBRARY = [
   { key:'dating', label:'Dating', icon:'💗', title:'DATING', description:'Discover dating profiles and connection requests', action:'navigate' as ActionType, destination:'Dating' },
   { key:'events', label:'Events', icon:'📅', title:'EVENTS', description:'Explore events and invitations', action:'navigate' as ActionType, destination:'Events' },
   { key:'groups', label:'Groups', icon:'👥', title:'GROUPS', description:'Find groups and communities', action:'navigate' as ActionType, destination:'Groups' },
-  { key:'wcw_mcm', label:'WCW / MCM', icon:'👑', title:'WCW / MCM', description:'Open the weekly crush feed', action:'navigate' as ActionType, destination:'Confessions' },
+  { key:'wcw_mcm', label:'WCW / MCM', icon:'👑', title:'WCW / MCM', description:'Open the weekly crush feed', action:'navigate' as ActionType, destination:'Crush' },
   { key:'messages', label:'Messages', icon:'💬', title:'MESSAGES', description:'Open message requests and chats', action:'navigate' as ActionType, destination:'Messages' },
   { key:'wallet', label:'Wallet', icon:'🪙', title:'PANDA WALLET', description:'Open your BC wallet', action:'navigate' as ActionType, destination:'Wallet' },
   { key:'vip', label:'VIP', icon:'✨', title:'VIP CIRCLE', description:'Explore VIP membership and benefits', action:'navigate' as ActionType, destination:'VIP' },
