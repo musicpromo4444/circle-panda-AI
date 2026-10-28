@@ -6,6 +6,7 @@ import LocationFields, { CountryDropdown, type LocationValue } from './component
 import CrushFeature from './components/CrushFeature';
 import HotSeatFeature from './HotSeatFeature';
 import DailyActivitiesFeature from './components/DailyActivitiesFeature';
+import DailyCampaignAdmin from './components/DailyCampaignAdmin';
 import GlobalActionSlot from './components/GlobalActionSlot';
 import VipCallControls from './components/VipCallControls';
 
@@ -2845,6 +2846,7 @@ function AdminFeature({userId}:{userId:string}) {
     </div>
     <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><p className="feature-copy">Platform-wide Hot Seat settings are managed here, not on the public Hot Seat page.</p><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></div>
     <div id="admin-daily-activities" className="admin-dashboard-section"><h3>Daily Activities configuration</h3><p className="feature-copy">Choose the activity for each day, set BC rewards, and manage the activity rotation here. Public Wallet shows only the assigned activity and player flow.</p><DailyActivitiesFeature userId={userId} onReward={async () => {}} adminOnly={true} /></div>
+    <DailyCampaignAdmin userId={userId} />
     <div id="admin-dating" className="admin-dashboard-section"><h3>Dating configuration</h3><p className="feature-copy">Dating rules are administrator-controlled. Adjust the free chat window and BC message price in BC economy &amp; rewards below. Public Dating contains member profiles, discovery, and request flows only.</p><div className="admin-module-grid"><a href="#admin-economy"><strong>Dating free chat duration</strong><span>Change dating_free_hours in BC economy &amp; rewards</span></a><a href="#admin-economy"><strong>Dating message price</strong><span>Change dating_message_cost in BC economy &amp; rewards</span></a></div></div>
     <div className="admin-module-grid">
       <a href="#admin-vip">👑 <strong>Account & VIP management</strong><span>Find users and manage VIP access</span></a>
