@@ -114,6 +114,13 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     if(error) setNotice(error.message); else {setNotice('You’re entered!');await load();}
     setBusy(false);
   }
+  async function closeCampaign(id:string) {
+    if(!supabase || !isAdmin || busy) return;
+    setBusy(true);setNotice('');
+    const {error}=await supabase.rpc('admin_close_daily_activity_campaign',{p_campaign_id:id});
+    if(error) setNotice(error.message); else {setNotice('Entries closed.');await load();}
+    setBusy(false);
+  }
   async function drawCampaign(id:string) {
     if(!supabase || !isAdmin || busy) return;
     setBusy(true);setNotice('');
@@ -231,7 +238,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
           {c.winner_id&&<small>Winner selected</small>}
           {c.status==='open'&&!enteredCampaigns.has(c.id)&&<button type="button" className="primary-button full" disabled={busy} onClick={()=>void joinCampaign(c.id)}>Enter now</button>}
           {c.status==='open'&&enteredCampaigns.has(c.id)&&<span className="daily-completed-label">✓ You’re entered</span>}
-          {isAdmin&&(c.status==='open'||c.status==='closed')&&<button type="button" className="secondary-button full" disabled={busy||!(entryCounts[c.id]>0)} onClick={()=>void drawCampaign(c.id)}>Draw winner</button>}
+          {isAdmin&&c.status==='open'&&<button type="button" className="secondary-button full" disabled={busy} onClick={()=>void closeCampaign(c.id)}>Close entries</button>}{isAdmin&&(c.status==='open'||c.status==='closed')&&<button type="button" className="secondary-button full" disabled={busy||!(entryCounts[c.id]>0)} onClick={()=>void drawCampaign(c.id)}>Draw winner</button>}
           {c.status==='drawn'&&isAdmin&&<small>Winner ID: {c.winner_id}</small>}
         </article>)}
         {!campaigns.some(c=>c.campaign_type===({sweepstake:'sweepstake',challenges:'challenge',gifts:'gift',giveaways:'giveaway',icons:'icon'} as Record<string,string>)[activeTab])&&<div className="empty-state">Nothing here yet.</div>}
