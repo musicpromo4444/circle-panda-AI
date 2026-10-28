@@ -2897,3 +2897,19 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .global-action-popup-actions .primary-button,.global-action-popup-actions .secondary-button{width:100%;justify-content:center}
 @media(max-width:700px){.global-action-float{left:12px;bottom:calc(76px + env(safe-area-inset-bottom));max-width:min(320px,calc(100vw - 24px));padding:8px 11px 8px 8px;border-radius:16px}.global-action-float-icon{flex-basis:40px;width:40px;height:40px;font-size:22px}.global-action-float-copy small{max-width:185px;font-size:9px}.global-action-admin-panel{padding:16px;margin:18px 0}.global-action-admin-heading{flex-direction:column;gap:10px}.global-action-field-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.global-action-float{transition:none}}
+
+
+/* Admin dashboard control-centre pass */
+.admin-control-nav{margin:24px 0 30px;padding:20px;border:1px solid #304538;border-radius:16px;background:linear-gradient(145deg,#14231a,#101915)}
+.admin-control-nav-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.admin-control-nav-grid a{display:flex;align-items:center;gap:11px;min-width:0;padding:13px;border:1px solid #2a3e30;border-radius:11px;background:#111c17;color:#dce9dc;text-decoration:none;font-size:19px;transition:border-color .15s,transform .15s,background .15s}
+.admin-control-nav-grid a:hover{border-color:#8fcf70;background:#19291d;transform:translateY(-1px)}
+.admin-control-nav-grid a span{display:grid;gap:4px;min-width:0}
+.admin-control-nav-grid a strong{font-size:11px;color:#e6f1e6}
+.admin-control-nav-grid a small{font-size:9px;line-height:1.5;color:#8fa393}
+.admin-settings-search{display:grid;gap:8px;margin:14px 0;color:#a7b9aa;font-size:11px;font-weight:700}
+.admin-settings-search input{width:100%;border:1px solid #38523e;border-radius:10px;background:#0d1712;color:#eef6ee;padding:12px;outline:none}
+.admin-settings-search input:focus{border-color:#a5ef78;box-shadow:0 0 0 3px #a5ef781a}
+.admin-dashboard-section{scroll-margin-top:18px}
+@media(max-width:900px){.admin-control-nav-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.admin-control-nav{padding:14px}.admin-control-nav-grid{grid-template-columns:1fr}.admin-control-nav-grid a{padding:11px}}
