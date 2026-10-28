@@ -1021,9 +1021,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       const settingMap = Object.fromEntries((datingSettings ?? []).map((row: {setting_key:string;numeric_value:number}) => [row.setting_key, Number(row.numeric_value)]));
       if (settingMap.dating_free_hours != null) setDatingFreeHours(Math.max(0, settingMap.dating_free_hours));
       if (settingMap.dating_message_cost != null) setDatingMessageCost(Math.max(0, settingMap.dating_message_cost));
-      const { data: profile, error: profileError } = await supabase.from('profiles')
-        .select('display_name,username,age,date_of_birth,gender,country,state,state_province,city,area')
-        .eq('id', userId).maybeSingle();
+      const { data: profile, error: profileError } = await supabase.rpc('get_my_profile_private');
       if (profileError) throw profileError;
       if (profile) {
         setMainProfile({ name: profile.display_name || profile.username || 'Panda', username: profile.username || '', age: profile.age == null ? null : Number(profile.age), gender: profile.gender || '' });
@@ -1944,7 +1942,7 @@ function ProfileFeature({ userId }: { userId:string }) {
     if(!supabase) return;
     setLoading(true);
     const [p,r] = await Promise.all([
-      supabase.from('profiles').select('id,username,display_name,avatar_url,country,state,area,date_of_birth,gender,bio,address_line,is_vip,vip_expires_at').eq('id',userId).maybeSingle(),
+      supabase.rpc('get_my_profile_private'),
       supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle(),
     ]);
     if(p.error) setNotice(p.error.message);
