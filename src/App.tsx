@@ -203,7 +203,7 @@ export default function App() {
       for (let attempt = 0; attempt < 10 && alive; attempt++) {
         const { data, error } = await client.rpc('get_my_coin_purchase_status_secure', { p_reference: reference });
         if (!alive) return;
-        if (error) { setNotice('Payment return received, but the status could not be checked. Open Wallet again in a moment.'); return; }
+        if (error) { setNotice('Payment status unavailable. Please try again.'); return; }
         const status = data as {status:string;coins:number;amount_ngn:number}|null;
         if (status?.status === 'paid') {
           const { data: wallet } = await client.from('wallet_accounts').select('bc_balance').eq('user_id',session.user.id).maybeSingle();
@@ -212,13 +212,13 @@ export default function App() {
           return;
         }
         if (status?.status === 'failed') {
-          setNotice('Paystack has not confirmed this purchase. No BC has been credited; you can retry checkout from the wallet.');
+          setNotice('Payment is still being confirmed. Check your wallet shortly.');
           return;
         }
         setNotice('Payment received. Waiting for Paystack confirmation before crediting your BC wallet…');
         await new Promise(resolve => window.setTimeout(resolve, 2000));
       }
-      if (alive) setNotice('Payment is still processing. Your wallet will be credited only after the signed Paystack confirmation arrives.');
+      if (alive) setNotice('Payment is processing. Your wallet will update when confirmed.');
     })();
     return () => { alive = false; };
   }, [session]);
@@ -568,7 +568,7 @@ export default function App() {
         await nav.share({ title: 'Circle Panda', text: shareText, url: window.location.href });
       } else if (nav.clipboard && typeof nav.clipboard.writeText === 'function') {
         await nav.clipboard.writeText(`${shareText} — ${window.location.href}`);
-        setNotice('Share text copied. You can paste it into any app.');
+        setNotice('Copied.');
       } else {
         window.prompt('Copy this to share:', `${shareText} — ${window.location.href}`);
       }
@@ -1137,7 +1137,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         .select('id,sender_id,recipient_id,source_type,status,created_at')
         .eq('source_type','dating').or('sender_id.eq.' + userId + ',recipient_id.eq.' + userId)
         .order('created_at',{ascending:false}).limit(100);
-      if (requestsError) setNotice('Dating profiles loaded, but request status could not be refreshed.');
+      if (requestsError) setNotice('Could not refresh requests.');
       const requestMap: Record<string,{status:string;id:string}> = {};
       // Requests are ordered newest-first; keep the newest status per recipient so an older
       // pending/accepted request cannot overwrite a later decline or a fresh re-request.
@@ -1482,7 +1482,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         if(await countryHasStates(location.country) && !location.state){setNotice('Choose your state or province to continue.');return;}
         if(!location.city){setNotice('Choose your city to continue.');return;}
         if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
-        if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
+        if(!supabase){setNotice('Please try again.');return;}
         setBusy(true);setNotice('');
         const {error}=await supabase.from('profiles').update({date_of_birth:dateOfBirth,age,country:location.country,state:location.state||null,state_province:location.state||null,city:location.city||null,area:location.area||null}).eq('id',userId);
         if(!error && optionalAddress.trim()) {
@@ -1496,7 +1496,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       }}>{busy?'Saving…':'Submit'}</button></div>
     </section></div>}
     {registerOpen && <div className="dating-profile-backdrop dating-setup-backdrop" role="dialog" aria-modal="true" aria-label="Complete your dating details"><section className="dating-profile-detail dating-setup-modal">
-      <header><button type="button" className="secondary-button" onClick={() => { setRegisterOpen(false); setNotice('You can finish your Dating details any time from Edit Your Profile.'); }}>Cancel</button><strong>Dating profile setup</strong><span>{formStep+1}/{formSteps.length}</span></header><div className="dating-setup-intro"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
+      <header><button type="button" className="secondary-button" onClick={() => { setRegisterOpen(false); setNotice('Cancelled.'); }}>Cancel</button><strong>Dating profile setup</strong><span>{formStep+1}/{formSteps.length}</span></header><div className="dating-setup-intro"><div className="feature-icon dating-feature-icon">♡</div><p className="eyebrow">YOUR DATING SPACE</p>
       <h2>{published ? 'Update your dating profile' : 'Create your dating profile'}</h2>
       <p className="feature-copy">Dating is for adults aged 18+. Your basic details are saved to your Circle Panda account so the rest of the app can use the same profile information.</p></div>
       <div className="dating-stepper" aria-label="Setup progress"><span className="dating-step-counter">STEP {formStep+1} OF {formSteps.length}</span><strong>{formSteps[formStep]}</strong><div className="dating-progress-track"><span style={{width:`${((formStep+1)/formSteps.length)*100}%`}} /></div></div>
@@ -1579,7 +1579,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
                   if(await countryHasStates(location.country) && !location.state){setNotice('Choose your state or province to continue.');return;}
                   if(!location.city){setNotice('Choose your city to continue.');return;}
                   if(!location.area){setNotice('Choose your area or neighbourhood to continue.');return;}
-                  if(!supabase){setNotice('Your account could not be reached. Please try again.');return;}
+                  if(!supabase){setNotice('Please try again.');return;}
                   setBusy(true);setNotice('');
                   const {error}=await supabase.from('profiles').update({date_of_birth:dateOfBirth,age,country:location.country,state:location.state||null,state_province:location.state||null,city:location.city||null,area:location.area||null}).eq('id',userId);
                   setBusy(false);
@@ -1984,7 +1984,7 @@ function ProfileFeature({ userId }: { userId:string }) {
     setSaving(true);setNotice('');
     const payload={id:userId,username:draft.username.trim()||null,display_name:draft.display_name.trim()||null,country:draft.country.trim()||null,state:draft.state.trim()||null,area:draft.area.trim()||null,date_of_birth:draft.date_of_birth||null,gender:draft.gender||null,bio:draft.bio.trim()||null,address_line:draft.address_line.trim()||null,updated_at:new Date().toISOString()};
     const {error}=await supabase.from('profiles').upsert(payload,{onConflict:'id'});
-    if(error) setNotice(error.message); else {setNotice('Profile saved. Your changes are stored in Circle Panda.');await load();}
+    if(error) setNotice(error.message); else {setNotice('Profile saved.');await load();}
     setSaving(false);
   }
   const activeVip=admin || Boolean(profile?.is_vip && (!profile.vip_expires_at || new Date(profile.vip_expires_at).getTime()>Date.now()));
@@ -2054,7 +2054,7 @@ function WalletFeature({ userId }: { userId: string }) {
     if (!supabase || busy) return;
     if (!chosenCoinPackage) { setNotice('Choose a coin package first.'); return; }
     if (chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0) {
-      setNotice('This package has no NGN price configured yet. An administrator must set the package price first.');
+      setNotice('This package is unavailable right now.');
       return;
     }
     setBusy(true); setNotice('');
@@ -2077,7 +2077,7 @@ function WalletFeature({ userId }: { userId: string }) {
   function startFreeAdReward() {
     // No rewarded-ad provider or verified completion callback is configured in this
     // project yet. Do not call a missing RPC or ever credit coins from a button click.
-    setNotice('Free ad rewards are paused until an ad provider and its verified completion callback are configured. No coins have been added.');
+    setNotice('Ad reward unavailable right now. No coins were added.');
   }
 
   function formatReason(reason: string) {
@@ -2449,7 +2449,7 @@ function GroupsFeature({ userId }: { userId: string }) {
           <article className="vip-room-card worldwide-vip-room"><div className="vip-room-ornament">✦</div><div className="vip-room-label">WORLDWIDE VIP</div><h3>Worldwide VIP Group</h3><p>Meet VIP members across Circle Panda in a dedicated private chat.</p><div className="vip-room-bottom"><span>🌐 Global community</span><button type="button" className={myVip ? 'vip-room-button' : 'vip-room-button locked'} disabled={busy} onClick={() => void openVipGroup('worldwide')}>{myVip ? 'Enter room ↗' : '🔒 Unlock VIP'}</button></div></article>
           {myCountry && <article className="vip-room-card country-vip-room"><div className="vip-room-ornament">♛</div><div className="vip-room-label">COUNTRY VIP</div><h3>{myCountry} VIP Group</h3><p>A country-only room for VIP members in your saved profile country. Other countries stay hidden.</p><div className="vip-room-bottom"><span>⌖ {myCountry} only</span><button type="button" className={myVip ? 'vip-room-button' : 'vip-room-button locked'} disabled={busy} onClick={() => void openVipGroup('country')}>{myVip ? 'Enter room ↗' : '🔒 Unlock VIP'}</button></div></article>}
         </div>
-        <div className="vip-unlock-grid"><div><span>♛</span><strong>VIP-only group chat</strong><small>Membership checked by Supabase</small></div><div><span>◉</span><strong>Member connections</strong><small>Open conversations from the room</small></div><div><span>◈</span><strong>Gold-circle status</strong><small>{myVip ? 'Your profile has VIP access' : 'Membership required to unlock benefits'}</small></div></div>
+        <div className="vip-unlock-grid"><div><span>♛</span><strong>VIP-only group chat</strong><small>Membership checked by Supabase</small></div><div><span>◉</span><strong>Member connections</strong><small>Open conversations from the room</small></div><div><span>◈</span><strong>Gold-circle status</strong><small>{myVip ? 'VIP active' : 'VIP required'}</small></div></div>
         {!myVip && <p className="vip-unlock-note">VIP room access is enforced by the backend. Live subscription checkout still requires payment-provider configuration; tapping this card will not falsely grant VIP status.</p>}
       </section>
       {loading ? <div className="empty-state">Loading groups…</div> : groups.length ? <div className="group-cards">{groups.filter(g=>!g.is_vip).map(group => {
@@ -2509,7 +2509,7 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
           {isAdmin && <span className="vip-member-badge admin">♜ ADMIN ACCOUNT</span>}
           {permanent && <span className="vip-member-badge permanent">∞ NO EXPIRY</span>}
         </div>
-        <p className="vip-membership-summary">{loading ? 'Checking your membership…' : vip ? (permanent ? 'Your VIP membership is permanent. It has no expiry date.' : 'Your VIP membership is active' + (expiresAt ? ' until ' + new Date(expiresAt).toLocaleDateString() + '.' : '.')) : 'VIP membership is not active on this profile. This page will not grant membership by itself.'}</p>
+        <p className="vip-membership-summary">{loading ? 'Checking your membership…' : vip ? (permanent ? 'Permanent VIP membership' : 'Your VIP membership is active' + (expiresAt ? ' until ' + new Date(expiresAt).toLocaleDateString() + '.' : '.')) : 'VIP membership is not active on this profile. This page will not grant membership by itself.'}</p>
       </div>
       <div className="vip-hero-medallion" aria-hidden="true"><span>♛</span><small>GOLD<br/>CIRCLE</small></div>
       <div className="vip-hero-glint glint-one" /><div className="vip-hero-glint glint-two" />
@@ -2520,7 +2520,7 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
     <div className="vip-metric-grid">
       <article className="vip-metric-card"><span className="vip-metric-icon">◈</span><small>YOUR BC BALANCE</small><strong>{balance === null ? '—' : balance.toLocaleString()}</strong><p>Coins stay in your wallet without expiring.</p><button type="button" onClick={() => onNavigate('Wallet')}>Open wallet ↗</button></article>
       <article className="vip-metric-card"><span className="vip-metric-icon">◎</span><small>MEMBERSHIP</small><strong>{loading ? '…' : vip ? 'VIP' : 'Standard'}</strong><p>{permanent ? 'Permanent access · no expiry' : vip ? 'Active membership' : 'VIP access required for private rooms'}</p><button type="button" onClick={() => onNavigate('Groups')}>Explore VIP rooms ↗</button></article>
-      <article className="vip-metric-card"><span className="vip-metric-icon">♜</span><small>ACCOUNT ACCESS</small><strong>{isAdmin ? 'Owner / Admin' : 'Member'}</strong><p>{isAdmin ? 'Administrator role detected on this account.' : 'Your membership benefits are shown below.'}</p>{isAdmin && <button type="button" onClick={() => onNavigate('Admin')}>Open admin controls ↗</button>}</article>
+      <article className="vip-metric-card"><span className="vip-metric-icon">♜</span><small>ACCOUNT ACCESS</small><strong>{isAdmin ? 'Owner / Admin' : 'Member'}</strong><p>{isAdmin ? '' : ''}</p>{isAdmin && <button type="button" onClick={() => onNavigate('Admin')}>Open admin controls ↗</button>}</article>
     </div>
 
     <section className="vip-dashboard-section">
@@ -2557,7 +2557,7 @@ function VipAdminControls() {
   const [notice, setNotice] = useState('');
 
   async function load() {
-    if (!supabase) { setLoading(false); setNotice('Supabase is not configured.'); return; }
+    if (!supabase) { setLoading(false); setNotice('Something went wrong. Please try again.'); return; }
     const { data, error } = await supabase.rpc('admin_list_vip_members');
     if (error) setNotice(error.message);
     else setMembers((data ?? []) as VipAdminMember[]);
@@ -2623,7 +2623,7 @@ function GlobalActionSlotAdmin({onSaved}:{onSaved:(row:GlobalActionSlotRow)=>voi
   const [notice,setNotice] = useState('');
   useEffect(() => {
     let alive = true;
-    if (!supabase) { setLoading(false); setNotice('Supabase is not configured.'); return; }
+    if (!supabase) { setLoading(false); setNotice('Something went wrong. Please try again.'); return; }
     void supabase.from('global_action_slot').select('slot_key,enabled,action_key,icon,label,description,updated_at').eq('slot_key','primary').maybeSingle()
       .then(({data,error}) => {
         if (!alive) return;
@@ -2661,7 +2661,7 @@ function GlobalActionSlotAdmin({onSaved}:{onSaved:(row:GlobalActionSlotRow)=>voi
       if (error) throw error;
       const row = (Array.isArray(data) ? data[0] : data) as GlobalActionSlotRow | null;
       if (!row) throw new Error('The backend did not return the saved activity slot.');
-      onSaved(row); setNotice(enabled ? `${row.label} is saved and will appear on app pages.` : 'The global activity icon is hidden on app pages.');
+      onSaved(row); setNotice(enabled ? `${row.label} is saved and will appear on app pages.` : 'Activity shortcut hidden.');
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not save the global activity slot.'); }
     finally { setSaving(false); }
   }
