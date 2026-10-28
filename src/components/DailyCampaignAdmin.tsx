@@ -58,15 +58,16 @@ export default function DailyCampaignAdmin({userId}:{userId:string}) {
     else{setNotice('Campaign created and saved.');setTitle('');setDescription('');await load();}
     setBusy(''); 
   }
-  async function act(row:Campaign,action:'close'|'draw'){
+  async function act(row:Campaign,action:'open'|'close'|'draw'){
     if(!supabase||busy)return;
     if(action==='draw'&&!window.confirm('Draw a winner now? This action is final and may award the configured prize.'))return;
     setBusy(row.id);setNotice('');
-    const {data,error}=await supabase.rpc(action==='draw'?'admin_draw_daily_activity_campaign':'admin_close_daily_activity_campaign',{p_campaign_id:row.id});
+    const rpcName=action==='draw'?'admin_draw_daily_activity_campaign':action==='close'?'admin_close_daily_activity_campaign':'admin_publish_daily_activity_campaign';
+    const {data,error}=await supabase.rpc(rpcName,{p_campaign_id:row.id});
     if(error)setNotice(error.message);
     else{
       const result=data as {winner_id?:string;message?:string}|null;
-      setNotice(action==='draw'?(result?.winner_id?'Winner selected: '+result.winner_id:'Draw completed. Check campaign status and reward ledger.'):'Campaign closed.');
+      setNotice(action==='draw'?(result?.winner_id?'Winner selected: '+result.winner_id:'Draw completed. Check campaign status and reward ledger.'):action==='close'?'Campaign closed.':'Campaign published and open for entries.');
       await load();
     }
     setBusy('');
@@ -99,7 +100,7 @@ export default function DailyCampaignAdmin({userId}:{userId:string}) {
     <div className="admin-campaign-list">
       {loading?<div className="empty-state">Loading campaigns…</div>:rows.length===0?<div className="empty-state">No activity campaigns yet. Create the first one above.</div>:rows.map(row=><article className="admin-campaign-row" key={row.id}>
         <div className="admin-campaign-icon">{row.icon}</div><div className="admin-campaign-copy"><strong>{row.title}</strong><small>{row.campaign_type} · {row.prize_label||row.prize_type+' '+row.prize_amount} · {new Date(row.starts_at).toLocaleString()}</small><span>{row.description||'No additional instructions.'}</span><small>Entries limit: {row.max_entries??'Unlimited'} · Status: <b>{row.status}</b>{row.winner_id?' · Winner recorded':''}</small></div>
-        <div className="admin-campaign-actions">{row.status==='open'&&<button type="button" className="secondary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'close')}>{busy===row.id?'Saving…':'Close entries'}</button>}{(row.status==='open'||row.status==='closed')&&<button type="button" className="primary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'draw')}>{busy===row.id?'Drawing…':'Draw winner'}</button>}</div>
+        <div className="admin-campaign-actions">{row.status==='draft'&&<button type="button" className="primary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'open')}>{busy===row.id?'Publishing…':'Publish / open entries'}</button>}{row.status==='open'&&<button type="button" className="secondary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'close')}>{busy===row.id?'Saving…':'Close entries'}</button>}{(row.status==='open'||row.status==='closed')&&<button type="button" className="primary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'draw')}>{busy===row.id?'Drawing…':'Draw winner'}</button>}</div>
       </article>)}
     </div>
   </section>;
