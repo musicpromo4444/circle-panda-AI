@@ -99,7 +99,7 @@ export default function DailyCampaignAdmin({userId}:{userId:string}) {
     <div className="admin-campaign-list">
       {loading?<div className="empty-state">Loading campaigns…</div>:rows.length===0?<div className="empty-state">No activity campaigns yet. Create the first one above.</div>:rows.map(row=><article className="admin-campaign-row" key={row.id}>
         <div className="admin-campaign-icon">{row.icon}</div><div className="admin-campaign-copy"><strong>{row.title}</strong><small>{row.campaign_type} · {row.prize_label||row.prize_type+' '+row.prize_amount} · {new Date(row.starts_at).toLocaleString()}</small><span>{row.description||'No additional instructions.'}</span><small>Entries limit: {row.max_entries??'Unlimited'} · Status: <b>{row.status}</b>{row.winner_id?' · Winner recorded':''}</small></div>
-        <div className="admin-campaign-actions">{row.status==='open'&&<button type="button" className="secondary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'close')}>{busy===row.id?'Saving…':'Close entries'}</button>}{row.status==='open'&&<button type="button" className="primary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'draw')}>{busy===row.id?'Drawing…':'Draw winner'}</button>}</div>
+        <div className="admin-campaign-actions">{row.status==='open'&&<button type="button" className="secondary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'close')}>{busy===row.id?'Saving…':'Close entries'}</button>}{(row.status==='open'||row.status==='closed')&&<button type="button" className="primary-button" disabled={Boolean(busy)} onClick={()=>void act(row,'draw')}>{busy===row.id?'Drawing…':'Draw winner'}</button>}</div>
       </article>)}
     </div>
   </section>;
