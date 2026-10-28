@@ -2878,7 +2878,6 @@ function AdminFeature({userId}:{userId:string}) {
         <div className="admin-sponsor-actions"><label>Delivery status<select value={campaign.status} disabled={sponsorBusy===campaign.id} onChange={e=>void updateSponsorStatus(campaign.id,e.target.value)}><option value="draft">Draft</option><option value="paused">Paused</option><option value="active">Active</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>{campaign.target_url && <a href={campaign.target_url} target="_blank" rel="noreferrer">Open target ↗</a>}</div>
       </article>)}</div> : <div className="empty-state">No sponsor campaigns yet. Create a draft above.</div>}
     </section>
-    <section id="admin-global-slot" className="admin-dashboard-section"><h3>Universal floating activity / promotion icon</h3><p className="feature-copy">Select the fixed lower-left action shown across member pages. Admin-only configuration is available here and is saved to Supabase.</p><GlobalActionSlot isAdmin={true} section="Admin" onNavigate={()=>{}} /></section>
     <section id="admin-moderation" className="admin-dashboard-section admin-moderation-section">
       <p className="eyebrow">TRUST & SAFETY</p><h3>Safety & moderation</h3>
       <p className="feature-copy">Review user and group-member reports. Every review or dismissal is saved server-side with an administrator audit entry. This queue does not silently remove content or suspend accounts.</p>
