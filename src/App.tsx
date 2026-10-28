@@ -1959,8 +1959,8 @@ function ProfileFeature({ userId }: { userId:string }) {
     e.preventDefault(); if(!supabase||saving) return;
     if(draft.username.trim().length>30 || draft.bio.length>500) {setNotice('Username must be 30 characters or fewer and bio must be 500 characters or fewer.');return;}
     setSaving(true);setNotice('');
-    const payload={id:userId,username:draft.username.trim()||null,display_name:draft.display_name.trim()||null,country:draft.country.trim()||null,state:draft.state.trim()||null,area:draft.area.trim()||null,date_of_birth:draft.date_of_birth||null,gender:draft.gender||null,bio:draft.bio.trim()||null,address_line:draft.address_line.trim()||null,updated_at:new Date().toISOString()};
-    const {error}=await supabase.from('profiles').upsert(payload,{onConflict:'id'});
+    const payload={username:draft.username.trim()||null,display_name:draft.display_name.trim()||null,country:draft.country.trim()||null,state:draft.state.trim()||null,area:draft.area.trim()||null,date_of_birth:draft.date_of_birth||null,gender:draft.gender||null,bio:draft.bio.trim()||null,address_line:draft.address_line.trim()||null,updated_at:new Date().toISOString()};
+    const {error}=await supabase.from('profiles').update(payload).eq('id',userId);
     if(error) setNotice(error.message); else {setNotice('Profile saved. Your changes are stored in Circle Panda.');await load();}
     setSaving(false);
   }
