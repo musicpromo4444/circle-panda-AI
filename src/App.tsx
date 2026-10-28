@@ -215,7 +215,7 @@ export default function App() {
           setNotice('Payment is still being confirmed. Check your wallet shortly.');
           return;
         }
-        setNotice('Payment received. Waiting for Paystack confirmation before crediting your BC wallet…');
+        setNotice('Payment processing.');
         await new Promise(resolve => window.setTimeout(resolve, 2000));
       }
       if (alive) setNotice('Payment is processing. Your wallet will update when confirmed.');
@@ -499,7 +499,7 @@ export default function App() {
       });
       if (error) throw error;
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : `Could not start ${provider} sign-in. Check that this provider is configured in Supabase Auth.`);
+      setNotice(error instanceof Error ? error.message : 'Sign-in unavailable. Please try again.');
     } finally { setAuthBusy(false); }
   }
 
@@ -622,7 +622,7 @@ export default function App() {
         <p className="eyebrow">YOUR PEOPLE. YOUR WORLD.</p>
         <h1>Find your <span>circle.</span></h1>
         <p className="auth-copy">Confessions, crushes, events, dating and real conversations — all in one place.</p>
-        {!supabaseConfigured && <div className="notice warning">Connect this app with <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable account access.</div>}
+        {!supabaseConfigured && <div className="notice warning">Account access is temporarily unavailable.</div>}
         <form className="auth-form" onSubmit={handleAuth}>
           {authMode === 'signup' && <label>Your name<input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="How should we call you?" autoComplete="name" required /></label>}
           {authMode === 'signup' && <CountryDropdown value={signupCountry} onChange={setSignupCountry} />}
@@ -633,7 +633,7 @@ export default function App() {
           <button className="primary-button full" type="submit" disabled={!supabaseConfigured || authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <span>→</span></button>
         </form>
         {(authProviders.google || authProviders.apple) && <div className="auth-provider-buttons">{authProviders.google && <button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('google')}><span aria-hidden="true">G</span> Continue with Google</button>}{authProviders.apple && <button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('apple')}><span aria-hidden="true">●</span> Continue with Apple</button>}</div>}
-        {(authProviders.google || authProviders.apple) && <p className="auth-provider-note">Enabled providers also need their client credentials and redirect URLs configured in Supabase Auth.</p>}
+        {(authProviders.google || authProviders.apple) && }
         <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); setEmailConfirmationPending(false); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
         {authMode === 'login' && !phoneRecoveryPending && <button type="button" className="text-button" onClick={() => void sendPasswordReset()} disabled={authBusy}>Forgot password?</button>}
         {authMode === 'login' && phoneRecoveryPending && <form className="auth-form phone-recovery-form" onSubmit={finishPhonePasswordReset}><p className="feature-copy">Reset password for {recoveryPhone}</p><label>SMS verification code<input value={recoveryCode} onChange={e=>setRecoveryCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required placeholder="Enter the code" /></label><label>New password<input type="password" value={recoveryNewPassword} onChange={e=>setRecoveryNewPassword(e.target.value)} minLength={8} required autoComplete="new-password" placeholder="At least 8 characters" /></label><label>Confirm new password<input type="password" value={recoveryConfirmPassword} onChange={e=>setRecoveryConfirmPassword(e.target.value)} minLength={8} required autoComplete="new-password" placeholder="Enter it again" /></label><button className="primary-button full" disabled={authBusy}>{authBusy?'Verifying…':'Verify code & reset password'}</button><button type="button" className="text-button" disabled={authBusy} onClick={()=>{setPhoneRecoveryPending(false);setRecoveryCode('');setNotice('');}}>Cancel password reset</button></form>}
@@ -921,7 +921,7 @@ function MessagesFeature({ userId }: { userId: string }) {
       </section>}
     </div>
     <section className="chat-panel">
-      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p>{datingTimerLabel && <small className={datingFreeRemaining > 0 ? 'dating-chat-timer active' : 'dating-chat-timer expired'}>{datingTimerLabel}</small>}</div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><VipCallControls userId={userId} threadId={openConversation} otherName={conversationTitle(openConversation)} otherIsVip={vipMessageUserIds.has((requests.find(r => r.conversation_id === openConversation)?.sender_id === userId ? requests.find(r => r.conversation_id === openConversation)?.recipient_id : requests.find(r => r.conversation_id === openConversation)?.sender_id) || '')} /><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
+      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong>{datingTimerLabel && <small className={datingFreeRemaining > 0 ? 'dating-chat-timer active' : 'dating-chat-timer expired'}>{datingTimerLabel}</small>}</div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><VipCallControls userId={userId} threadId={openConversation} otherName={conversationTitle(openConversation)} otherIsVip={vipMessageUserIds.has((requests.find(r => r.conversation_id === openConversation)?.sender_id === userId ? requests.find(r => r.conversation_id === openConversation)?.recipient_id : requests.find(r => r.conversation_id === openConversation)?.sender_id) || '')} /><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
     </section>
   </section>;
 }
@@ -1502,18 +1502,18 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
       <div className="dating-stepper" aria-label="Setup progress"><span className="dating-step-counter">STEP {formStep+1} OF {formSteps.length}</span><strong>{formSteps[formStep]}</strong><div className="dating-progress-track"><span style={{width:`${((formStep+1)/formSteps.length)*100}%`}} /></div></div>
       <form className="feature-form" onSubmit={e => void saveProfile(e, false)}>
         {formStep === 0 && <section className="dating-form-step">
-          <h3>Your introduction</h3><p>Now that your basic profile is complete, introduce yourself to people in Dating.</p>
+          <h3>Your introduction</h3><p>Introduce yourself.</p>
           <div className="dating-account-summary"><div><span>Name</span><strong>{mainProfile.name || 'Panda'}</strong></div><div><span>Age</span><strong>{effectiveAge == null ? '—' : effectiveAge}</strong></div><div><span>Location</span><strong>{[location.area || location.city,location.state,location.country].filter(Boolean).join(', ') || '—'}</strong></div></div>
           <label>Profile headline<input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={120} required placeholder="A little about the kind of person you are…" /></label>
           <label>About me<textarea value={about} onChange={e=>setAbout(e.target.value)} maxLength={2500} rows={3} placeholder="What would you like someone to know about you?" /></label>
         </section>}
         {formStep === 1 && <section className="dating-form-step">
-          <h3>Who would you like to meet?</h3><p>Choose the kind of connection you want. You can update this later.</p>
+          <h3>Who would you like to meet?</h3><p>Choose your preferences.</p>
           <label>Interested in <ChoiceChips values={['Women','Men','Non-binary people','Everyone']} selected={genderPreferences} onToggle={value=>toggleChoice(genderPreferences,value,setGenderPreferences)} /></label>
           <label>Relationship goal <SingleChoices values={relationshipOptions} value={relationshipGoal} onChange={setRelationshipGoal} /></label>
         </section>}
         {formStep === 2 && <section className="dating-form-step">
-          <h3>Your age & distance preferences</h3><p>Only adults aged 18 and older can appear in Dating.</p>
+          <h3>Your age & distance preferences</h3>
           <div className="dating-age-range"><label>Minimum age<select value={preferredAgeMin} onChange={e=>{setPreferredAgeMin(e.target.value);if(Number(e.target.value)>Number(preferredAgeMax))setPreferredAgeMax(e.target.value);}}>{Array.from({length:83},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label><label>Maximum age<select value={preferredAgeMax} onChange={e=>setPreferredAgeMax(e.target.value)}>{Array.from({length:103},(_,i)=>i+18).map(age=><option key={age} value={age}>{age}</option>)}</select></label></div>
           <label className="dating-inline-check"><input type="checkbox" checked={longDistanceOk} onChange={e=>setLongDistanceOk(e.target.checked)} /> I am open to long-distance relationships</label>
         </section>}
@@ -1545,7 +1545,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <label>One thing that makes me smile<input value={smilePrompt} onChange={e=>setSmilePrompt(e.target.value)} maxLength={180} placeholder="A little thing that makes your day" /></label>
         </section>}
         {formStep === 7 && <section className="dating-form-step">
-          <h3>Sexual Experience</h3><p>This is optional. Share only what you feel comfortable including in your dating profile.</p>
+          <h3>Sexual Experience</h3>
           <SingleChoices values={['No experience','A little experience','Some experience','Experienced','Prefer not to say']} value={sexualExperience} onChange={setSexualExperience} />
         </section>}
         {formStep === 8 && <section className="dating-form-step">
@@ -1553,7 +1553,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           <label>Your dating experience<textarea value={searcherExperience} onChange={e=>setSearcherExperience(e.target.value)} maxLength={1200} rows={4} placeholder="Share only what you feel comfortable sharing…" /></label>
         </section>}
         {formStep === 9 && <section className="dating-form-step dating-photo-step">
-          <h3>Photos & publish</h3><p>Add a dating photo, preview your profile, then publish when you are ready.</p>
+          <h3>Photos & publish</h3>
           <div className="dating-photo-preview">{profilePhoto && photoPreview ? <img src={photoPreview} alt="Dating photo preview" /> : photoPath ? <span>✓</span> : <span>🐼</span>}</div>
           <label className="photo-upload-label">Dating photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{
             const file=e.currentTarget.files?.[0] || null;
@@ -1595,7 +1595,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
     </section></div>}
     {notice && !registerOpen && <div className="notice">{notice}</div>}
     {published && <section className="directory-section dating-discovery-section">
-      <div className="section-title-row"><div><h2>People you may connect with</h2><p>Open a profile to learn more, then send a request if you would like to talk.</p></div><span className="count-pill">{filteredDirectory.length} PEOPLE</span></div>
+      <div className="section-title-row"><div><h2>People you may connect with</h2></div><span className="count-pill">{filteredDirectory.length} PEOPLE</span></div>
       {loading ? <div className="empty-state">Loading dating profiles…</div> : filteredDirectory.length ? <div className="dating-directory">{filteredDirectory.map(profile => {
         const request = sentRequests[profile.user_id];
         const alreadyRequested = Boolean(request && ['pending','accepted'].includes(request.status));
@@ -1608,10 +1608,10 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
           </button>
           <div className="dating-discovery-actions"><button type="button" className="secondary-button" onClick={()=>void viewDatingProfile(profile)}>View profile</button><button type="button" className="primary-button" disabled={busy || alreadyRequested} onClick={()=>void requestChat(profile)}>{request?.status === 'accepted' ? 'Request accepted' : request?.status === 'pending' ? 'Request sent' : 'Send message request'}</button></div>
         </article>;
-      })}</div> : <div className="empty-state compact"><span>♡</span><h3>No profiles match yet</h3><p>Try changing your filters, or check back as more people publish their dating profiles.</p></div>}
+      })}</div> : <div className="empty-state compact"><span>♡</span><h3>No profiles match yet</h3></div>}
     </section>}
     {datingMatches.length > 0 && <section className="directory-section dating-connections-section">
-      <div className="section-title-row"><div><h2>Your Dating connections</h2><p>Dating chats are free for the first {datingFreeHours} hours. After that, each message costs {datingMessageCost} BC (VIP members message free). After the free period, both people must separately confirm before dating photos are revealed.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
+      <div className="section-title-row"><div><h2>Your Dating connections</h2><p>{datingFreeHours} hours free, then {datingMessageCost} BC per message. VIP members message free.</p></div><span className="count-pill">{datingMatches.length} MATCHES</span></div>
       <div className="dating-directory">{datingMatches.map(match => {
         const otherId = match.user_a === userId ? match.user_b : match.user_a;
         const person = matchPeople[otherId];
@@ -1886,7 +1886,7 @@ function EventsFeature({ userId }: { userId: string }) {
   async function startPaidEventBlast(plan: EventBlastPlan) {
     if (!supabase || !blastEvent || blastBusy) return;
     if (blastEvent.creator_id !== userId) { setNotice('Only the event creator can promote this event.'); return; }
-    if (plan.bc_price == null) { setNotice('This plan has no BC price configured.'); return; }
+    if (plan.bc_price == null) { setNotice('This plan is unavailable.'); return; }
     if (blastScope !== 'worldwide' && !blastLocation.country) { setNotice('Choose a target country for this Event Blast.'); return; }
     if (['state','city','area'].includes(blastScope) && !blastLocation.state) { setNotice('Choose a target state or province.'); return; }
     if (['city','area'].includes(blastScope) && !blastLocation.city) { setNotice('Choose a target city.'); return; }
@@ -2054,7 +2054,7 @@ function WalletFeature({ userId }: { userId: string }) {
     if (!supabase || busy) return;
     if (!chosenCoinPackage) { setNotice('Choose a coin package first.'); return; }
     if (chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0) {
-      setNotice('This package is unavailable right now.');
+      setNotice('Package unavailable.');
       return;
     }
     setBusy(true); setNotice('');
@@ -2077,7 +2077,7 @@ function WalletFeature({ userId }: { userId: string }) {
   function startFreeAdReward() {
     // No rewarded-ad provider or verified completion callback is configured in this
     // project yet. Do not call a missing RPC or ever credit coins from a button click.
-    setNotice('Ad reward unavailable right now. No coins were added.');
+    setNotice('Ad reward unavailable.');
   }
 
   function formatReason(reason: string) {
@@ -2085,9 +2085,9 @@ function WalletFeature({ userId }: { userId: string }) {
   }
 
   return <div className="wallet-page">
-    {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2><p>Choose a coin bundle for your Circle Panda wallet. Your BC balance never expires.</p></section><div className="coin-package-grid">{coinPackages.map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{Number(pack.coins).toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">{pack.price_ngn != null && Number(pack.price_ngn)>0 ? `₦${Number(pack.price_ngn).toLocaleString('en-NG')}` : 'Price not configured'}</span></button>)}</div><div className="wallet-checkout-note"><strong>{!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'Package price needs to be configured' : 'Secure Paystack checkout'}</strong><p>{!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'This coin bundle cannot be purchased yet because its NGN price has not been set. An administrator must configure the price in the Admin dashboard first.' : 'Checkout is handled securely by Paystack. Coins are credited only after the signed payment confirmation is verified by the server.'}</p><button type="button" className="primary-button full" disabled={busy || !chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0} onClick={() => void startCoinPurchase()}>{busy ? 'Preparing secure checkout…' : 'Continue to secure checkout ↗'}</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
+    {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2></section><div className="coin-package-grid">{coinPackages.map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{Number(pack.coins).toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">{pack.price_ngn != null && Number(pack.price_ngn)>0 ? `₦${Number(pack.price_ngn).toLocaleString('en-NG')}` : 'Price not configured'}</span></button>)}</div><div className="wallet-checkout-note"><strong>{!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'Package price needs to be configured' : 'Secure Paystack checkout'}</strong><p>{!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'This coin bundle cannot be purchased yet because its NGN price has not been set. An administrator must configure the price in the Admin dashboard first.' : 'Checkout is handled securely by Paystack. Coins are credited only after the signed payment confirmation is verified by the server.'}</p><button type="button" className="primary-button full" disabled={busy || !chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0} onClick={() => void startCoinPurchase()}>{busy ? 'Preparing secure checkout…' : 'Continue to secure checkout ↗'}</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
     <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" onClick={startFreeAdReward} title="Requires a verified rewarded-ad provider"><span aria-hidden="true">▷</span> Get 100 Free BC · Setup required <span aria-hidden="true">↗</span></button></div>
-    <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your activity has value.</h2><p>BC balances do not expire. Rewards and message charges are processed by the backend.</p></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
+    <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your Panda wallet</h2></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
     <div className="wallet-balance-grid"><article className="balance-card primary-balance"><span>PANDA COINS</span><strong>{loading ? '—' : isAdminUnlimited ? '∞' : bcBalance.toLocaleString()}</strong><small>{isAdminUnlimited ? 'ADMIN · UNLIMITED BC' : 'BC · non-expiring balance'}</small></article><article className="balance-card"><span>WALLET COINS</span><strong>{loading ? '—' : wcBalance.toLocaleString()}</strong><small>WC balance</small></article><article className="balance-card"><span>EXPERIENCE POINTS</span><strong>{loading ? '—' : xpTotal.toLocaleString()}</strong><small>{levelName} level</small></article></div>
     <div className="wallet-actions"><div><h3>Daily login reward</h3><p>Credited automatically at your first app open when eligible. Monday 5 BC · Tuesday 10 BC · Wednesday 5 BC · Thursday 10 BC · Friday–Sunday 50 BC.</p></div><span className="daily-completed-label">Automatic reward</span></div>
@@ -2096,7 +2096,7 @@ function WalletFeature({ userId }: { userId: string }) {
       {loading ? <div className="empty-state">Loading wallet…</div> : transactions.length ? transactions.map(t => <article className="transaction-row" key={t.id}><span className={t.amount >= 0 ? 'transaction-icon credit' : 'transaction-icon debit'}>{t.amount >= 0 ? '+' : '−'}</span><div><strong>{formatReason(t.reason)}</strong><small>{new Date(t.created_at).toLocaleString()}</small></div><b className={t.amount >= 0 ? 'amount-credit' : 'amount-debit'}>{t.amount > 0 ? '+' : ''}{t.amount} {t.currency}</b></article>) : <div className="empty-state compact"><p>Your wallet transactions will appear here.</p></div>}
     </section>
     </>}
-    <section className="economy-rules"><div className="section-title-row"><div><h2>Current economy rules</h2><p>Values are loaded from admin-controlled settings.</p></div></div><div className="rules-grid"><div><span>Regular message</span><strong>{settings.chat_message_cost ?? 1} BC</strong></div><div><span>Dating messages after free period</span><strong>{settings.dating_message_cost ?? 1} BC</strong></div><div><span>Dating free period</span><strong>{settings.dating_free_hours ?? 72} hours</strong></div><div><span>Ad reward</span><strong>{settings.ad_reward ?? 30} BC</strong></div><div><span>Ad cooldown</span><strong>{Math.round((settings.ad_reward_cooldown_seconds ?? 300)/60)} min</strong></div><div><span>Extra vote</span><strong>{settings.extra_vote_cost ?? 50} BC</strong></div></div><p className="economy-footnote">Ad rewards remain locked until a trusted ad-completion callback is connected. This prevents reward claims without a verified ad view.</p></section>
+    <section className="economy-rules"><div className="section-title-row"><div><h2>Wallet rates</h2></div></div><div className="rules-grid"><div><span>Regular message</span><strong>{settings.chat_message_cost ?? 1} BC</strong></div><div><span>Dating messages after free period</span><strong>{settings.dating_message_cost ?? 1} BC</strong></div><div><span>Dating free period</span><strong>{settings.dating_free_hours ?? 72} hours</strong></div><div><span>Ad reward</span><strong>{settings.ad_reward ?? 30} BC</strong></div><div><span>Ad cooldown</span><strong>{Math.round((settings.ad_reward_cooldown_seconds ?? 300)/60)} min</strong></div><div><span>Extra vote</span><strong>{settings.extra_vote_cost ?? 50} BC</strong></div></div><p className="economy-footnote">Ad rewards remain locked until a trusted ad-completion callback is connected. This prevents reward claims without a verified ad view.</p></section>
   </div>;
 }
 
@@ -2447,10 +2447,10 @@ function GroupsFeature({ userId }: { userId: string }) {
         <div className="vip-experience-heading"><div><p className="eyebrow">THE GOLD CIRCLE</p><h2>VIP Experience</h2><p>Private rooms, member-only connections and priority access.</p></div><span className={myVip ? 'vip-status unlocked' : 'vip-status'}>{myVip ? '✦ VIP UNLOCKED' : '🔒 VIP LOCKED'}</span></div>
         <div className="vip-room-grid">
           <article className="vip-room-card worldwide-vip-room"><div className="vip-room-ornament">✦</div><div className="vip-room-label">WORLDWIDE VIP</div><h3>Worldwide VIP Group</h3><p>Meet VIP members across Circle Panda in a dedicated private chat.</p><div className="vip-room-bottom"><span>🌐 Global community</span><button type="button" className={myVip ? 'vip-room-button' : 'vip-room-button locked'} disabled={busy} onClick={() => void openVipGroup('worldwide')}>{myVip ? 'Enter room ↗' : '🔒 Unlock VIP'}</button></div></article>
-          {myCountry && <article className="vip-room-card country-vip-room"><div className="vip-room-ornament">♛</div><div className="vip-room-label">COUNTRY VIP</div><h3>{myCountry} VIP Group</h3><p>A country-only room for VIP members in your saved profile country. Other countries stay hidden.</p><div className="vip-room-bottom"><span>⌖ {myCountry} only</span><button type="button" className={myVip ? 'vip-room-button' : 'vip-room-button locked'} disabled={busy} onClick={() => void openVipGroup('country')}>{myVip ? 'Enter room ↗' : '🔒 Unlock VIP'}</button></div></article>}
+          {myCountry && <article className="vip-room-card country-vip-room"><div className="vip-room-ornament">♛</div><div className="vip-room-label">COUNTRY VIP</div><h3>{myCountry} VIP Group</h3><div className="vip-room-bottom"><span>⌖ {myCountry} only</span><button type="button" className={myVip ? 'vip-room-button' : 'vip-room-button locked'} disabled={busy} onClick={() => void openVipGroup('country')}>{myVip ? 'Enter room ↗' : '🔒 Unlock VIP'}</button></div></article>}
         </div>
-        <div className="vip-unlock-grid"><div><span>♛</span><strong>VIP-only group chat</strong><small>Membership checked by Supabase</small></div><div><span>◉</span><strong>Member connections</strong><small>Open conversations from the room</small></div><div><span>◈</span><strong>Gold-circle status</strong><small>{myVip ? 'VIP active' : 'VIP required'}</small></div></div>
-        {!myVip && <p className="vip-unlock-note">VIP room access is enforced by the backend. Live subscription checkout still requires payment-provider configuration; tapping this card will not falsely grant VIP status.</p>}
+        <div className="vip-unlock-grid"><div><span>♛</span><strong>VIP-only group chat</strong></div><div><span>◉</span><strong>Member connections</strong><small>Open conversations from the room</small></div><div><span>◈</span><strong>Gold-circle status</strong><small>{myVip ? 'VIP active' : 'VIP required'}</small></div></div>
+        
       </section>
       {loading ? <div className="empty-state">Loading groups…</div> : groups.length ? <div className="group-cards">{groups.filter(g=>!g.is_vip).map(group => {
         const count = memberCounts[group.id] || 0;
@@ -2524,7 +2524,7 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
     </div>
 
     <section className="vip-dashboard-section">
-      <div className="vip-section-heading"><div><p className="eyebrow">PRIVATE SPACES</p><h3>Enter the Gold Circle</h3><p>Two separate VIP rooms, with country access based on your saved profile country.</p></div><span className="vip-section-spark">✧</span></div>
+      <div className="vip-section-heading"><div><p className="eyebrow">PRIVATE SPACES</p><h3>Enter the Gold Circle</h3></div><span className="vip-section-spark">✧</span></div>
       <div className="vip-dashboard-room-grid">
         <article className="vip-dashboard-room worldwide"><div className="vip-room-topline"><span>🌐 WORLDWIDE</span><span>✦ VIP ONLY</span></div><div className="vip-room-emblem">✧</div><h4>Worldwide VIP Group</h4><p>Connect with VIP members across the Circle Panda community in a dedicated private room.</p><button type="button" className="vip-gold-button" onClick={() => onNavigate('Groups')}>View worldwide room ↗</button></article>
         <article className="vip-dashboard-room country"><div className="vip-room-topline"><span>⌖ COUNTRY ROOM</span><span>✦ VIP ONLY</span></div><div className="vip-room-emblem">♛</div><h4>{country ? country + ' VIP Group' : 'Your Country VIP Group'}</h4><p>{country ? 'A country-only room for VIP members whose saved profile country is ' + country + '.' : 'Complete the country field in your profile to reveal the matching country VIP room.'}</p><button type="button" className="vip-gold-button" onClick={() => onNavigate('Groups')}>View country room ↗</button></article>
@@ -2535,11 +2535,11 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
       <div className="vip-section-heading"><div><p className="eyebrow">VIP PRIVILEGES</p><h3>What your Gold Circle unlocks</h3><p>Use these shortcuts to test the VIP experience in the rebuilt app.</p></div></div>
       <div className="vip-benefit-grid">
         <article><span>💬</span><div><strong>Messaging without BC fees</strong><p>VIP users are intended to send private messages without the normal per-message BC charge.</p><small>Verify in live chat flow</small></div></article>
-        <article><span>💗</span><div><strong>Dating access</strong><p>Explore dating profiles and request-to-chat flows. The planned VIP experience avoids ad gates after the initial free period.</p><button type="button" onClick={() => onNavigate('Dating')}>Open dating ↗</button></div></article>
+        <article><span>💗</span><div><strong>Dating access</strong><button type="button" onClick={() => onNavigate('Dating')}>Open dating ↗</button></div></article>
         <article><span>◉</span><div><strong>Private VIP groups</strong><p>Worldwide and country VIP rooms are separate from regular groups and do not need three members to open.</p><button type="button" onClick={() => onNavigate('Groups')}>Open groups ↗</button></div></article>
-        <article><span>▣</span><div><strong>VIP-to-VIP calls</strong><p>Calls and admin-controlled call permissions are part of the planned VIP experience; this shortcut does not start a call yet.</p><small>Connection still required</small></div></article>
+        <article><span>▣</span><div><strong>VIP-to-VIP calls</strong></div></article>
         <article><span>◈</span><div><strong>Non-expiring BC wallet</strong><p>Review your balance and wallet transactions. VIP status does not silently change the stored coin balance.</p><button type="button" onClick={() => onNavigate('Wallet')}>View wallet ↗</button></div></article>
-        <article><span>⚙</span><div><strong>Owner controls</strong><p>Administrators can adjust economy settings from the admin area. Access is role-checked by the backend.</p>{isAdmin ? <button type="button" onClick={() => onNavigate('Admin')}>Open admin ↗</button> : <small>Admin role required</small>}</div></article>
+        <article><span>⚙</span><div><strong>Owner controls</strong>{isAdmin ? <button type="button" onClick={() => onNavigate('Admin')}>Open admin ↗</button> : <small>Admin role required</small>}</div></article>
       </div>
     </section>
     <p className="vip-dashboard-footnote">Membership is read from the new Circle Panda database. A visible VIP badge is not a substitute for server-side permission checks; payment, calls, and any privilege not connected end-to-end must be tested separately.</p>
@@ -2667,7 +2667,7 @@ function GlobalActionSlotAdmin({onSaved}:{onSaved:(row:GlobalActionSlotRow)=>voi
   }
   return <section className="admin-dashboard-section global-action-admin">
     <p className="eyebrow">APP-WIDE ACTIVITY SHORTCUT</p><h3>Floating activity icon</h3>
-    <p className="feature-copy">Choose what appears at the lower-left of app pages. This replaces the fixed Hot Seat header shortcut. The saved choice is shared through Supabase; it is hidden on the Profile/settings page.</p>
+    
     {loading ? <div className="empty-state">Loading activity slot…</div> : <>
       <label className="global-action-toggle"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)} /> Show the floating activity icon across the app</label>
       <div className="global-action-admin-grid">
@@ -2912,11 +2912,11 @@ function AdminFeature({userId,onGlobalActionSlotSaved}:{userId:string;onGlobalAc
 
   return <section className="feature-panel admin-panel">
     <div className="feature-icon">🛡️</div><p className="eyebrow">CIRCLE PANDA CONTROL ROOM</p><h2>Admin dashboard</h2>
-    <p className="feature-copy">Live operational overview and controls for the new Circle Panda backend. A dash means the current admin session could not read that table; it is not reported as zero.</p>
+    
     <div className="admin-overview-heading"><div><h3>Platform overview</h3><p className="feature-copy">Live counts from the connected database.</p></div><button className="primary-button" onClick={()=>void loadOverview()} disabled={metricsLoading}>{metricsLoading?'Refreshing…':'Refresh overview'}</button></div>
     <div className="admin-metric-grid">{metrics.map(metric=><article className="admin-metric-card" key={metric.label}><span>{metric.label}</span><strong>{metricsLoading?'…':metric.value}</strong><small>{metric.detail}</small></article>)}</div>
     <GlobalActionSlotAdmin onSaved={onGlobalActionSlotSaved} />
-    <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><p className="feature-copy">Platform-wide Hot Seat settings are managed here, not on the public Hot Seat page.</p><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></div>
+    <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></div>
     <div className="admin-module-grid">
       <a href="#admin-vip">👑 <strong>Account & VIP management</strong><span>Find users and manage VIP access</span></a>
       <a href="#admin-economy">🪙 <strong>BC economy & rewards</strong><span>Manage database-backed reward values</span></a>
@@ -2928,7 +2928,7 @@ function AdminFeature({userId,onGlobalActionSlotSaved}:{userId:string;onGlobalAc
     <div id="admin-vip" className="admin-dashboard-section"><h3>Account & VIP management</h3><VipAdminControls /></div>
     {notice && <div className="notice inline-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
     {loading ? <div className="empty-state">Loading settings…</div> : settings.length ? <div id="admin-economy" className="admin-dashboard-section"><h3>BC economy & rewards</h3><div className="admin-settings">{settings.map(row=><div className="admin-setting-row" key={row.setting_key}><div><strong>{row.setting_key.replaceAll('_',' ')}</strong><small>Updated {new Date(row.updated_at).toLocaleString()}</small></div><input type="number" min="0" step="1" value={drafts[row.setting_key] ?? String(row.numeric_value)} onChange={e=>setDrafts(prev=>({...prev,[row.setting_key]:e.target.value}))}/><button className="primary-button" disabled={busyKey===row.setting_key || Number(drafts[row.setting_key])===Number(row.numeric_value)} onClick={()=>void save(row.setting_key)}>{busyKey===row.setting_key?'Saving…':'Save'}</button></div>)}</div></div> : <div id="admin-economy" className="empty-state"><p>No economy settings were found.</p></div>}
-    <section id="admin-coins" className="admin-coin-packages admin-dashboard-section"><div><p className="eyebrow">WALLET STORE</p><h3>BC coin packages</h3><p className="feature-copy">Set the BC amount and NGN price for each bundle. Checkout stays unavailable until a payment provider is configured.</p></div>{coinPackages.length ? coinPackages.map(pack=>{const draft=coinPackageDrafts[pack.id] || {name:pack.name,coins:String(pack.coins),price_ngn:pack.price_ngn==null?'':String(pack.price_ngn),enabled:pack.enabled,sort_order:String(pack.sort_order)};return <article className="admin-coin-package-row" key={pack.id}><div className="admin-blast-plan-id"><strong>{pack.id} BC package</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><div className="admin-coin-package-fields"><label>Package name<input value={draft.name} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,name:e.target.value}}))}/></label><label>Coins<input type="number" min="1" step="1" value={draft.coins} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,coins:e.target.value}}))}/></label><label>Price (NGN)<input type="number" min="0" step="0.01" value={draft.price_ngn} placeholder="Set price" onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,price_ngn:e.target.value}}))}/></label><label>Sort order<input type="number" step="1" value={draft.sort_order} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,sort_order:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='coin:'+pack.id} onClick={()=>void saveCoinPackage(pack.id)}>{busyKey==='coin:'+pack.id?'Saving…':'Save package'}</button></article>}) : <div className="empty-state">No coin packages configured.</div>}</section>
+    <section id="admin-coins" className="admin-coin-packages admin-dashboard-section"><div><p className="eyebrow">WALLET STORE</p><h3>BC coin packages</h3></div>{coinPackages.length ? coinPackages.map(pack=>{const draft=coinPackageDrafts[pack.id] || {name:pack.name,coins:String(pack.coins),price_ngn:pack.price_ngn==null?'':String(pack.price_ngn),enabled:pack.enabled,sort_order:String(pack.sort_order)};return <article className="admin-coin-package-row" key={pack.id}><div className="admin-blast-plan-id"><strong>{pack.id} BC package</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><div className="admin-coin-package-fields"><label>Package name<input value={draft.name} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,name:e.target.value}}))}/></label><label>Coins<input type="number" min="1" step="1" value={draft.coins} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,coins:e.target.value}}))}/></label><label>Price (NGN)<input type="number" min="0" step="0.01" value={draft.price_ngn} placeholder="Set price" onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,price_ngn:e.target.value}}))}/></label><label>Sort order<input type="number" step="1" value={draft.sort_order} onChange={e=>setCoinPackageDrafts(prev=>({...prev,[pack.id]:{...draft,sort_order:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='coin:'+pack.id} onClick={()=>void saveCoinPackage(pack.id)}>{busyKey==='coin:'+pack.id?'Saving…':'Save package'}</button></article>}) : <div className="empty-state">No coin packages configured.</div>}</section>
     <section id="admin-blast" className="admin-blast-plans admin-dashboard-section"><div><p className="eyebrow">EVENT PROMOTION</p><h3>Event Blast plans</h3><p className="feature-copy">Set paid reach, duration and BC pricing here. Changes apply to new Event Blasts.</p></div>{blastPlans.length ? blastPlans.map(plan=>{const draft=planDrafts[plan.id] || {name:plan.name,unique_reach:String(plan.unique_reach),duration_minutes:String(plan.duration_minutes),price_usd:String(plan.price_usd),bc_price:plan.bc_price == null?'':String(plan.bc_price),enabled:plan.enabled};return <article className="admin-blast-plan-row" key={plan.id}><div className="admin-blast-plan-id"><strong>{plan.id}</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><label>Plan name<input value={draft.name} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,name:e.target.value}}))}/></label><div className="admin-blast-plan-fields"><label>Unique reach<input type="number" min="1" step="1" value={draft.unique_reach} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,unique_reach:e.target.value}}))}/></label><label>Duration (minutes)<input type="number" min="1" step="1" value={draft.duration_minutes} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,duration_minutes:e.target.value}}))}/></label><label>Price (USD)<input type="number" min="0" step="0.01" value={draft.price_usd} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,price_usd:e.target.value}}))}/></label><label>Price (BC)<input type="number" min="0" step="1" value={draft.bc_price} placeholder="Unavailable" onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,bc_price:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='blast:'+plan.id} onClick={()=>void saveBlastPlan(plan.id)}>{busyKey==='blast:'+plan.id?'Saving…':'Save plan'}</button></article>}) : <div className="empty-state">No Event Blast plans are configured.</div>}</section>
     <section id="admin-sponsors" className="admin-dashboard-section">
       <p className="eyebrow">REVENUE OPERATIONS</p><h3>Sponsor campaigns</h3>
