@@ -131,7 +131,7 @@ export default function LocationFields({ value, onChange, required = false }: Pr
     <SearchSelect label="Area / Local Government" value={value.area || value.city} options={cities}
       disabled={!value.country} loading={cityLoading || (Boolean(value.country) && !cityApi)}
       onOpen={loadCityData} required={required} onChange={area => update({ area, city: area })} />
-    {value.country && stateApi && !hasStates && <p className="location-hint">This country’s location dataset does not list states or provinces; you can still select an area.</p>}
+    {value.country && stateApi && !hasStates && }
     <p className="location-hint">Start typing to search, then select a result. Location fields are selections, not free-text entries.</p>
   </div>;
 }
