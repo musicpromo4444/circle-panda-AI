@@ -107,7 +107,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     if (!supabase || !isAdmin || busy || !campaignDraft.title.trim()) return;
     setBusy(true); setNotice('');
     const {error} = await supabase.rpc('admin_create_daily_activity_campaign',{
-      p_campaign_type:campaignDraft.campaign_type,p_title:campaignDraft.title.trim(),p_description:campaignDraft.description.trim(),
+      p_campaign_type:activeTab==='sweepstake'?'sweepstake':activeTab==='challenges'?'challenge':activeTab==='gifts'?'gift':activeTab==='giveaways'?'giveaway':'icon',p_title:campaignDraft.title.trim(),p_description:campaignDraft.description.trim(),
       p_icon:campaignDraft.icon.trim()||'🎁',p_prize_type:campaignDraft.prize_type,p_prize_amount:Number(campaignDraft.prize_amount||0),
       p_prize_label:campaignDraft.prize_label.trim(),p_starts_at:new Date().toISOString(),p_ends_at:null,
       p_max_entries:campaignDraft.max_entries?Number(campaignDraft.max_entries):null,p_status:'open'
