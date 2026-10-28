@@ -19,7 +19,7 @@ type SlotConfig = {
   target_url: string | null;
   updated_at?: string;
 };
-type Draft = Omit<SlotConfig, 'slot_key' | 'updated_at'>;
+type Draft = Omit<SlotConfig, 'slot_key' | 'updated_at' | 'target_url'> & { target_url:string };
 const LIBRARY = [
   { key:'hot_seat', label:'Hot Seat', icon:'🔥', title:'HOT SEAT', description:'Questions, gifts and the next seat', action:'navigate' as ActionType, destination:'HotSeat' },
   { key:'daily_activities', label:'Daily Activities', icon:'🎯', title:'DAILY ACTIVITIES', description:'Games, daily challenges and rewards', action:'navigate' as ActionType, destination:'DailyActivities' },
@@ -105,7 +105,7 @@ export default function GlobalActionSlot({ isAdmin, section, onNavigate }: {
     });
     if (error) setNotice(error.message);
     else {
-      const row = data as SlotConfig;
+      const row = (Array.isArray(data) ? data[0] : data) as SlotConfig;
       setConfig(row); setDraft(asDraft(row)); setNotice('Universal action icon saved. It will update across the app.');
     }
     setSaving(false);
