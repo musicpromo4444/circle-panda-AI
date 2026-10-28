@@ -5,7 +5,8 @@ type DailyActivityItem = { activity_key:string; title:string; description:string
 type Completion = { day_number:number; activity_key:string; reward_bc:number; completed_at:string };
 type CatalogItem = { activity_key:string; title:string; icon:string; is_ad_only:boolean; enabled:boolean };
 type StatePayload = { schedule?:DailyActivityItem[]; completed?:Completion[]; current_day?:number; cycle_start_date?:string };
-type Campaign = { id:string; campaign_type:string; title:string; description:string; icon:string; prize_type:string; prize_amount:number; prize_label:string; starts_at:string; ends_at:string|null; max_entries:number|null; status:string };\ntype ActivityReward = { id:string; reward_type:string; reward_amount:number; reward_label:string; created_at:string };
+type Campaign = { id:string; campaign_type:string; title:string; description:string; icon:string; prize_type:string; prize_amount:number; prize_label:string; starts_at:string; ends_at:string|null; max_entries:number|null; status:string };
+type ActivityReward = { id:string; reward_type:string; reward_amount:number; reward_label:string; created_at:string };
 
 export default function DailyActivitiesFeature({ userId, onReward, adminOnly = false }: { userId:string; onReward:()=>Promise<void>; adminOnly?:boolean }) {
   const [schedule,setSchedule] = useState<DailyActivityItem[]>([]);
