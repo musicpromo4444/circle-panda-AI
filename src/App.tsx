@@ -467,7 +467,7 @@ export default function App() {
         setNotice('A verification code was requested for your phone. Enter the SMS code below and choose a new password.');
       }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not request a password reset. Check that phone/SMS authentication is configured.');
+      setNotice(error instanceof Error ? error.message : 'Could not reset password. Please try again.');
     } finally { setAuthBusy(false); }
   }
 
@@ -736,7 +736,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin, on
     'Wallet': { icon: '◈', title: 'Your Panda wallet', body: 'Your wallet and activity rewards will be managed by server-side rules, with balances that do not expire.', next: ['BC balance and transaction history', 'Activity XP and levels', 'VIP and reward controls'] },
   };
   const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>];
-  return <section className="feature-panel"><div className="feature-icon">{item.icon}</div><p className="eyebrow">THE CIRCLE PANDA EXPERIENCE</p><h2>{item.title}</h2><p className="feature-copy">{item.body}</p><div className="feature-list">{item.next.map((next, i) => <div key={next}><span>{String(i + 1).padStart(2, '0')}</span>{next}<b>↗</b></div>)}</div><div className="feature-note"><span className="pulse" /> This section is being connected to the new backend in stages.</div></section>;
+  return <section className="feature-panel"><div className="feature-icon">{item.icon}</div><p className="eyebrow">THE CIRCLE PANDA EXPERIENCE</p><h2>{item.title}</h2><p className="feature-copy">{item.body}</p><div className="feature-list">{item.next.map((next, i) => <div key={next}><span>{String(i + 1).padStart(2, '0')}</span>{next}<b>↗</b></div>)}</div></section>;
 }
 
 
@@ -1620,7 +1620,7 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
         const minutes = Math.floor((remaining%3600000)/60000);
         const seconds = Math.floor((remaining%60000)/1000);
         return <article className="dating-card dating-match-card" key={match.id}>
-          <div className="dating-card-top"><div className="dating-avatar">💗</div><div><strong>{person?.name || 'Your match'}</strong><p>{match.photos_revealed ? 'Photos revealed' : remaining > 0 ? `Free Dating chat active · ${datingFreeHours} hours total` : 'Waiting for mutual confirmation'}</p></div></div>
+          <div className="dating-card-top"><div className="dating-avatar">💗</div><div><strong>{person?.name || 'Your match'}</strong><p>{match.photos_revealed ? 'Photos unlocked' : remaining > 0 ? `Free Dating chat active · ${datingFreeHours} hours total` : 'Awaiting confirmation'}</p></div></div>
           {person?.photoUrl ? <img className="dating-match-photo" src={person.photoUrl} alt={match.photos_revealed ? 'Dating match photo' : 'Blurred dating photo'} /> : <div className="dating-photo-preview match-photo-placeholder">🐼</div>}
           {person?.headline && <p className="dating-about">{person.headline}</p>}
           {remaining > 0 ? <p className="dating-match-countdown">Free chat · {String(hours).padStart(2,'0')}:{String(minutes).padStart(2,'0')}:{String(seconds).padStart(2,'0')} remaining</p>
@@ -2086,7 +2086,7 @@ function WalletFeature({ userId }: { userId: string }) {
 
   return <div className="wallet-page">
     {walletScreen === 'buy' ? <div className="wallet-shop-page"><button type="button" className="wallet-back-link" onClick={() => setWalletScreen('overview')}>← Back to wallet</button><section className="wallet-shop-hero"><div className="wallet-shop-coin"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · BC STORE</p><h2>Buy Panda Coins</h2></section><div className="coin-package-grid">{coinPackages.map(pack => <button type="button" key={pack.id} className={`coin-package-card ${selectedPackage===pack.id?'selected':''}`} onClick={() => setSelectedPackage(pack.id)}><span className="package-ribbon">{pack.id==='1200'?'POPULAR':'BC BUNDLE'}</span><span className="package-coin"><WalletPandaCoin /></span><strong>{Number(pack.coins).toLocaleString()} BC</strong><small>{pack.name} bundle</small><span className="package-price">{pack.price_ngn != null && Number(pack.price_ngn)>0 ? `₦${Number(pack.price_ngn).toLocaleString('en-NG')}` : 'Price not configured'}</span></button>)}</div><div className="wallet-checkout-note"><strong>{!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'Package price needs to be configured' : 'Secure Paystack checkout'}</strong><p>{!chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0 ? 'This coin bundle cannot be purchased yet because its NGN price has not been set. An administrator must configure the price in the Admin dashboard first.' : 'Checkout is handled securely by Paystack. Coins are credited only after the signed payment confirmation is verified by the server.'}</p><button type="button" className="primary-button full" disabled={busy || !chosenCoinPackage || chosenCoinPackage.price_ngn == null || Number(chosenCoinPackage.price_ngn) <= 0} onClick={() => void startCoinPurchase()}>{busy ? 'Preparing secure checkout…' : 'Continue to secure checkout ↗'}</button>{notice&&<p className="wallet-shop-notice">{notice}</p>}</div></div> : <>
-    <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" onClick={startFreeAdReward} title="Requires a verified rewarded-ad provider"><span aria-hidden="true">▷</span> Get 100 Free BC · Setup required <span aria-hidden="true">↗</span></button></div>
+    <div className="wallet-purchase-actions"><button type="button" className="buy-coins-button" onClick={() => { setNotice(''); setWalletScreen('buy'); }}><span aria-hidden="true">◈</span> Buy Coins <span aria-hidden="true">↗</span></button><button type="button" className="free-bc-button" onClick={startFreeAdReward} title="Get free BC"><span aria-hidden="true">▷</span> Get 100 Free BC · Setup required <span aria-hidden="true">↗</span></button></div>
     <section className="wallet-hero"><div><p className="eyebrow">YOUR PANDA ECONOMY</p><h2>Your Panda wallet</h2></div><div className="wallet-coin wallet-coin-emblem"><WalletPandaCoin /><span>BC</span></div></section>
     {notice && <div className="notice inline-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
     <div className="wallet-balance-grid"><article className="balance-card primary-balance"><span>PANDA COINS</span><strong>{loading ? '—' : isAdminUnlimited ? '∞' : bcBalance.toLocaleString()}</strong><small>{isAdminUnlimited ? 'ADMIN · UNLIMITED BC' : 'BC · non-expiring balance'}</small></article><article className="balance-card"><span>WALLET COINS</span><strong>{loading ? '—' : wcBalance.toLocaleString()}</strong><small>WC balance</small></article><article className="balance-card"><span>EXPERIENCE POINTS</span><strong>{loading ? '—' : xpTotal.toLocaleString()}</strong><small>{levelName} level</small></article></div>
@@ -2478,7 +2478,7 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
   useEffect(() => {
     let alive = true;
     async function loadMembership() {
-      if (!supabase) { setLoading(false); setNotice('Connect the rebuilt app to Supabase to check VIP membership.'); return; }
+      if (!supabase) { setLoading(false); setNotice('Please try again.'); return; }
       const [profileResult, roleResult, walletResult] = await Promise.all([
         supabase.from('profiles').select('is_vip,vip_expires_at,country').eq('id', userId).maybeSingle(),
         supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle(),
