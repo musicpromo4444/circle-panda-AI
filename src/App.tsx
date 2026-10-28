@@ -122,7 +122,11 @@ export default function App() {
         if (error) { console.error('Could not load the global activity slot:', error.message); return; }
         if (data) setGlobalActionSlot(data as GlobalActionSlotRow);
       });
-    return () => { alive = false; };
+    const channel = client.channel('circle-panda-global-action-slot')
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'global_action_slot',filter:'slot_key=eq.primary'},payload => {
+        if (alive) setGlobalActionSlot(payload.new as GlobalActionSlotRow);
+      }).subscribe();
+    return () => { alive = false; void channel.unsubscribe(); };
   }, [session?.user.id, section]);
 
   useEffect(() => {
