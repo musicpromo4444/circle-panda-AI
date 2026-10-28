@@ -32,7 +32,7 @@ function normalizePhone(value: string) {
 Deno.serve(async (req) => {
   const cors = corsHeadersFor(req);
   const origin = req.headers.get("origin");
-  if (origin && !allowedOrigins.has(origin)) return json({ error: "Origin not allowed." }, 403);
+  if (origin && !allowedOrigins.has(origin)) return json({ error: "Origin not allowed." }, 403, { "Vary": "Origin" });
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
   const contentLength = Number(req.headers.get("content-length") || 0);
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !serviceKey) return json({ error: "Signup service is not configured." }, 500);
+    if (!url || !serviceKey) return json({ error: "Signup service is not configured." }, 500, cors);
 
     const body = await req.json();
     const name = String(body?.name ?? "").trim();
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     });
     if (rateLimitError) {
       console.error("signup rate limit check failed:", rateLimitError.message);
-      return json({ error: "Account creation protection is temporarily unavailable. Please try again later." }, 503);
+      return json({ error: "Account creation protection is temporarily unavailable. Please try again later." }, 503, cors);
     }
     if (signupAllowed !== true) {
       return json({ error: "Too many account creation attempts from this connection. Please wait an hour and try again." }, 429, cors);
