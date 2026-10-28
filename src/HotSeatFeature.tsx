@@ -167,7 +167,6 @@ export default function HotSeatFeature({userId,onOpenWallet,onOpenMessages,isAdm
 
   const currentHost=session?.host_id===userId;
   const streamEmbed=useMemo(()=>youtubeEmbedUrl(session?.stream_url),[session?.stream_url]);
-  const topBid=useMemo(()=>bids.filter(b=>['pending','selected','won'].includes(b.status)).sort((a,b)=>Number(b.amount_bc)-Number(a.amount_bc)||new Date(a.created_at).getTime()-new Date(b.created_at).getTime())[0]??null,[bids]);
   const myBid=bids.find(b=>b.bidder_id===userId&&['pending','selected','won'].includes(b.status));
   const myReactions=reactions.filter(r=>r.user_id===userId).map(r=>r.reaction);
   const likeCount=reactions.filter(r=>r.reaction==='like').length;
