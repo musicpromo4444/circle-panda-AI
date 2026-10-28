@@ -20,6 +20,14 @@ drop policy if exists "Signed-in users can read global action slot" on public.gl
 create policy "Signed-in users can read global action slot"
   on public.global_action_slot for select to authenticated using (true);
 
+do $
+begin
+  if exists (select 1 from pg_publication where pubname='supabase_realtime')
+     and not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='global_action_slot') then
+    alter publication supabase_realtime add table public.global_action_slot;
+  end if;
+end $;
+
 insert into public.global_action_slot (slot_key,enabled,action_key,icon,label,description)
 values ('primary',true,'HotSeat','🔥','HOT SEAT','Questions, gifts and the next seat')
 on conflict (slot_key) do nothing;
