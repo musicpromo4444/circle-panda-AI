@@ -701,7 +701,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: 
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
   if (section === 'Admin') return isAdmin ? <AdminFeature userId={userId} /> : <section className="feature-panel"><h2>Administrator access required</h2><p className="feature-copy">Configuration pages are available only to authorized Circle Panda administrators.</p></section>;
-  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>, { icon: string; title: string; body: string; next: string[] }> = {
+  const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat' | 'DailyActivities'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
     'Events': { icon: '▦', title: 'Make plans worth showing up for', body: 'Discover events around you or publish one of your own. Event cards will connect directly to the creator.', next: ['Create and publish events', 'Attendance and attendee counts', 'Creator messaging and event boosts'] },
