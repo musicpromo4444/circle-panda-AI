@@ -21,6 +21,7 @@ type EventRow = { id: string; creator_id: string; title: string; description: st
 type EventBlastPlan = { id: string; name: string; unique_reach: number; duration_minutes: number; price_usd: number; bc_price: number | null };
 type WalletTransactionRow = { id: string; currency: string; amount: number; reason: string; created_at: string };
 type CoinPackage = { id:string; name:string; coins:number; price_ngn:number|null; sort_order:number };
+type GlobalActionSlotRow = { slot_key:'primary'; enabled:boolean; action_key:Section; icon:string; label:string; description:string; updated_at?:string };
 
 const sections: { name: Section; icon: string; hint: string }[] = [
   { name: 'Confessions', icon: '🔒', hint: 'Say what is on your mind' },
@@ -46,6 +47,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [section, setSection] = useState<Section>('Confessions');
+  const [globalActionSlot, setGlobalActionSlot] = useState<GlobalActionSlotRow | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try { return localStorage.getItem('circle-panda-theme') === 'light' ? 'light' : 'dark'; }
     catch { return 'dark'; }
@@ -109,6 +111,19 @@ export default function App() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const client = supabase;
+    if (!client || !session?.user.id) { setGlobalActionSlot(null); return () => { alive = false; }; }
+    void client.from('global_action_slot').select('slot_key,enabled,action_key,icon,label,description,updated_at').eq('slot_key','primary').maybeSingle()
+      .then(({data,error}) => {
+        if (!alive) return;
+        if (error) { console.error('Could not load the global activity slot:', error.message); return; }
+        if (data) setGlobalActionSlot(data as GlobalActionSlotRow);
+      });
+    return () => { alive = false; };
+  }, [session?.user.id, section]);
 
   useEffect(() => {
     const client = supabase;
@@ -645,7 +660,7 @@ export default function App() {
       </button>)}
     </nav>
     <main className="main-area">
-      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><PandaCoinArtwork /></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button type="button" className="hot-seat-header-shortcut" title="Open Hot Seat" aria-label="Open Hot Seat" onClick={() => setSection('HotSeat')}><span aria-hidden="true">🔥</span><small>HOT SEAT</small></button><button className="icon-button theme-toggle" title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><svg viewBox="0 0 24 24" aria-hidden="true">{theme==='dark' ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></> : <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></>}</svg></button><button className="icon-button notification-button" title="Notifications" aria-label="Notifications" onClick={() => setNotice('You are all caught up.')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button><button className="profile-chip profile-chip-icon-only" onClick={() => setSection('Profile')} title="Your profile" aria-label="Your profile"><span className="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2z"/></svg></span></button></div></header>
+      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><PandaCoinArtwork /></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="icon-button theme-toggle" title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><svg viewBox="0 0 24 24" aria-hidden="true">{theme==='dark' ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></> : <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></>}</svg></button><button className="icon-button notification-button" title="Notifications" aria-label="Notifications" onClick={() => setNotice('You are all caught up.')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button><button className="profile-chip profile-chip-icon-only" onClick={() => setSection('Profile')} title="Your profile" aria-label="Your profile"><span className="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2z"/></svg></span></button></div></header>
       <div className={`page-wrap page-${section.toLowerCase()}`}>
 <div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confessions' : section === 'HotSeat' ? 'Hot Seat' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div></div>
                 {(section === 'Home' || section === 'Confessions') && <div className="confession-shortcuts" aria-label="Circle Panda quick actions"><button type="button" className="confession-shortcut" onClick={() => setShowCrushUploadChoice(true)}><span className="shortcut-circle upload-3d"><span className="shortcut-symbol">＋</span></span><strong>Upload</strong><small>Upload your crush picture</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','wcw'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♡</span></span><strong className="shortcut-acronym">WCW</strong><small>Woman Crush Wednesday</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','mcm'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♛</span></span><strong className="shortcut-acronym">MCM</strong><small>Man Crush Monday</small></button></div>}
@@ -674,6 +689,7 @@ export default function App() {
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
+    {globalActionSlot?.enabled && section !== 'Profile' && <button type="button" className="global-action-floating" title={globalActionSlot.description || globalActionSlot.label} aria-label={`Open ${globalActionSlot.label}`} onClick={() => { setSection(globalActionSlot.action_key); setNotice(''); }}><span className="global-action-floating-icon" aria-hidden="true">{globalActionSlot.icon}</span><span className="global-action-floating-copy"><strong>{globalActionSlot.label}</strong><small>{globalActionSlot.description}</small></span></button>}
     {dailyRewardPopup && !onboardingStep && <div className="daily-game-backdrop"><section className="daily-game-modal daily-login-modal" role="dialog" aria-modal="true" aria-labelledby="daily-login-title"><div className="daily-login-ad-slot" aria-label="Top banner ad placement">Sponsored banner</div><div className="daily-game-big-icon"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · 7-DAY COIN STREAK</p><h2 id="daily-login-title">Your daily reward is here!</h2><div className="daily-login-earned">+{dailyRewardAmount} BC</div><div className="daily-streak-strip">{[{day:'MON',key:'daily_login_monday'},{day:'TUE',key:'daily_login_tuesday'},{day:'WED',key:'daily_login_wednesday'},{day:'THU',key:'daily_login_thursday'},{day:'FRI',key:'daily_login_friday'},{day:'SAT',key:'daily_login_saturday'},{day:'SUN',key:'daily_login_sunday'}].map(item=><div key={item.day} className="daily-streak-day"><small>{item.day}</small><strong>{dailyLoginSchedule[item.key]??0}</strong><span>BC</span></div>)}</div><p>{dailyRewardNewClaim?'Your reward has been credited to your wallet.':'Today’s reward was already claimed. Your streak is ready for tomorrow.'}</p><button type="button" className="primary-button full" onClick={continueFromDailyReward}>Continue to today’s activity →</button><div className="daily-login-ad-slot" aria-label="Bottom banner ad placement">Sponsored banner</div></section></div>}
     {dailyActivityPopup && !dailyRewardPopup && !onboardingStep && dailyActivityToday && <div className="daily-game-backdrop"><section className="daily-game-modal daily-login-modal" role="dialog" aria-modal="true" aria-labelledby="daily-activity-popup-title"><p className="eyebrow">CIRCLE PANDA · YOUR DAILY CHALLENGE</p><div className="daily-game-big-icon">{dailyActivityToday.icon}</div><h2 id="daily-activity-popup-title">{dailyActivityToday.title}</h2><p>{dailyActivityToday.description}</p><div className="daily-reward-line"><span>Activity reward</span><strong>{dailyActivityToday.is_ad_only?'Verified ad required':dailyActivityToday.reward_bc+' BC'}</strong></div>{!dailyActivityToday.enabled||!dailyActivityToday.activity_enabled?<p>This activity is paused by the admin today. Explore Circle Panda and check back tomorrow.</p>:<p>This is the one activity selected for you today. Complete it to collect its reward.</p>}<button type="button" className="primary-button full" onClick={openDailyActivity}>Open today’s activity →</button><button type="button" className="secondary-button full" onClick={()=>setDailyActivityPopup(false)}>Explore Circle Panda first</button></section></div>}
     {onboardingStep && <div className="onboarding-backdrop"><section className="onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
@@ -706,7 +722,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: 
   if (section === 'Profile') return <ProfileFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
   if (section === 'Crush') return <CrushFeature userId={userId} />;
-  if (section === 'Admin') return <AdminFeature userId={userId} />;
+  if (section === 'Admin') return <AdminFeature userId={userId} onGlobalActionSlotSaved={setGlobalActionSlot} />;
   const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
     'Dating': { icon: '♡', title: 'Make room for a connection', body: 'Build a dating profile, discover people who fit your preferences, and let every match lead to a conversation.', next: ['Dating profile setup', 'Country, state and area filters', 'Send, accept and decline requests'] },
@@ -2592,7 +2608,78 @@ type AdminMetric = { label:string; value:string; detail:string };
 type SponsorCampaignRow = { id:string; sponsor_name:string; campaign_name:string; description:string; format:string; target_url:string|null; countries:string[]; status:string; starts_at:string; ends_at:string; budget_naira:number; cpm_naira:number; target_impressions:number; impressions:number; clicks:number; created_at:string };
 type ModerationReportRow = { report_type:'crush'|'group_user'|'feed_post'; report_id:string; target_user_id:string; group_id:string|null; reporter_id:string; reason:string; details:string; created_at:string; review_status:'open'|'reviewed'|'dismissed'; reviewed_at:string|null; review_note:string; content_preview:string; reporter_label?:string; target_label?:string };
 type AdminAuditRow = { id:number; actor_id:string; actor_label:string; action:string; target_type:string; target_id:string|null; details:Record<string,unknown>; created_at:string };
-function AdminFeature({userId}:{userId:string}) {
+function GlobalActionSlotAdmin({onSaved}:{onSaved:(row:GlobalActionSlotRow)=>void}) {
+  const [enabled,setEnabled] = useState(true);
+  const [actionKey,setActionKey] = useState<Section>('HotSeat');
+  const [icon,setIcon] = useState('🔥');
+  const [label,setLabel] = useState('HOT SEAT');
+  const [description,setDescription] = useState('Questions, gifts and the next seat');
+  const [loading,setLoading] = useState(true);
+  const [saving,setSaving] = useState(false);
+  const [notice,setNotice] = useState('');
+  useEffect(() => {
+    let alive = true;
+    if (!supabase) { setLoading(false); setNotice('Supabase is not configured.'); return; }
+    void supabase.from('global_action_slot').select('slot_key,enabled,action_key,icon,label,description,updated_at').eq('slot_key','primary').maybeSingle()
+      .then(({data,error}) => {
+        if (!alive) return;
+        if (error) setNotice(error.message);
+        else if (data) {
+          const row = data as GlobalActionSlotRow;
+          setEnabled(row.enabled); setActionKey(row.action_key); setIcon(row.icon); setLabel(row.label); setDescription(row.description);
+          onSaved(row);
+        }
+        setLoading(false);
+      });
+    return () => { alive = false; };
+  }, [onSaved]);
+  function chooseAction(value: string) {
+    const presets:Record<string,{icon:string;label:string;description:string}> = {
+      HotSeat:{icon:'🔥',label:'HOT SEAT',description:'Questions, gifts and the next seat'},
+      Wallet:{icon:'🪙',label:'PANDA WALLET',description:'Open your Panda Coin wallet'},
+      Events:{icon:'📅',label:'EVENTS',description:'Discover events in your circle'},
+      Groups:{icon:'👥',label:'GROUPS',description:'Join your people and conversations'},
+      Dating:{icon:'💗',label:'DATING',description:'Meet someone new'},
+      Messages:{icon:'💬',label:'MESSAGES',description:'Open your conversations'},
+      VIP:{icon:'👑',label:'VIP CIRCLE',description:'Explore VIP membership and benefits'},
+      Confessions:{icon:'🔒',label:'CONFESSIONS',description:'Open Secret Confessions'},
+    };
+    if (!(value in presets)) return;
+    setActionKey(value as Section); setIcon(presets[value].icon); setLabel(presets[value].label); setDescription(presets[value].description);
+  }
+  async function save() {
+    if (!supabase || saving) return;
+    setSaving(true); setNotice('');
+    try {
+      const {data,error} = await supabase.rpc('admin_update_global_action_slot',{
+        p_enabled:enabled,p_action_key:actionKey,p_icon:icon.trim(),p_label:label.trim(),p_description:description.trim(),
+      });
+      if (error) throw error;
+      const row = (Array.isArray(data) ? data[0] : data) as GlobalActionSlotRow | null;
+      if (!row) throw new Error('The backend did not return the saved activity slot.');
+      onSaved(row); setNotice(enabled ? `${row.label} is saved and will appear on app pages.` : 'The global activity icon is hidden on app pages.');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not save the global activity slot.'); }
+    finally { setSaving(false); }
+  }
+  return <section className="admin-dashboard-section global-action-admin">
+    <p className="eyebrow">APP-WIDE ACTIVITY SHORTCUT</p><h3>Floating activity icon</h3>
+    <p className="feature-copy">Choose what appears at the lower-left of app pages. This replaces the fixed Hot Seat header shortcut. The saved choice is shared through Supabase; it is hidden on the Profile/settings page.</p>
+    {loading ? <div className="empty-state">Loading activity slot…</div> : <>
+      <label className="global-action-toggle"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)} /> Show the floating activity icon across the app</label>
+      <div className="global-action-admin-grid">
+        <label>Activity / destination<select value={actionKey} onChange={e=>chooseAction(e.target.value)}>{['HotSeat','Wallet','Events','Groups','Dating','Messages','VIP','Confessions'].map(key=><option key={key} value={key}>{key==='HotSeat'?'Hot Seat':key==='VIP'?'VIP Circle':key}</option>)}</select></label>
+        <label>Icon (emoji or symbol)<input value={icon} onChange={e=>setIcon(e.target.value)} maxLength={12} required /></label>
+        <label>Label<input value={label} onChange={e=>setLabel(e.target.value)} maxLength={32} required /></label>
+        <label>Description<input value={description} onChange={e=>setDescription(e.target.value)} maxLength={180} /></label>
+      </div>
+      <div className="global-action-preview"><span>{icon || '✦'}</span><div><strong>{label || 'ACTIVITY'}</strong><small>{description || 'App-wide activity shortcut'}</small></div></div>
+      <button type="button" className="primary-button" disabled={saving || !icon.trim() || !label.trim()} onClick={()=>void save()}>{saving?'Saving…':'Save floating activity'}</button>
+    </>}
+    {notice && <p className="notice" role="status">{notice}</p>}
+  </section>;
+}
+
+function AdminFeature({userId,onGlobalActionSlotSaved}:{userId:string;onGlobalActionSlotSaved:(row:GlobalActionSlotRow)=>void}) {
   const [auditRows,setAuditRows] = useState<AdminAuditRow[]>([]);
   const [auditLoading,setAuditLoading] = useState(false);
   const [moderationReports,setModerationReports] = useState<ModerationReportRow[]>([]);
@@ -2824,6 +2911,7 @@ function AdminFeature({userId}:{userId:string}) {
     <p className="feature-copy">Live operational overview and controls for the new Circle Panda backend. A dash means the current admin session could not read that table; it is not reported as zero.</p>
     <div className="admin-overview-heading"><div><h3>Platform overview</h3><p className="feature-copy">Live counts from the connected database.</p></div><button className="primary-button" onClick={()=>void loadOverview()} disabled={metricsLoading}>{metricsLoading?'Refreshing…':'Refresh overview'}</button></div>
     <div className="admin-metric-grid">{metrics.map(metric=><article className="admin-metric-card" key={metric.label}><span>{metric.label}</span><strong>{metricsLoading?'…':metric.value}</strong><small>{metric.detail}</small></article>)}</div>
+    <GlobalActionSlotAdmin onSaved={onGlobalActionSlotSaved} />
     <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><p className="feature-copy">Platform-wide Hot Seat settings are managed here, not on the public Hot Seat page.</p><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></div>
     <div className="admin-module-grid">
       <a href="#admin-vip">👑 <strong>Account & VIP management</strong><span>Find users and manage VIP access</span></a>
