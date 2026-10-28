@@ -351,6 +351,7 @@ export default function App() {
     event.preventDefault();
     if (!supabase) return;
     setAuthBusy(true); setNotice('');
+    let signupAccountCreated = false;
     try {
       if (authMode === 'signup') {
         if (password.length < 8) throw new Error('Choose a password with at least 8 characters.');
@@ -379,6 +380,7 @@ export default function App() {
         });
         if (createError) throw createError;
         if (!created?.ok) throw new Error(created?.error || 'Could not create your account.');
+        signupAccountCreated = true;
         const { error: loginError } = await supabase.auth.signInWithPassword(
           isEmailIdentifier
             ? { email: identifier.toLowerCase(), password }
@@ -402,7 +404,13 @@ export default function App() {
         setNotice('You are signed in.');
       }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Authentication failed. Please try again.');
+      if (signupAccountCreated) {
+        setAuthMode('login');
+        setConfirmPassword('');
+        setNotice('Your account was created, but automatic sign-in did not finish. Sign in with the same phone number or email and password.');
+      } else {
+        setNotice(error instanceof Error ? error.message : 'Authentication failed. Please try again.');
+      }
     } finally { setAuthBusy(false); }
   }
 
