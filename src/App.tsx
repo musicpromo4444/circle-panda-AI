@@ -709,7 +709,7 @@ function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: 
     'Messages': { icon: '↗', title: 'Every connection leads to a conversation', body: 'Message requests from dating, events, groups and the feed will live alongside your accepted chats.', next: ['Incoming and sent requests', 'Accept or decline requests', 'Private chats and unread indicators'] },
     'Wallet': { icon: '◈', title: 'Your Panda wallet', body: 'Your wallet and activity rewards will be managed by server-side rules, with balances that do not expire.', next: ['BC balance and transaction history', 'Activity XP and levels', 'VIP and reward controls'] },
   };
-  const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat'>];
+  const item = content[section as Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat' | 'DailyActivities'>];
   return <section className="feature-panel"><div className="feature-icon">{item.icon}</div><p className="eyebrow">THE CIRCLE PANDA EXPERIENCE</p><h2>{item.title}</h2><p className="feature-copy">{item.body}</p><div className="feature-list">{item.next.map((next, i) => <div key={next}><span>{String(i + 1).padStart(2, '0')}</span>{next}<b>↗</b></div>)}</div><div className="feature-note"><span className="pulse" /> This section is being connected to the new backend in stages.</div></section>;
 }
 
