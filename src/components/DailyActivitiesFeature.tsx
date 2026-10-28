@@ -35,7 +35,7 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
       supabase.rpc('get_daily_activity_state'),
       supabase.from('daily_activity_catalog').select('activity_key,title,icon,is_ad_only,enabled').order('sort_order'),
       adminOnly ? supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle() : Promise.resolve({data:null,error:null}),
-      supabase.from('daily_activity_campaigns').select('id,campaign_type,title,description,icon,prize_type,prize_amount,prize_label,starts_at,ends_at,max_entries,status').eq('status','open').lte('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}),
+      supabase.from('daily_activity_campaigns').select('id,campaign_type,title,description,icon,prize_type,prize_amount,prize_label,starts_at,ends_at,max_entries,status').eq('status','open').lte('starts_at',new Date().toISOString()).or('ends_at.is.null,ends_at.gt.'+new Date().toISOString()).order('starts_at',{ascending:true}),
       supabase.from('daily_activity_campaign_entries').select('campaign_id').eq('user_id',userId)
     ]);
     if (stateResult.error) setNotice(stateResult.error.message);
@@ -47,8 +47,10 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
     }
     if (catalogResult.error) setNotice(catalogResult.error.message);
     else setCatalog((catalogResult.data??[]) as CatalogItem[]);
-    if (!campaignResult.error) setCampaigns((campaignResult.data??[]) as Campaign[]);
-    if (!entryResult.error) setJoinedCampaignIds(new Set(((entryResult.data??[]) as {campaign_id:string}[]).map(row=>row.campaign_id)));
+    if (campaignResult.error) setNotice(campaignResult.error.message);
+    else setCampaigns((campaignResult.data??[]) as Campaign[]);
+    if (entryResult.error) setNotice(entryResult.error.message);
+    else setJoinedCampaignIds(new Set(((entryResult.data??[]) as {campaign_id:string}[]).map(row=>row.campaign_id)));
     setIsAdmin(adminOnly && Boolean(roleResult.data));
     setLoading(false);
   }
@@ -76,7 +78,11 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
   useEffect(()=>{
     if(gameStep!==3) return;
     const timer=window.setTimeout(()=>{
-      if(selected?.activity_key==='wheel_spin') setGameResult('Wheel round complete. No prize outcome is configured for this activity yet.');
+      if(selected?.activity_key==='wheel_spin') {
+        const wheelSegments=['Panda Power','Lucky Star','Golden Leaf','Mystery'];
+        const segment=wheelSegments[Math.floor(Math.random()*wheelSegments.length)];
+        setGameResult('The wheel stopped on '+segment+'. Complete this activity to claim its configured daily BC reward.');
+      }
       setGameStep(1);
     },selected?.activity_key==='coin_drop'?4000:2200);
     return ()=>window.clearTimeout(timer);
