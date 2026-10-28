@@ -2539,7 +2539,7 @@ function VipFeature({ userId, onNavigate }: { userId: string; onNavigate: (secti
         <article><span>◉</span><div><strong>Private VIP groups</strong><button type="button" onClick={() => onNavigate('Groups')}>Open groups ↗</button></div></article>
         <article><span>▣</span><div><strong>VIP-to-VIP calls</strong></div></article>
         <article><span>◈</span><div><strong>Non-expiring BC wallet</strong><button type="button" onClick={() => onNavigate('Wallet')}>View wallet ↗</button></div></article>
-        <article><span>⚙</span><div><strong>Owner controls</strong>{isAdmin ? <button type="button" onClick={() => onNavigate('Admin')}>Open admin ↗</button> : }</div></article>
+        <article><span>⚙</span><div><strong>Owner controls</strong>{isAdmin && <button type="button" onClick={() => onNavigate('Admin')}>Open admin ↗</button>}</div></article>
       </div>
     </section>
     
