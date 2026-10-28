@@ -66,6 +66,15 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
   }
   useEffect(()=>{void load();},[userId]);
   useEffect(()=>{
+    if(!supabase) return;
+    const channel=supabase.channel('daily-activities-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'daily_activity_campaigns'},()=>{void load();})
+      .on('postgres_changes',{event:'*',schema:'public',table:'daily_activity_campaign_entries'},()=>{void load();})
+      .on('postgres_changes',{event:'*',schema:'public',table:'user_activity_rewards',filter:'user_id=eq.'+userId},()=>{void load();})
+      .subscribe();
+    return ()=>{void channel.unsubscribe();};
+  },[userId]);
+  useEffect(()=>{
     if(!gameActive) return;
     const timer=window.setInterval(()=>setGameSeconds(seconds=>Math.max(0,seconds-1)),1000);
     return ()=>window.clearInterval(timer);
