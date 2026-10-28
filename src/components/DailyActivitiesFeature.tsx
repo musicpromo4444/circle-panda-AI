@@ -97,7 +97,6 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
   useEffect(()=>{
     if(gameStep!==3) return;
     const timer=window.setTimeout(()=>{
-      if(selected?.activity_key==='wheel_spin') setGameResult('Round complete.');
       setGameStep(1);
     },selected?.activity_key==='coin_drop'?4000:2200);
     return ()=>window.clearTimeout(timer);
@@ -170,10 +169,10 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
   async function chooseOption(choice:string) {
     if(!supabase || !selected || busy) return;
     setBusy(true);setNotice('');
-    const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:choice});
+    const {data,error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:choice});
     if(error){setNotice(error.message);setBusy(false);return;}
-    const outcome='Choice recorded.';
-    setGameResult(outcome);setGameStep(3);setBusy(false);
+    const payload=data as {outcome?:string;correct?:boolean};
+    setGameResult(payload.outcome || (payload.correct ? 'Nice one!' : 'Choice saved.'));setGameStep(3);setBusy(false);
   }
   async function startCoinDrop() {
     if(!supabase || busy) return;
@@ -197,7 +196,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
   async function playStep() {
     if(!supabase || !selected || busy) return;
     setBusy(true);setNotice('');
-    const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:'start_round'});
+    const {data,error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:'start_round'});
     if(error){setNotice(error.message);setBusy(false);return;}
     setBusy(false);
     if(selected.activity_key==='panda_slots') {
@@ -211,7 +210,7 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
       lucky_cards:'Shuffling your lucky cards…',secret_reveal:'Unlocking your secret prompt…',panda_puzzle:'Checking the puzzle…',
       coin_drop:'Your Coin Drop round is complete!',panda_slots:'The slot result is ready!',mystery_box:'Opening your mystery box…',panda_target:'Locking onto the target…'
     };
-    setGameResult(results[selected.activity_key]??'Calculating your result…');setGameStep(3);
+    const payload=data as {outcome?:string};setGameResult(payload.outcome||results[selected.activity_key]||'Calculating your result…');setGameStep(3);
   }
   return <section className="daily-activities-panel">
     <div className="daily-activities-heading"><div><p className="eyebrow">YOUR 7-DAY CHALLENGE</p><h2>Daily Activities</h2><p>Claim your daily login reward, then complete the activity assigned for the day.</p></div><span className="daily-streak-mark">🐼 <b>{completed.length}/7</b><small>days complete</small></span></div>
