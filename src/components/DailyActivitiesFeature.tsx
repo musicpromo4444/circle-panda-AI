@@ -5,6 +5,8 @@ type DailyActivityItem = { activity_key:string; title:string; description:string
 type Completion = { day_number:number; activity_key:string; reward_bc:number; completed_at:string };
 type CatalogItem = { activity_key:string; title:string; icon:string; is_ad_only:boolean; enabled:boolean };
 type StatePayload = { schedule?:DailyActivityItem[]; completed?:Completion[]; current_day?:number; cycle_start_date?:string };
+type Campaign = { id:string; campaign_type:'sweepstake'|'challenge'|'gift'|'giveaway'|'icon'; title:string; description:string; icon:string; prize_type:'BC'|'WC'|'gift'|'icon'|'badge'; prize_amount:number; prize_label:string; starts_at:string; ends_at:string|null; max_entries:number|null; status:'draft'|'open'|'closed'|'drawn'; winner_id:string|null; created_at:string };
+type ActivityReward = { id:string; reward_type:string; reward_amount:number; reward_label:string; created_at:string };
 
 export default function DailyActivitiesFeature({ userId, onReward }: { userId:string; onReward:()=>Promise<void> }) {
   const [schedule,setSchedule] = useState<DailyActivityItem[]>([]);
@@ -25,13 +27,22 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
   const [busy,setBusy] = useState(false);
   const [loading,setLoading] = useState(true);
   const [notice,setNotice] = useState('');
+  const [activeTab,setActiveTab] = useState<'games'|'sweepstake'|'challenges'|'gifts'|'giveaways'|'icons'|'rewards'>('games');
+  const [campaigns,setCampaigns] = useState<Campaign[]>([]);
+  const [enteredCampaigns,setEnteredCampaigns] = useState<Set<string>>(()=>new Set());
+  const [entryCounts,setEntryCounts] = useState<Record<string,number>>({});
+  const [myRewards,setMyRewards] = useState<ActivityReward[]>([]);
+  const [campaignDraft,setCampaignDraft] = useState({campaign_type:'sweepstake',title:'',description:'',icon:'🎁',prize_type:'BC',prize_amount:'100',prize_label:'',max_entries:''});
 
   async function load() {
     if (!supabase) { setLoading(false); return; }
-    const [stateResult,catalogResult,roleResult] = await Promise.all([
+    const [stateResult,catalogResult,roleResult,campaignResult,entryResult,rewardResult] = await Promise.all([
       supabase.rpc('get_daily_activity_state'),
       supabase.from('daily_activity_catalog').select('activity_key,title,icon,is_ad_only,enabled').order('sort_order'),
-      supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle()
+      supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle(),
+      supabase.from('daily_activity_campaigns').select('id,campaign_type,title,description,icon,prize_type,prize_amount,prize_label,starts_at,ends_at,max_entries,status,winner_id,created_at').order('created_at',{ascending:false}).limit(100),
+      supabase.from('daily_activity_campaign_entries').select('campaign_id,user_id').eq('user_id',userId),
+      supabase.from('user_activity_rewards').select('id,reward_type,reward_amount,reward_label,created_at').eq('user_id',userId).order('created_at',{ascending:false}).limit(50)
     ]);
     if (stateResult.error) setNotice(stateResult.error.message);
     else {
@@ -43,6 +54,14 @@ export default function DailyActivitiesFeature({ userId, onReward }: { userId:st
     if (catalogResult.error) setNotice(catalogResult.error.message);
     else setCatalog((catalogResult.data??[]) as CatalogItem[]);
     setIsAdmin(Boolean(roleResult.data));
+    if (campaignResult.error) setNotice(campaignResult.error.message);
+    else setCampaigns((campaignResult.data??[]) as Campaign[]);
+    setEnteredCampaigns(new Set((entryResult.data??[]).map((row:{campaign_id:string})=>row.campaign_id)));
+    if (roleResult.data && !entryResult.error) {
+      const {data:allEntries} = await supabase.from('daily_activity_campaign_entries').select('campaign_id');
+      const counts:Record<string,number>={}; (allEntries??[]).forEach((row:{campaign_id:string})=>{counts[row.campaign_id]=(counts[row.campaign_id]??0)+1;}); setEntryCounts(counts);
+    }
+    if (rewardResult.error) setNotice(rewardResult.error.message); else setMyRewards((rewardResult.data??[]) as ActivityReward[]);
     setLoading(false);
   }
   useEffect(()=>{void load();},[userId]);
