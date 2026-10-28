@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 
 type Campaign = {
@@ -41,7 +42,7 @@ export default function DailyCampaignAdmin({userId}:{userId:string}) {
   },[]);
   useEffect(()=>{void load();},[load,userId]);
 
-  async function create(event:React.FormEvent<HTMLFormElement>){
+  async function create(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(!supabase||busy)return;
     if(endsAt && new Date(endsAt).getTime()<=new Date(startsAt).getTime()){setNotice('End time must be later than the start time.');return;}
