@@ -2918,11 +2918,13 @@ function AdminFeature({userId,onGlobalActionSlotSaved}:{userId:string;onGlobalAc
     <div className="admin-metric-grid">{metrics.map(metric=><article className="admin-metric-card" key={metric.label}><span>{metric.label}</span><strong>{metricsLoading?'…':metric.value}</strong><small>{metric.detail}</small></article>)}</div>
     <GlobalActionSlotAdmin onSaved={onGlobalActionSlotSaved} />
     <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></div>
+    <div id="admin-daily-activities" className="admin-dashboard-section"><h3>Daily Activities & Rewards</h3><DailyActivitiesFeature userId={userId} onReward={async () => { window.dispatchEvent(new Event('circle-panda-wallet-updated')); }} /></div>
     <div className="admin-module-grid">
       <a href="#admin-vip">👑 <strong>Account & VIP management</strong><span>Find users and manage VIP access</span></a>
       <a href="#admin-economy">🪙 <strong>BC economy & rewards</strong><span>Manage database-backed reward values</span></a>
       <a href="#admin-coins">💰 <strong>Coin store packages</strong><span>Configure coin bundles and NGN prices</span></a>
       <a href="#admin-blast">📣 <strong>Event Blast</strong><span>Configure reach, duration and plan prices</span></a>
+      <a href="#admin-daily-activities">🎁 <strong>Daily Activities</strong><span>Games, sweepstakes, gifts, giveaways and icons</span></a>
       <a href="#admin-sponsors">🤝 <strong>Sponsors & ads</strong><span>Create draft campaigns, manage delivery status and review campaign performance</span></a>
       <a href="#admin-moderation">🛡️ <strong>Safety & moderation</strong><span>Report records exist; moderation actions remain to be connected</span></a>
     </div>
