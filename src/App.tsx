@@ -2825,6 +2825,7 @@ function AdminFeature({userId}:{userId:string}) {
         <a href="#admin-overview">📊 <span><strong>Overview</strong><small>Platform counts and operational signals</small></span></a>
         <a href="#admin-hot-seat">🔥 <span><strong>Hot Seat</strong><small>Live, gifts, questions and bidding rules</small></span></a>
         <a href="#admin-daily-activities">🎯 <span><strong>Daily activities</strong><small>Games, sweepstakes, giveaways and rewards</small></span></a>
+        <a href="#admin-daily-campaigns">🎁 <span><strong>Giveaway campaigns</strong><small>Create, open, close and draw prize campaigns</small></span></a>
         <a href="#admin-dating">💗 <span><strong>Dating</strong><small>Messaging window and pricing controls</small></span></a>
         <a href="#admin-vip">👑 <span><strong>Users & VIP</strong><small>Find accounts and manage membership</small></span></a>
         <a href="#admin-economy">🪙 <span><strong>Economy & XP</strong><small>Rewards, coin costs and experience</small></span></a>
