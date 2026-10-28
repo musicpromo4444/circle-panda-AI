@@ -132,7 +132,7 @@ export default function GlobalActionSlot({ isAdmin, section, onNavigate }: {
 
   const showFloating = Boolean(config?.enabled) && section!=='Profile' && section!=='Admin';
   return <>
-    {isAdmin && section==='Admin' && <section className="global-action-admin-panel">
+    {isAdmin && section==='Admin' && <section id="admin-global-slot" className="global-action-admin-panel">
       <div className="global-action-admin-heading"><div><p className="eyebrow">UNIVERSAL FLOATING ICON</p><h2>Global activity &amp; promotion slot</h2><p>Choose what every member sees in the fixed lower-left icon position. It can launch an app page, open giveaway instructions, or show a sponsor ad popup. The choice is saved in Supabase and updates across the app.</p></div><span className="global-action-admin-badge">ADMIN ONLY</span></div>
       {notice && <div className="notice inline-notice">{notice}<button type="button" onClick={()=>setNotice('')}>×</button></div>}
       {loading ? <div className="empty-state">Loading global icon settings…</div> : <form className="global-action-admin-form" onSubmit={event=>void save(event)}>
