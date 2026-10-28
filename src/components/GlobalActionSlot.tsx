@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 
 type SectionName = 'Confessions' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'DailyActivities' | 'VIP' | 'Wallet';
@@ -51,8 +52,8 @@ const asDraft = (row: SlotConfig): Draft => ({
   popup_body:row.popup_body, target_url:row.target_url || ''
 });
 
-export default function GlobalActionSlot({ userId, isAdmin, section, onNavigate }: {
-  userId:string; isAdmin:boolean; section:string; onNavigate:(section:SectionName)=>void;
+export default function GlobalActionSlot({ isAdmin, section, onNavigate }: {
+  isAdmin:boolean; section:string; onNavigate:(section:SectionName)=>void;
 }) {
   const [config,setConfig] = useState<SlotConfig|null>(null);
   const [draft,setDraft] = useState<Draft>(DEFAULT);
@@ -66,7 +67,7 @@ export default function GlobalActionSlot({ userId, isAdmin, section, onNavigate 
     const {data,error} = await supabase.from('global_action_slot').select('*').eq('slot_key','primary').maybeSingle();
     if (error) setNotice(error.message);
     else if (data) {
-      const row = data as SlotConfig;
+      const row = (Array.isArray(data) ? data[0] : data) as SlotConfig;
       setConfig(row); setDraft(asDraft(row));
     }
     setLoading(false);
@@ -92,7 +93,7 @@ export default function GlobalActionSlot({ userId, isAdmin, section, onNavigate 
     }));
   }
 
-  async function save(event:React.FormEvent<HTMLFormElement>) {
+  async function save(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !isAdmin || saving) return;
     setSaving(true); setNotice('');
