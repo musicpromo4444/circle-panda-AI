@@ -26,6 +26,8 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
   const [busy,setBusy] = useState(false);
   const [loading,setLoading] = useState(true);
   const [notice,setNotice] = useState('');
+  const [campaigns,setCampaigns] = useState<Campaign[]>([]);
+  const [joinedCampaignIds,setJoinedCampaignIds] = useState<Set<string>>(()=>new Set());
 
   async function load() {
     if (!supabase) { setLoading(false); return; }
