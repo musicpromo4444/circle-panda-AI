@@ -63,4 +63,4 @@ begin
  return c;
 end $$;
 revoke all on function public.admin_create_daily_activity_campaign(text,text,text,text,text,bigint,text,timestamptz,timestamptz,integer,text) from public,anon;
-grant execute on function public.admin_create_daily_activity_campaign(text,text,text,text,text,bigint,timestamptz,timestamptz,integer,text) to authenticated;
+grant execute on function public.admin_create_daily_activity_campaign(text,text,text,text,text,bigint,text,timestamptz,timestamptz,integer,text) to authenticated;
