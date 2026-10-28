@@ -5,7 +5,7 @@ type DailyActivityItem = { activity_key:string; title:string; description:string
 type Completion = { day_number:number; activity_key:string; reward_bc:number; completed_at:string };
 type CatalogItem = { activity_key:string; title:string; icon:string; is_ad_only:boolean; enabled:boolean };
 type StatePayload = { schedule?:DailyActivityItem[]; completed?:Completion[]; current_day?:number; cycle_start_date?:string };
-type Campaign = { id:string; campaign_type:string; title:string; description:string; icon:string; prize_type:string; prize_amount:number; prize_label:string; starts_at:string; ends_at:string|null; max_entries:number|null; status:string };
+type Campaign = { id:string; campaign_type:string; title:string; description:string; icon:string; prize_type:string; prize_amount:number; prize_label:string; starts_at:string; ends_at:string|null; max_entries:number|null; status:string };\ntype ActivityReward = { id:string; reward_type:string; reward_amount:number; reward_label:string; created_at:string };
 
 export default function DailyActivitiesFeature({ userId, onReward, adminOnly = false }: { userId:string; onReward:()=>Promise<void>; adminOnly?:boolean }) {
   const [schedule,setSchedule] = useState<DailyActivityItem[]>([]);
@@ -27,16 +27,17 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
   const [loading,setLoading] = useState(true);
   const [notice,setNotice] = useState('');
   const [campaigns,setCampaigns] = useState<Campaign[]>([]);
-  const [joinedCampaignIds,setJoinedCampaignIds] = useState<Set<string>>(()=>new Set());
+  const [joinedCampaignIds,setJoinedCampaignIds] = useState<Set<string>>(()=>new Set());\n  const [rewards,setRewards] = useState<ActivityReward[]>([]);
 
   async function load() {
     if (!supabase) { setLoading(false); return; }
-    const [stateResult,catalogResult,roleResult,campaignResult,entryResult] = await Promise.all([
+    const [stateResult,catalogResult,roleResult,campaignResult,entryResult,rewardResult] = await Promise.all([
       supabase.rpc('get_daily_activity_state'),
       supabase.from('daily_activity_catalog').select('activity_key,title,icon,is_ad_only,enabled').order('sort_order'),
       adminOnly ? supabase.from('user_roles').select('role').eq('user_id',userId).eq('role','admin').maybeSingle() : Promise.resolve({data:null,error:null}),
       supabase.from('daily_activity_campaigns').select('id,campaign_type,title,description,icon,prize_type,prize_amount,prize_label,starts_at,ends_at,max_entries,status').eq('status','open').lte('starts_at',new Date().toISOString()).or('ends_at.is.null,ends_at.gt.'+new Date().toISOString()).order('starts_at',{ascending:true}),
-      supabase.from('daily_activity_campaign_entries').select('campaign_id').eq('user_id',userId)
+      supabase.from('daily_activity_campaign_entries').select('campaign_id').eq('user_id',userId),
+      supabase.from('user_activity_rewards').select('id,reward_type,reward_amount,reward_label,created_at').eq('user_id',userId).order('created_at',{ascending:false}).limit(10)
     ]);
     if (stateResult.error) setNotice(stateResult.error.message);
     else {
@@ -51,6 +52,8 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
     else setCampaigns((campaignResult.data??[]) as Campaign[]);
     if (entryResult.error) setNotice(entryResult.error.message);
     else setJoinedCampaignIds(new Set(((entryResult.data??[]) as {campaign_id:string}[]).map(row=>row.campaign_id)));
+    if (rewardResult.error) setNotice(rewardResult.error.message);
+    else setRewards((rewardResult.data??[]) as ActivityReward[]);
     setIsAdmin(adminOnly && Boolean(roleResult.data));
     setLoading(false);
   }
@@ -178,6 +181,7 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
       <div className="daily-week-track">{Array.from({length:7},(_,i)=>{const day=i+1;const done=completed.some(row=>row.day_number===day);return <div key={day} className={done?'daily-day done':day===currentDay?'daily-day current':day<currentDay?'daily-day missed':'daily-day locked'}><span>{done?'✓':day<currentDay?'–':day}</span><small>Day {day}</small></div>})}</div>
       {today?<article className="daily-today-card"><div className="daily-activity-icon">{today.icon}</div><div className="daily-today-copy"><span className="eyebrow">DAY {currentDay} · {today.is_ad_only?'SPONSORED':'TODAY’S CHALLENGE'}</span><h3>{today.title}</h3><p>{today.description}</p><div className="daily-reward-line"><span>Reward</span><strong>{today.is_ad_only?'Ad verification required':today.reward_bc+' BC'}</strong></div>{todayCompleted?<span className="daily-completed-label">✓ Completed today</span>:!today.enabled||!today.activity_enabled?<span className="daily-completed-label">Unavailable — check back later</span>:<button type="button" className="primary-button" disabled={busy} onClick={()=>beginActivity(today)}>{today.is_ad_only?'Sponsored activity · Setup required':'Start today’s activity →'}</button>}</div></article>:<div className="empty-state">Today’s activity has not been assigned yet.</div>}
       {!adminOnly && <div className="daily-activity-library daily-campaigns-public"><div className="section-title-row"><div><h3>Giveaways &amp; sweepstakes</h3><p>Join current campaigns and check each prize and its rules before entering.</p></div></div>{campaigns.length===0?<div className="empty-state">No open giveaways or sweepstakes right now. Check back soon.</div>:<div className="daily-library-grid">{campaigns.map(campaign=><article className="daily-library-card" key={campaign.id}><span>{campaign.icon}</span><strong>{campaign.title}</strong><small>{campaign.campaign_type} · {campaign.prize_label||campaign.prize_type+' '+campaign.prize_amount}</small><small>{campaign.description||'See campaign details and eligibility.'}</small>{campaign.max_entries&&<small>Entry limit: {campaign.max_entries}</small>}<button type="button" className={joinedCampaignIds.has(campaign.id)?'secondary-button':'primary-button'} disabled={busy||joinedCampaignIds.has(campaign.id)} onClick={()=>void joinCampaign(campaign)}>{joinedCampaignIds.has(campaign.id)?'✓ Entered':'Enter campaign'}</button></article>)}</div>}</div>}
+      {!adminOnly && <div className="daily-activity-library daily-my-rewards"><div className="section-title-row"><div><h3>My prizes &amp; rewards</h3><p>Rewards awarded from giveaways and sweepstakes appear here.</p></div><button type="button" className="secondary-button" onClick={()=>void load()}>Refresh</button></div>{rewards.length===0?<div className="empty-state">No campaign prizes yet. Enter a campaign to be eligible for its draw.</div>:<div className="daily-library-grid">{rewards.map(reward=><article className="daily-library-card" key={reward.id}><span>🏆</span><strong>{reward.reward_label||reward.reward_type}</strong><small>{reward.reward_type}{reward.reward_amount>0?' · '+reward.reward_amount:''}</small><small>Awarded {new Date(reward.created_at).toLocaleString()}</small></article>)}</div>}</div>}
       {adminOnly && isAdmin && <div className="daily-activity-library"><div className="section-title-row"><div><h3>Activity library</h3><p>One activity is assigned each day by the Circle Panda admin.</p></div></div><div className="daily-library-grid">{catalog.map(item=><article key={item.activity_key} className={'daily-library-card '+(today?.activity_key===item.activity_key?'assigned':'')}><span>{item.icon}</span><strong>{item.title}</strong><small>{item.is_ad_only?'Sponsored · no BC until ad verification':item.enabled?'Available in the activity rotation':'Currently disabled'}</small>{today?.activity_key===item.activity_key&&<em>Assigned today</em>}</article>)}</div></div>}
       {adminOnly && isAdmin && <div className="daily-admin-schedule"><div className="section-title-row"><div><h3>Admin · 7-day schedule</h3><p>Assign one library activity and set its BC reward for each day.</p></div></div>{schedule.map(row=>{const d=drafts[row.day_number]??{activity_key:row.activity_key,reward_bc:String(row.reward_bc),enabled:row.enabled};return <div className="daily-admin-row" key={row.day_number}><strong>Day {row.day_number}</strong><select value={d.activity_key} onChange={e=>setDrafts(old=>({...old,[row.day_number]:{...d,activity_key:e.target.value}}))}>{catalog.map(c=><option key={c.activity_key} value={c.activity_key}>{c.title}</option>)}</select><label><span>BC reward</span><input type="number" min="0" value={d.reward_bc} onChange={e=>setDrafts(old=>({...old,[row.day_number]:{...d,reward_bc:e.target.value}}))}/></label><label className="daily-enabled-toggle"><input type="checkbox" checked={d.enabled} onChange={e=>setDrafts(old=>({...old,[row.day_number]:{...d,enabled:e.target.checked}}))}/> Enabled</label><button type="button" className="secondary-button" disabled={busy} onClick={()=>void saveDay(row.day_number)}>Save</button></div>})}</div>}
     </>}
