@@ -1,5 +1,6 @@
 alter table public.global_action_slot drop constraint if exists global_action_slot_action_key_check;
 alter table public.global_action_slot add constraint global_action_slot_action_key_check check (action_key = any (array['HotSeat','DailyActivities','Wallet','Events','Groups','Dating','Messages','VIP','Confessions']));
+update public.global_action_slot set action_key='DailyActivities',icon='🎁',label='DAILY ACTIVITIES',description='Games, sweepstakes and giveaways',updated_at=now() where slot_key='primary' and action_key='HotSeat' and label='HOT SEAT';
 create or replace function public.admin_update_global_action_slot(p_enabled boolean,p_action_key text,p_icon text,p_label text,p_description text)
 returns public.global_action_slot language plpgsql security definer set search_path=''
 as $$
