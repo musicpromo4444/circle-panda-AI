@@ -2838,7 +2838,7 @@ function AdminFeature({userId}:{userId:string}) {
     <div id="admin-overview" className="admin-overview-heading"><div><h3>Platform overview</h3><p className="feature-copy">Live counts from the connected database. Restricted tables are shown as unavailable, never misreported as zero.</p></div><button className="primary-button" onClick={()=>void loadOverview()} disabled={metricsLoading}>{metricsLoading?'Refreshing…':'Refresh overview'}</button></div>
     <div className="admin-metric-grid">{metrics.map(metric=><article className="admin-metric-card" key={metric.label}><span>{metric.label}</span><strong>{metricsLoading?'…':metric.value}</strong><small>{metric.detail}</small></article>)}</div>
     <div className="admin-operations-strip">
-      <a href="#admin-moderation"><span>Open moderation reports</span><strong>{moderationLoading?'…':moderationReports.filter(row=>row.review_action==='open').length}</strong><small>Reports awaiting review</small></a>
+      <a href="#admin-moderation"><span>Open moderation reports</span><strong>{moderationLoading?'…':moderationReports.filter(row=>row.review_status==='open').length}</strong><small>Reports awaiting review</small></a>
       <a href="#admin-sponsors"><span>Draft campaigns</span><strong>{sponsorLoading?'…':sponsorCampaigns.filter(row=>row.status==='draft').length}</strong><small>Campaigns not yet activated</small></a>
       <a href="#admin-audit"><span>Audit records loaded</span><strong>{auditLoading?'…':auditRows.length}</strong><small>Most recent records available</small></a>
       <a href="#admin-economy"><span>Economy controls</span><strong>{loading?'…':settings.length}</strong><small>Database-backed settings</small></a>
