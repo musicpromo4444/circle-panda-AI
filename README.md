@@ -1,12 +1,13 @@
 # Circle Panda AI Rebuild
 
-A clean rebuild of Circle Panda using React, TypeScript, Vite, and Supabase.
+A rebuild of Circle Panda using React, TypeScript, Vite, and Supabase.
 
 ## Project boundaries
 
-- This repository and the `Circle Panda Rebuilt` Supabase project are separate from the existing production application.
-- Never commit Supabase service-role keys or other secrets. Configure public client values as deployment environment variables.
-- Database schema changes belong in `supabase/migrations/` and must be applied to the rebuild project only.
+- Work only in this repository and the `Circle Panda Rebuilt` Supabase project.
+- This rebuild is separate from the old SekuPanda application and database.
+- Never commit Supabase service-role keys, Paystack secrets, OAuth secrets, or user passwords.
+- Database schema changes belong in `supabase/migrations/` and must be applied only to the rebuild project.
 
 ## Supabase project
 
@@ -14,15 +15,23 @@ A clean rebuild of Circle Panda using React, TypeScript, Vite, and Supabase.
 - Region: `eu-west-1`
 - API URL: `https://chcyncvieekjousgzlrg.supabase.co`
 
-## Status
+## Current status
 
-The initial database foundation covers profiles, feed posts/comments/reactions, dating profiles, events/attendance, groups/membership, message requests/conversations/messages, wallet records, XP, and notifications. RLS is enabled. Anonymous feed reads use a view that omits author IDs; VIP status cannot be changed through ordinary profile updates; private conversation membership is protected; message requests use transactional RPCs that prevent self-requests and atomically create chats on acceptance. The initial React UI includes sign-up/sign-in, the feed composer, and a message-request inbox/direct-chat panel. Other feature sections and economy/admin transactional rules are still under construction.
+The rebuilt database is online and healthy. The live schema includes the core social, messaging, wallet, dating, groups, events, WCW/MCM, Hot Seat, moderation, and daily-activity systems. RLS is enabled across the application tables, and security-sensitive writes are handled through transactional RPCs with signed-in, ownership, membership, or admin checks as appropriate.
+
+The owner account `circlepandaapp@gmail.com` is configured as an administrator and permanent VIP in the rebuild project. The three registered Supabase Edge Functions are `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
+
+The latest production deployment for commit `98e46b781d1d93f19981255433b3cd62de221e79` reached **READY** and is aliased to:
+
+- https://circle-panda-ai.vercel.app
+
+The production build is not, by itself, proof that all user journeys or payment integrations have passed acceptance testing. Paystack credentials and signed-webhook testing, Google/Apple OAuth credentials, a verifiable rewarded-ad callback, leaked-password protection, and authenticated two-account plus mobile/desktop smoke tests remain launch gates. See [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) for the evidence-based checklist.
 
 ## Local development
 
-1. Copy `.env.example` to `.env.local` and set the Supabase publishable key.
+1. Copy `.env.example` to `.env.local` and set the Supabase URL and publishable/anon key.
 2. Run `npm install`.
 3. Run `npm run dev`.
 4. Run `npm run build` to type-check and create a production build.
 
-A GitHub Actions workflow runs the production build on pushes and pull requests.
+GitHub Actions runs the production build on pushes and pull requests.
