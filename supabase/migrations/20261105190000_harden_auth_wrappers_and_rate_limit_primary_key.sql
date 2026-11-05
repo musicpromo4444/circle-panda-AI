@@ -4,8 +4,18 @@ ALTER TABLE public.signup_rate_limits
   ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE public.signup_rate_limits
   ALTER COLUMN id SET NOT NULL;
-ALTER TABLE public.signup_rate_limits
-  ADD CONSTRAINT signup_rate_limits_pkey PRIMARY KEY (id);
+DO $constraint$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.signup_rate_limits'::regclass
+      AND conname = 'signup_rate_limits_pkey'
+  ) THEN
+    ALTER TABLE public.signup_rate_limits
+      ADD CONSTRAINT signup_rate_limits_pkey PRIMARY KEY (id);
+  END IF;
+END;
+$constraint$;
 
 -- Make the authentication boundary explicit in SECURITY DEFINER RPC wrappers.
 CREATE OR REPLACE FUNCTION public.claim_economy_reward(p_reward_key text)
