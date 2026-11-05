@@ -2302,11 +2302,12 @@ function GroupsFeature({ userId }: { userId: string }) {
         const { data, error } = await supabase.rpc('claim_group_media_view_once',{p_message_id:message.id});
         if (error) throw error;
         if (data !== true) { setViewedOnceMessageIds(prev=>({...prev,[message.id]:true})); setNotice('This view-once media has already been opened.'); return; }
-        setViewedOnceMessageIds(prev=>({...prev,[message.id]:true}));
       }
       const { data, error } = await supabase.storage.from('group-media').createSignedUrl(message.media_path, message.view_once ? 30 : 300);
       if (error || !data?.signedUrl) throw error || new Error('Media could not be opened.');
       setGroupMediaUrls(prev=>({...prev,[message.id]:data.signedUrl}));
+      // Only show the local "Viewed once" state after a usable media URL has been created.
+      if (message.view_once) setViewedOnceMessageIds(prev=>({...prev,[message.id]:true}));
       if (message.view_once) window.setTimeout(()=>setGroupMediaUrls(prev=>{const next={...prev};delete next[message.id];return next;}),10000);
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not open this group media.'); }
   }
