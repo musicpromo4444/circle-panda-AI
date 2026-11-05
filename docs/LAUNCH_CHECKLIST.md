@@ -49,3 +49,14 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Fixed a navigation bug in `src/App.tsx`: the daily activity prompt's action incorrectly opened Wallet; it now opens the Daily Activities section. Commit: `b931ab781c71efc32c62a9c2bea35633253d2287`.
 - Vercel build for the migration cleanup commit reached READY. The newer navigation-fix deployment is currently BUILDING; verify it reaches READY before treating that source fix as deployed.
 - Still outstanding: complete SECURITY DEFINER grant/body review, resolve or document advisor findings, enable leaked-password protection, verify Paystack/OAuth/ad provider configuration, and run authenticated two-account end-to-end tests plus Android/desktop production smoke tests. A successful build is not acceptance testing.
+
+
+## Security and performance continuation — 2026-11-05
+
+- Added a primary key to `public.signup_rate_limits` using a generated UUID. The table was empty when checked; existing inserts remain compatible because the column has a UUID default. The primary key was verified in PostgreSQL.
+- Hardened three SECURITY DEFINER RPC wrappers with explicit signed-in checks: `claim_economy_reward`, `create_group`, and `request_context_message_secure`. The inner functions already enforce ownership/admin rules; the wrappers now reject unauthenticated calls at their own boundary.
+- Optimized the 52 RLS policies flagged for per-row auth function evaluation by wrapping `auth.uid()` in scalar SELECT subqueries while preserving each policy's table, command, role, permissive mode, USING predicate and WITH CHECK predicate.
+- Re-ran Supabase advisors after the changes. The `auth_rls_initplan` warning and `no_primary_key` notice are now cleared. Remaining performance notices: 7 multiple-permissive-policy warnings and 105 unused-index informational notices. Remaining security notices: 4 RLS-enabled internal tables intentionally have no direct client policies; one public auth-provider-settings RPC is intentionally readable; 138 authenticated SECURITY DEFINER RPCs remain callable and need continued review; leaked-password protection is still disabled.
+- Latest database migrations committed: `20261105190000_harden_auth_wrappers_and_rate_limit_primary_key.sql` and `20261105200000_optimize_rls_auth_uid_initplans.sql`. Both were applied through Supabase migration tracking.
+- Latest code commit `9480684c9b8dfb0021ee1f6bc1639474a31925d8` triggered a new production deployment. At the time of this update, that deployment is QUEUED; do not treat it as deployed until it reaches READY.
+- External Auth configuration and Paystack/ad-provider setup still require owner credentials in the provider dashboards. Do not ask for or place secret values in chat, frontend code, or GitHub.
