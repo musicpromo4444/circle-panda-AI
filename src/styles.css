@@ -3130,3 +3130,9 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
  .group-chat-composer input{padding:11px 12px}
  .group-view-once-toggle{font-size:8px}
 }
+
+/* Keep group messages clean like a modern messenger bubble; sender names remain visible. */
+.group-message-display-avatar-wrap{display:none!important}
+.group-message .group-message-author{display:block;margin-bottom:4px}
+.group-chat-composer .group-view-once-toggle{max-width:74px;overflow:hidden}
+@media(max-width:390px){.group-chat-composer .group-view-once-toggle{display:none}.group-chat-composer input{min-width:0}.group-chat-composer{gap:3px}}
