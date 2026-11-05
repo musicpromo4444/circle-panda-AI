@@ -120,25 +120,26 @@ export default function App() {
     dailyClaimedFor.current = userId;
     let alive = true;
     void (async () => {
-      const { error: claimError } = await client.rpc('claim_economy_reward', { p_reward_key: 'daily_login_reward' });
-      const {data:loginSettings} = await client.from('economy_settings').select('setting_key,numeric_value').in('setting_key',['daily_login_monday','daily_login_tuesday','daily_login_wednesday','daily_login_thursday','daily_login_friday','daily_login_saturday','daily_login_sunday']);
-      if (alive && loginSettings?.length) setDailyLoginSchedule(previous=>({...previous,...Object.fromEntries(loginSettings.map((row:{setting_key:string;numeric_value:number})=>[row.setting_key,Number(row.numeric_value)]))}));
+      const {data:loginSettings} = await client.from('economy_settings').select('setting_key,numeric_value')
+        .in('setting_key',['daily_login_monday','daily_login_tuesday','daily_login_wednesday','daily_login_thursday','daily_login_friday','daily_login_saturday','daily_login_sunday']);
+      const settings = Object.fromEntries((loginSettings ?? []).map((row:{setting_key:string;numeric_value:number})=>[row.setting_key,Number(row.numeric_value)]));
+      if (alive && Object.keys(settings).length) setDailyLoginSchedule(previous=>({...previous,...settings}));
       const { data: activityState } = await client.rpc('get_daily_activity_state');
       const state = activityState as {current_day?:number;schedule?:Array<{day_number:number;title:string;description:string;icon:string;activity_key:string;reward_bc:number;is_ad_only:boolean;enabled:boolean;activity_enabled:boolean}>}|null;
-      const today = Number(state?.current_day ?? 1);
-      const assigned = state?.schedule?.find(item=>item.day_number===today) ?? null;
+      const assigned = state?.schedule?.find(item=>item.day_number===Number(state?.current_day ?? 1)) ?? null;
       if (alive && assigned) setDailyActivityToday(assigned);
+      const dayKeys = ['daily_login_sunday','daily_login_monday','daily_login_tuesday','daily_login_wednesday','daily_login_thursday','daily_login_friday','daily_login_saturday'];
+      const todayKey = dayKeys[new Date().getDay()];
+      const defaults:Record<string,number> = {daily_login_monday:5,daily_login_tuesday:10,daily_login_wednesday:5,daily_login_thursday:10,daily_login_friday:50,daily_login_saturday:50,daily_login_sunday:50};
+      const configuredAmount = Number(settings[todayKey] ?? defaults[todayKey] ?? 0);
       const { data: tx } = await client.from('wallet_transactions').select('amount,created_at')
         .eq('user_id', userId).eq('reason', 'reward:daily_login_reward')
         .order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (!alive) return;
-      const claimedToday = Boolean(tx?.created_at && new Date(tx.created_at).toISOString().slice(0,10) === new Date().toISOString().slice(0,10));
-      if (!claimError || claimedToday) {
-        window.dispatchEvent(new Event('circle-panda-wallet-updated'));
-        setDailyRewardAmount(Number(tx?.amount ?? 0));
-        setDailyRewardNewClaim(!claimError);
-        setDailyRewardPopup(true);
-      }
+      const claimedToday = Boolean(tx?.created_at && new Date(tx.created_at).toDateString() === new Date().toDateString());
+      setDailyRewardAmount(claimedToday ? Number(tx?.amount ?? configuredAmount) : configuredAmount);
+      setDailyRewardNewClaim(!claimedToday);
+      setDailyRewardPopup(true);
     })();
     return () => { alive = false; };
   }, [session?.user.id]);
@@ -149,9 +150,21 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [dailyRewardPopup, dailyActivityToday, session?.user.id]);
 
-  function continueFromDailyReward() {
-    setDailyRewardPopup(false);
+  async function claimDailyReward() {
+    if (!supabase || !session || !dailyRewardNewClaim || onboardingBusy) return;
+    setOnboardingBusy(true);
+    const { error } = await supabase.rpc('claim_economy_reward', { p_reward_key: 'daily_login_reward' });
+    if (error) { setNotice(error.message); setOnboardingBusy(false); return; }
+    const { data: tx } = await supabase.from('wallet_transactions').select('amount')
+      .eq('user_id', session.user.id).eq('reason', 'reward:daily_login_reward')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (tx?.amount != null) setDailyRewardAmount(Number(tx.amount));
+    setDailyRewardNewClaim(false);
+    window.dispatchEvent(new Event('circle-panda-wallet-updated'));
+    setOnboardingBusy(false);
   }
+
+  function continueFromDailyReward() { setDailyRewardPopup(false); }
 
   function openDailyActivity() {
     setDailyActivityPopup(false);
@@ -670,7 +683,7 @@ export default function App() {
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
     </main>
-    {dailyRewardPopup && !onboardingStep && <div className="daily-game-backdrop"><section className="daily-game-modal daily-login-modal" role="dialog" aria-modal="true" aria-labelledby="daily-login-title"><div className="daily-login-ad-slot" aria-label="Top banner ad placement">Sponsored banner</div><div className="daily-game-big-icon"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · 7-DAY COIN STREAK</p><h2 id="daily-login-title">Your daily reward is here!</h2><div className="daily-login-earned">+{dailyRewardAmount} BC</div><div className="daily-streak-strip">{[{day:'MON',key:'daily_login_monday'},{day:'TUE',key:'daily_login_tuesday'},{day:'WED',key:'daily_login_wednesday'},{day:'THU',key:'daily_login_thursday'},{day:'FRI',key:'daily_login_friday'},{day:'SAT',key:'daily_login_saturday'},{day:'SUN',key:'daily_login_sunday'}].map(item=><div key={item.day} className="daily-streak-day"><small>{item.day}</small><strong>{dailyLoginSchedule[item.key]??0}</strong><span>BC</span></div>)}</div><p>{dailyRewardNewClaim?'Your reward has been credited to your wallet.':'Today’s reward was already claimed. Your streak is ready for tomorrow.'}</p><button type="button" className="primary-button full" onClick={continueFromDailyReward}>Continue to today’s activity →</button><div className="daily-login-ad-slot" aria-label="Bottom banner ad placement">Sponsored banner</div></section></div>}
+    {dailyRewardPopup && !onboardingStep && <div className="daily-game-backdrop"><section className="daily-game-modal daily-login-modal" role="dialog" aria-modal="true" aria-labelledby="daily-login-title"><div className="daily-login-ad-slot" aria-label="Top banner ad placement">Sponsored banner</div><div className="daily-game-big-icon"><WalletPandaCoin /></div><p className="eyebrow">CIRCLE PANDA · 7-DAY COIN STREAK</p><h2 id="daily-login-title">Your daily reward is here!</h2><div className="daily-login-earned">+{dailyRewardAmount} BC</div><div className="daily-streak-strip">{[{day:'MON',key:'daily_login_monday'},{day:'TUE',key:'daily_login_tuesday'},{day:'WED',key:'daily_login_wednesday'},{day:'THU',key:'daily_login_thursday'},{day:'FRI',key:'daily_login_friday'},{day:'SAT',key:'daily_login_saturday'},{day:'SUN',key:'daily_login_sunday'}].map(item=><div key={item.day} className={item.key===(['daily_login_sunday','daily_login_monday','daily_login_tuesday','daily_login_wednesday','daily_login_thursday','daily_login_friday','daily_login_saturday'][new Date().getDay()])?'daily-streak-day today':'daily-streak-day'}><small>{item.day}</small><strong>{dailyLoginSchedule[item.key]??0}</strong><span>BC</span>{item.key===(['daily_login_sunday','daily_login_monday','daily_login_tuesday','daily_login_wednesday','daily_login_thursday','daily_login_friday','daily_login_saturday'][new Date().getDay()])&&<em>TODAY</em>}</div>)}</div><p>{dailyRewardNewClaim?'Today’s reward is ready. Claim it to unlock your daily activities.':'Today’s reward has already been claimed. Your daily activities are ready.'}</p>{dailyRewardNewClaim?<button type="button" className="primary-button full" disabled={onboardingBusy} onClick={()=>void claimDailyReward()}>{onboardingBusy?'Claiming…':'Claim today’s reward'}</button>:<button type="button" className="primary-button full" onClick={continueFromDailyReward}>Open daily activities →</button>}<div className="daily-login-ad-slot" aria-label="Bottom banner ad placement">Sponsored banner</div></section></div>}
     {dailyActivityPopup && !dailyRewardPopup && !onboardingStep && dailyActivityToday && <div className="daily-game-backdrop"><section className="daily-game-modal daily-login-modal" role="dialog" aria-modal="true" aria-labelledby="daily-activity-popup-title"><p className="eyebrow">CIRCLE PANDA · YOUR DAILY CHALLENGE</p><div className="daily-game-big-icon">{dailyActivityToday.icon}</div><h2 id="daily-activity-popup-title">{dailyActivityToday.title}</h2><p>{dailyActivityToday.description}</p><div className="daily-reward-line"><span>Activity reward</span><strong>{dailyActivityToday.is_ad_only?'Verified ad required':dailyActivityToday.reward_bc+' BC'}</strong></div>{!dailyActivityToday.enabled||!dailyActivityToday.activity_enabled?<p>This activity is paused by the admin today. Explore Circle Panda and check back tomorrow.</p>:<p>This is the one activity selected for you today. Complete it to collect its reward.</p>}<button type="button" className="primary-button full" onClick={openDailyActivity}>Open today’s activity →</button><button type="button" className="secondary-button full" onClick={()=>setDailyActivityPopup(false)}>Explore Circle Panda first</button></section></div>}
     {onboardingStep && <div className="onboarding-backdrop"><section className="onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
       {onboardingStep === 'tour' && <button type="button" className="onboarding-close" aria-label="Close introduction" onClick={() => void continueOnboarding('tour')} disabled={onboardingBusy}>×</button>}
