@@ -2949,8 +2949,8 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 }
 
 /* Daily login reward: full-screen claim sheet with a clear current-day state. */
-.daily-login-modal{width:min(100%,620px);max-width:620px;max-height:calc(100dvh - 24px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:clamp(16px,3vw,28px)}
+.daily-login-modal{width:min(100%,760px);max-width:760px;min-height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto;display:flex;flex-direction:column;justify-content:space-between;gap:12px;padding:clamp(16px,3vw,28px)}
 .daily-login-modal .daily-login-ad-slot{min-height:clamp(54px,10vh,96px);flex:0 0 auto;margin:0;border-style:dashed}
 .daily-streak-day.today{position:relative;min-height:100px;transform:translateY(-5px) scale(1.04);border:2px solid #f3cf62;background:linear-gradient(155deg,#f7d87538,#b77b1d22);box-shadow:0 0 0 3px #f3cf6220,0 8px 24px #d6a83b24}
 .daily-streak-day.today small{font-size:.78rem;color:#ffe9a3;font-weight:900}.daily-streak-day.today strong{font-size:1.35rem;color:#ffe17a}.daily-streak-day.today em{font-size:.52rem;font-style:normal;font-weight:900;letter-spacing:.08em;color:#17120a;background:#f5d36b;border-radius:20px;padding:3px 6px}
-@media(max-width:480px){.global-action-float{left:14px;bottom:calc(82px + env(safe-area-inset-bottom, 0px));max-width:calc(100vw - 28px)}.daily-login-modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:14px}.daily-streak-day.today{min-height:94px}}
+@media(max-width:480px){.global-action-float{left:14px;bottom:calc(82px + env(safe-area-inset-bottom, 0px));max-width:calc(100vw - 28px)}.daily-login-modal{width:100vw;max-width:100vw;min-height:100dvh;max-height:100dvh;border-radius:0;padding:calc(16px + env(safe-area-inset-top, 0px)) 14px calc(16px + env(safe-area-inset-bottom, 0px))}.daily-streak-day.today{min-height:94px}}
