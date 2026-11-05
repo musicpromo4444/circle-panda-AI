@@ -2862,7 +2862,7 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .report-post-preview{margin:12px 0 0;padding:12px 14px;border-left:3px solid #d6a63d;border-radius:0 10px 10px 0;background:rgba(214,166,61,.08);font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 
 /* Admin-configurable universal lower-left activity slot */
-.global-action-float{position:fixed;z-index:70;left:20px;bottom:24px;display:flex;align-items:center;gap:11px;max-width:min(360px,calc(100vw - 32px));padding:10px 14px 10px 10px;border:1px solid rgba(255,211,105,.8);border-radius:18px;background:linear-gradient(135deg,rgba(22,27,34,.97),rgba(42,33,18,.97));color:#fff;box-shadow:0 12px 35px rgba(0,0,0,.38),0 0 0 3px rgba(229,179,66,.10),inset 0 1px rgba(255,255,255,.12);text-align:left;cursor:pointer;backdrop-filter:blur(14px);transition:transform .18s ease,box-shadow .18s ease}
+.global-action-float{position:fixed!important;z-index:1000;left:20px;bottom:calc(88px + env(safe-area-inset-bottom, 0px));display:flex;align-items:center;gap:11px;max-width:min(360px,calc(100vw - 32px));padding:10px 14px 10px 10px;border:1px solid rgba(255,211,105,.8);border-radius:18px;background:linear-gradient(135deg,rgba(22,27,34,.97),rgba(42,33,18,.97));color:#fff;box-shadow:0 12px 35px rgba(0,0,0,.38),0 0 0 3px rgba(229,179,66,.10),inset 0 1px rgba(255,255,255,.12);text-align:left;cursor:pointer;backdrop-filter:blur(14px);transition:transform .18s ease,box-shadow .18s ease}
 .global-action-float:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.42),0 0 0 4px rgba(229,179,66,.15)}
 .global-action-float-icon{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,#fbe6a0,#c28a20);box-shadow:inset 0 1px rgba(255,255,255,.7),0 4px 14px rgba(218,165,48,.25);font-size:24px}
 .global-action-float-copy{display:grid;gap:3px;min-width:0}
@@ -2947,3 +2947,10 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
   .admin-campaign-actions { width:100%; }
   #admin-daily-campaigns .global-action-field-grid { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Daily login reward: full-screen claim sheet with a clear current-day state. */
+.daily-login-modal{width:min(100%,620px);max-width:620px;max-height:calc(100dvh - 24px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:clamp(16px,3vw,28px)}
+.daily-login-modal .daily-login-ad-slot{min-height:clamp(54px,10vh,96px);flex:0 0 auto;margin:0;border-style:dashed}
+.daily-streak-day.today{position:relative;min-height:100px;transform:translateY(-5px) scale(1.04);border:2px solid #f3cf62;background:linear-gradient(155deg,#f7d87538,#b77b1d22);box-shadow:0 0 0 3px #f3cf6220,0 8px 24px #d6a83b24}
+.daily-streak-day.today small{font-size:.78rem;color:#ffe9a3;font-weight:900}.daily-streak-day.today strong{font-size:1.35rem;color:#ffe17a}.daily-streak-day.today em{font-size:.52rem;font-style:normal;font-weight:900;letter-spacing:.08em;color:#17120a;background:#f5d36b;border-radius:20px;padding:3px 6px}
+@media(max-width:480px){.global-action-float{left:14px;bottom:calc(82px + env(safe-area-inset-bottom, 0px));max-width:calc(100vw - 28px)}.daily-login-modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:14px}.daily-streak-day.today{min-height:94px}}
