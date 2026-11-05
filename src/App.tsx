@@ -155,7 +155,7 @@ export default function App() {
 
   function openDailyActivity() {
     setDailyActivityPopup(false);
-    setSection('Wallet');
+    setSection('DailyActivities');
   }
 
   useEffect(() => {
