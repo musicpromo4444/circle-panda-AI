@@ -3038,3 +3038,95 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
  .groups-page .group-card-main>p{font-size:12px}
  .groups-page .group-meta span{font-size:9px}
 }
+
+
+/* WhatsApp-inspired group experience: familiar chat-list rows and conversation layout. */
+.groups-page{gap:16px}
+.groups-page>.directory-toolbar{align-items:center;padding:14px 16px;background:#102019;border:1px solid #263d30;border-radius:14px}
+.groups-page .groups-page-title{color:#e9f5ec;font-size:25px;letter-spacing:0}
+.groups-page .directory-toolbar .eyebrow,.groups-page .section-title-row .eyebrow{color:#26c46a;letter-spacing:1.1px}
+.groups-page .directory-toolbar .feature-copy{color:#9eb3a4}
+.groups-page .directory-toolbar>.primary-button{background:#168b4b;border:0;color:white;border-radius:999px;box-shadow:none}
+.groups-page .group-directory{padding:0;background:#0d1913;border:1px solid #263d30;border-radius:15px;overflow:hidden}
+.groups-page .group-directory>.section-title-row{padding:17px 18px 13px;margin:0;border-bottom:1px solid #25382d}
+.groups-page .group-directory>.section-title-row h2{color:#e7f2e9;font-size:19px}
+.groups-page .group-directory>.section-title-row p:not(.eyebrow){color:#91a798}
+.groups-page .group-directory>.vip-experience{margin:0;padding:16px 18px 18px;border:0;border-bottom:1px solid #25382d;border-radius:0;background:#101e16;box-shadow:none}
+.groups-page .vip-experience-heading h2{color:#e8f3e9;font-size:17px}
+.groups-page .vip-experience-heading p:not(.eyebrow){color:#98ad9e}
+.groups-page .vip-room-grid{grid-template-columns:1fr;gap:0;border:1px solid #2b4233;border-radius:13px;overflow:hidden}
+.groups-page .vip-room-card{position:relative;display:grid;grid-template-columns:46px minmax(0,1fr);grid-template-rows:auto auto auto;align-items:center;column-gap:13px;min-height:0;padding:14px 13px;border:0;border-bottom:1px solid #263b2e;border-radius:0;background:#122119;box-shadow:none}
+.groups-page .vip-room-card:last-child{border-bottom:0}
+.groups-page .vip-room-ornament{grid-column:1;grid-row:1/4;display:grid;place-items:center;width:46px;height:46px;margin:0;border-radius:50%;background:#234b32;color:#c3efce;font-size:20px}
+.groups-page .vip-room-label{grid-column:2;grid-row:1;color:#31c878;font-size:9px;letter-spacing:1px}
+.groups-page .vip-room-card h3{grid-column:2;grid-row:2;margin:3px 0;color:#e8f2e9;font-size:14px}
+.groups-page .vip-room-card>p{grid-column:2;grid-row:3;margin:2px 0 8px;color:#9db0a2;font-size:11px;line-height:1.5}
+.groups-page .vip-room-bottom{grid-column:2;grid-row:4;display:flex;align-items:center;justify-content:space-between;padding:0;border:0}
+.groups-page .vip-room-bottom>span{color:#91a798;font-size:10px}
+.groups-page .vip-room-button{min-height:34px;padding:0 13px;border-radius:999px;background:#168b4b;border:0;color:#fff;font-size:10px}
+.groups-page .vip-room-button.locked{background:#26392d;color:#c3d1c7}
+.groups-page .vip-unlock-grid{display:none}
+.groups-page .vip-unlock-note{color:#9eb3a4;font-size:10px}
+.groups-page .group-cards{display:flex;flex-direction:column;gap:0;margin:0;padding:0;background:#0d1913;border:1px solid #263d30;border-radius:14px;overflow:hidden}
+.groups-page .group-card{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:13px;min-height:0;padding:15px 16px;border:0;border-bottom:1px solid #26382d;border-radius:0;background:#0f1c15;box-shadow:none}
+.groups-page .group-card:last-child{border-bottom:0}
+.groups-page .group-card-icon{width:50px;height:50px;flex-basis:50px;border-radius:50%;background:#234a32;border:0;color:#d6f4dd;font-size:24px}
+.groups-page .group-card-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px}
+.groups-page .group-card-title{grid-column:1;grid-row:1;min-width:0}
+.groups-page .group-card-title h3{color:#e8f3e9;font-size:14px;font-weight:700}
+.groups-page .group-card-main>p{grid-column:1;grid-row:2;margin:0;color:#9bb0a1;font-size:11px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.groups-page .group-meta{grid-column:1;grid-row:3;gap:8px;margin-top:4px}
+.groups-page .group-meta span{min-height:0;padding:0;border:0;border-radius:0;background:transparent;color:#84998b;font-size:9px}
+.groups-page .group-meta .group-open{color:#38c879}
+.groups-page .group-meta .group-closed{color:#d5b76d}
+.groups-page .group-actions{grid-column:2;grid-row:1/4;margin:0}
+.groups-page .group-actions .primary-button{min-height:34px;padding:0 12px;border:0;border-radius:999px;background:#168b4b;color:#fff;font-size:10px;white-space:nowrap;box-shadow:none}
+.groups-page .group-actions .primary-button:disabled{background:#25382c;color:#9aac9e}
+.groups-page .group-join-requests{padding:15px;background:#0f1c15;border:1px solid #263d30;border-radius:14px}
+.groups-page .group-join-request-card{background:#14251a;border-color:#2a4032}
+.group-chat-overlay{padding:0;background:#07120c}
+.group-chat-panel{width:100%;max-width:none;border:0;border-radius:0;background:#0b1710;box-shadow:none}
+.group-chat-topbar{min-height:66px;padding:9px 14px;background:#172a1e;border-bottom:1px solid #294332;gap:12px}
+.group-back-button,.group-header-action{color:#e8f3e9}
+.group-chat-avatar{width:43px;height:43px;border:0;background:#315b3c;color:#e2f7e7}
+.group-chat-heading strong{font-size:15px;color:#f0f7f1}
+.group-chat-heading p{font-size:11px;color:#a6bdac}
+.group-chat-history{gap:9px;padding:18px clamp(12px,4vw,48px);background-color:#0b1710;background-image:radial-gradient(#a7d4ad0a 1px,transparent 1px);background-size:22px 22px}
+.group-message{max-width:min(78%,620px);min-width:120px;padding:8px 11px 6px;border:0;border-radius:3px 12px 12px 12px;background:#1b3022;box-shadow:0 1px 1px #0003}
+.group-message.mine{background:#164f32;border:0;border-radius:12px 3px 12px 12px}
+.group-message-author{margin-bottom:4px;color:#55d68b;font-size:10px}
+.group-message>p{font-size:13px;line-height:1.5;color:#edf6ef}
+.group-message-meta{gap:8px;margin-top:3px}
+.group-message-meta small{color:#a8c2ad;font-size:9px}
+.group-reply-action,.group-react-action{color:#a7cdb0;font-size:9px}
+.group-quoted-message{background:#0c2014;border-left-color:#27c56c}
+.group-reaction-summary button{background:#13281a;border-color:#31563b}
+.group-chat-composer{gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#172a1e;border-top:1px solid #294332}
+.group-composer-icon{background:transparent;color:#b7d8c0;font-size:23px}
+.group-media-picker{width:36px;height:36px;flex-basis:36px;border:0;background:transparent;color:#b7d8c0;font-size:22px}
+.group-chat-composer input{border:0;background:#263c2d;color:#f0f7f1;padding:12px 15px;font-size:13px}
+.group-chat-composer input::placeholder{color:#a9bcae}
+.group-chat-composer input:focus{border:0;box-shadow:0 0 0 2px #26c46a44}
+.group-view-once-toggle{font-size:9px;color:#a9bcae}
+.group-send-button{width:39px;height:39px;background:#20b963;color:#062412}
+.group-chat-welcome{color:#a4b9a8}
+.group-chat-welcome>span{background:#234b32;border-color:#326e45;color:#c6f2d0}
+@media(max-width:560px){
+ .groups-page>.directory-toolbar{flex-direction:row;align-items:center;padding:13px}
+ .groups-page .directory-toolbar>.primary-button{width:auto;min-height:38px;padding:0 12px}
+ .groups-page .group-card{grid-template-columns:46px minmax(0,1fr);gap:10px;padding:13px 12px}
+ .groups-page .group-card-icon{width:44px;height:44px;flex-basis:44px}
+ .groups-page .group-card-main{grid-template-columns:minmax(0,1fr) auto;gap:4px 6px}
+ .groups-page .group-card-main>p{font-size:10px}
+ .groups-page .group-meta{gap:6px}
+ .groups-page .group-meta span{font-size:8px}
+ .groups-page .group-actions .primary-button{padding:0 9px;font-size:9px}
+ .groups-page .vip-room-card{grid-template-columns:42px minmax(0,1fr);column-gap:10px;padding:12px}
+ .groups-page .vip-room-ornament{width:42px;height:42px}
+ .group-chat-topbar{min-height:60px;padding:8px 9px}
+ .group-chat-history{padding:13px 9px}
+ .group-message{max-width:88%}
+ .group-chat-composer{gap:5px;padding-left:7px;padding-right:7px}
+ .group-chat-composer input{padding:11px 12px}
+ .group-view-once-toggle{font-size:8px}
+}
