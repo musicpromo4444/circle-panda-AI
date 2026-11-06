@@ -221,8 +221,8 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 
 ### Latest CI and production deployment
 
-- GitHub Actions run [#42190532994](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42190532994) passed: checkout, Node setup, `npm install`, and `npm run build` all succeeded. The repository currently has no unit/E2E test script.
-- Vercel production deployment `dpl_9U7hhha7wGAX375peBSNQzFhLgfG` for commit `25c76cc7d09262ca61e1b51d1bfaded032006aee` is **READY**, with `circle-panda-ai.vercel.app` assigned as an alias and no alias error. The project domain is verified; production password protection is off and SSO protection applies only to previews.
+- Latest GitHub Actions run [#42191875751](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42191875751) passed on the migration-restoration/documentation commit: checkout, Node setup, `npm install`, and `npm run build` all succeeded. The repository currently has no unit/E2E test script.
+- Latest Vercel production deployment `dpl_46azmi1UHLYSzTvcwJ3n843AySWA` for commit `6afa8480488811af6bdf4df43f40f5506d7f6f1e` is **READY**, with `circle-panda-ai.vercel.app` assigned as an alias and no alias error. The project domain is verified; production password protection is off and SSO protection applies only to previews.
 - Vercel project environment metadata contains only the public client variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; no secret values were decrypted. Paystack/OAuth credentials must remain server-side.
 - Runtime error aggregation returned no errors for the last 24 hours, and the last 30-minute production warning/error log query returned no entries. The deployment alias is verified in Vercel's control plane, but a direct external HTTP/browser request was not completed in this run.
 
