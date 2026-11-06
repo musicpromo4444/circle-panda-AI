@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
 import LocationFields, { CountryDropdown, type LocationValue } from './components/LocationFields';
-import CrushFeature from './components/CrushFeature';
-import HotSeatFeature from './HotSeatFeature';
-import DailyActivitiesFeature from './components/DailyActivitiesFeature';
-import DailyCampaignAdmin from './components/DailyCampaignAdmin';
+const CrushFeature = lazy(() => import('./components/CrushFeature'));
+const HotSeatFeature = lazy(() => import('./HotSeatFeature'));
+const DailyActivitiesFeature = lazy(() => import('./components/DailyActivitiesFeature'));
+const DailyCampaignAdmin = lazy(() => import('./components/DailyCampaignAdmin'));
 import GlobalActionSlot from './components/GlobalActionSlot';
-import VipCallControls from './components/VipCallControls';
+const VipCallControls = lazy(() => import('./components/VipCallControls'));
 
 type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'DailyActivities' | 'VIP' | 'Wallet' | 'Profile' | 'Admin';
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
@@ -707,15 +707,15 @@ export default function App() {
 
 function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void; isAdmin:boolean }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
-  if (section === 'HotSeat') return <HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} onOpenMessages={() => onNavigate('Messages')} isAdmin={false} />;
-  if (section === 'DailyActivities') return <DailyActivitiesFeature userId={userId} onReward={async () => { window.dispatchEvent(new Event('circle-panda-wallet-updated')); }} />;
+  if (section === 'HotSeat') return <Suspense fallback={<div className="empty-state">Loading Hot Seat…</div>}><HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} onOpenMessages={() => onNavigate('Messages')} isAdmin={false} /></Suspense>;
+  if (section === 'DailyActivities') return <Suspense fallback={<div className="empty-state">Loading daily activities…</div>}><DailyActivitiesFeature userId={userId} onReward={async () => { window.dispatchEvent(new Event('circle-panda-wallet-updated')); }} /></Suspense>;
   if (section === 'Dating') return <DatingFeature userId={userId} onOpenMessages={onOpenMessages} />;
   if (section === 'Events') return <EventsFeature userId={userId} />;
   if (section === 'VIP') return <VipFeature userId={userId} onNavigate={onNavigate} />;
   if (section === 'Wallet') return <WalletFeature userId={userId} />;
   if (section === 'Profile') return <ProfileFeature userId={userId} />;
   if (section === 'Groups') return <GroupsFeature userId={userId} />;
-  if (section === 'Crush') return <CrushFeature userId={userId} />;
+  if (section === 'Crush') return <Suspense fallback={<div className="empty-state">Loading WCW/MCM…</div>}><CrushFeature userId={userId} /></Suspense>;
   if (section === 'Admin') return isAdmin ? <AdminFeature userId={userId} /> : <section className="feature-panel"><h2>Administrator access required</h2><p className="feature-copy">Configuration pages are available only to authorized Circle Panda administrators.</p></section>;
   const content: Record<Exclude<Section, 'Home' | 'Confessions' | 'VIP' | 'Admin' | 'Profile' | 'HotSeat' | 'DailyActivities'>, { icon: string; title: string; body: string; next: string[] }> = {
     'Crush': { icon: '♛', title: 'Your next crush moment', body: 'MCM on Monday. WCW on Wednesday. Discover the people your circle is celebrating.', next: ['Weekly crush feed', 'Votes and reactions', 'Profile-to-message requests'] },
@@ -911,7 +911,7 @@ function MessagesFeature({ userId }: { userId: string }) {
       </section>}
     </div>
     <section className="chat-panel">
-      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p>{datingTimerLabel && <small className={datingFreeRemaining > 0 ? 'dating-chat-timer active' : 'dating-chat-timer expired'}>{datingTimerLabel}</small>}</div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><VipCallControls userId={userId} threadId={openConversation} otherName={conversationTitle(openConversation)} otherIsVip={vipMessageUserIds.has((requests.find(r => r.conversation_id === openConversation)?.sender_id === userId ? requests.find(r => r.conversation_id === openConversation)?.recipient_id : requests.find(r => r.conversation_id === openConversation)?.sender_id) || '')} /><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
+      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p>{datingTimerLabel && <small className={datingFreeRemaining > 0 ? 'dating-chat-timer active' : 'dating-chat-timer expired'}>{datingTimerLabel}</small>}</div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><Suspense fallback={<div className="empty-state">Loading call controls…</div>}><VipCallControls userId={userId} threadId={openConversation} otherName={conversationTitle(openConversation)} otherIsVip={vipMessageUserIds.has((requests.find(r => r.conversation_id === openConversation)?.sender_id === userId ? requests.find(r => r.conversation_id === openConversation)?.recipient_id : requests.find(r => r.conversation_id === openConversation)?.sender_id) || '')} /></Suspense><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
     </section>
   </section>;
 }
@@ -2857,9 +2857,9 @@ function AdminFeature({userId}:{userId:string}) {
       <a href="#admin-audit"><span>Audit records loaded</span><strong>{auditLoading?'…':auditRows.length}</strong><small>Most recent records available</small></a>
       <a href="#admin-economy"><span>Economy controls</span><strong>{loading?'…':settings.length}</strong><small>Database-backed settings</small></a>
     </div>
-    <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><p className="feature-copy">Platform-wide Hot Seat settings are managed here, not on the public Hot Seat page.</p><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></div>
-    <div id="admin-daily-activities" className="admin-dashboard-section"><h3>Daily Activities configuration</h3><p className="feature-copy">Choose the activity for each day, set BC rewards, and manage the activity rotation here. Public Wallet shows only the assigned activity and player flow.</p><DailyActivitiesFeature userId={userId} onReward={async () => {}} adminOnly={true} /></div>
-    <DailyCampaignAdmin userId={userId} />
+    <div id="admin-hot-seat" className="admin-dashboard-section"><h3>Hot Seat configuration</h3><p className="feature-copy">Platform-wide Hot Seat settings are managed here, not on the public Hot Seat page.</p><Suspense fallback={<div className="empty-state">Loading Hot Seat settings…</div>}><HotSeatFeature userId={userId} onOpenWallet={() => {}} isAdmin={true} adminOnly={true} /></Suspense></div>
+    <div id="admin-daily-activities" className="admin-dashboard-section"><h3>Daily Activities configuration</h3><p className="feature-copy">Choose the activity for each day, set BC rewards, and manage the activity rotation here. Public Wallet shows only the assigned activity and player flow.</p><Suspense fallback={<div className="empty-state">Loading daily activity settings…</div>}><DailyActivitiesFeature userId={userId} onReward={async () => {}} adminOnly={true} /></Suspense></div>
+    <Suspense fallback={<div className="empty-state">Loading campaign controls…</div>}><DailyCampaignAdmin userId={userId} /></Suspense>
     <div id="admin-dating" className="admin-dashboard-section"><h3>Dating configuration</h3><p className="feature-copy">Dating rules are administrator-controlled. Adjust the free chat window and BC message price in BC economy &amp; rewards below. Public Dating contains member profiles, discovery, and request flows only.</p><div className="admin-module-grid"><a href="#admin-economy"><strong>Dating free chat duration</strong><span>Change dating_free_hours in BC economy &amp; rewards</span></a><a href="#admin-economy"><strong>Dating message price</strong><span>Change dating_message_cost in BC economy &amp; rewards</span></a></div></div>
     <div className="admin-module-grid">
       <a href="#admin-vip">👑 <strong>Account & VIP management</strong><span>Find users and manage VIP access</span></a>
