@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
+    "countrycitystatejson": "26.09.2802",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "country-state-city": "^3.2.1"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/react": "^19.1.12",
