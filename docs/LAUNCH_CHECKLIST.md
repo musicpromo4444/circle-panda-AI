@@ -78,7 +78,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 
 ### Migration ledger reconciliation
 
-- Live migration ledger: 147 applied entries. Repository: 70 SQL files; 67 unique exact-name matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 80 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
+- Live migration ledger: 147 applied entries. Repository: 71 SQL files; 67 unique exact-name matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 80 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
 - No migrations were replayed. No verified unapplied schema change was found. The missing historical SQL source is a repository reproducibility gap; reconstruct a baseline/history before using this repository to provision a fresh database.
 
 ### Performance work completed
