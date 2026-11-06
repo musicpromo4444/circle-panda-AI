@@ -143,7 +143,7 @@ Update this tracker as each vertical feature is implemented and tested so comple
 
 ### Migration reconciliation — no unsafe replay
 
-- The live ledger contains 147 applied migration entries. The repository currently contains 70 SQL migration files, with 67 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
+- The live ledger contains 147 applied migration entries. The repository currently contains 71 SQL migration files, with 67 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
 - Eighty applied ledger entries have no matching committed file, and one migration name stem is duplicated in the repository. These are historical source-control/reproducibility gaps, not permission to replay the SQL. No migration was applied in this run because no unapplied schema change was verified. Reconstruct or baseline the missing historical migration source before relying on this repository to recreate the database from scratch.
 
 ### Implementation and performance changes
