@@ -4,7 +4,8 @@ Last verified: 2026-11-06 (UTC)
 Repository: `musicpromo4444/circle-panda-AI`
 Active Supabase project: `chcyncvieekjousgzlrg` — **Circle Panda Rebuilt**
 Production URL: https://circle-panda-ai.vercel.app
-Latest app code deployment: `4c7b9043ed7e54866a4e59c5558e2565cf12927c` (secondary feature panels lazy-loaded; Vercel deployment READY).\nLatest database migrations: `20261106083427_fix_crush_vote_timezone_and_concurrency.sql` and `20261106084052_fix_event_blast_monthly_timezone.sql` (both applied to the active rebuild project).
+Latest app code commit: `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29`; Vercel production deployment `dpl_8ce9tEzHPyJWtPFTfaB65Jvb5f23` is READY and assigned to `circle-panda-ai.vercel.app`.
+Latest applied migrations: `20261106092044_harden_public_client_role_privileges.sql`, `20261106092233_revoke_public_function_execute.sql`, and `20261106092801_add_notifications_to_realtime.sql`.
 
 ## Scope guard
 
