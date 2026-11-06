@@ -16,27 +16,11 @@ revoke maintain, references, trigger, truncate
   on all tables in schema public
   from authenticated;
 
--- Supabase's current default ACLs grant broad privileges to anon/authenticated.
--- Prevent those grants from silently returning on objects created by either
--- database owner role in future migrations.
-alter default privileges for role postgres in schema public
-  revoke all on tables from anon;
-alter default privileges for role supabase_admin in schema public
-  revoke all on tables from anon;
-
-alter default privileges for role postgres in schema public
-  revoke all on sequences from anon;
-alter default privileges for role supabase_admin in schema public
-  revoke all on sequences from anon;
-
-alter default privileges for role postgres in schema public
-  revoke execute on functions from anon;
-alter default privileges for role supabase_admin in schema public
-  revoke execute on functions from anon;
-
-alter default privileges for role postgres in schema public
-  revoke maintain, references, trigger, truncate on tables from authenticated;
-alter default privileges for role supabase_admin in schema public
+-- Harden future objects created by the current migration owner (postgres).
+alter default privileges in schema public revoke all on tables from anon;
+alter default privileges in schema public revoke all on sequences from anon;
+alter default privileges in schema public revoke execute on functions from anon;
+alter default privileges in schema public
   revoke maintain, references, trigger, truncate on tables from authenticated;
 
 commit;
