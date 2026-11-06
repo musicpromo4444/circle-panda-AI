@@ -148,7 +148,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 1. All six coin packages are enabled but have `price_ngn=NULL`; there are zero purchase orders. Set the intended NGN prices before payment tests.
 2. Add the Paystack secret only to Supabase Edge Function secrets, configure the webhook URL and `charge.success`/`charge.failed` events, and perform signed success/failure/replay tests. Secret presence and a real webhook remain unverified.
 3. Configure Google and Apple OAuth credentials and redirect URLs in Supabase Auth; test each provider before enabling the database/admin toggles. Both flags currently remain false.
-4. Enable Supabase Auth leaked-password protection in Auth settings. The official guide states it is available on Pro plan and above: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+4. Supabase organization is currently on the **Free** plan. Leaked-password protection is disabled and the official guide says it is available on Pro plan and above; an owner-approved upgrade is required before enabling it in Auth settings: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
 5. Keep rewarded-ad BC payouts disabled until a provider supplies a server-verifiable completion callback.
 
 ### Still not acceptance-tested
