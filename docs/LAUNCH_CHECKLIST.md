@@ -12,7 +12,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Owner account `circlepandaapp@gmail.com` is confirmed as `admin` and permanent VIP (`is_vip=true`, `vip_expires_at=NULL`).
 - Vercel production environment contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for production, preview and development. Secret values are intentionally not copied here.
 - Three Supabase Edge Functions are registered ACTIVE: `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
-- Latest production deployment for commit `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29` is **READY** as `dpl_8ce9tEzHPyJWtPFTfaB65Jvb5f23`, with the verified production alias `circle-panda-ai.vercel.app`.
+- Latest app-code commit `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29` is deployed in production as `dpl_8ce9tEzHPyJWtPFTfaB65Jvb5f23` and is assigned to the verified alias `circle-panda-ai.vercel.app`; subsequent commits in this tracker update documentation only.
 - Previous production deployment for commit `9480684c9b8dfb0021ee1f6bc1639474a31925d8` is also **READY**.
 - Vercel runtime error aggregation for the last 24 hours returned no runtime errors. This is not a substitute for browser or authenticated user testing.
 - Migration reconciliation on 2026-11-06: all 152 live ledger versions match exactly one committed `supabase/migrations/` filename; no missing, extra or duplicate versions. Do not replay or bulk-apply historical migrations.
