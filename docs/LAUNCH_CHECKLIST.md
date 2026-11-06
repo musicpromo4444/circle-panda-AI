@@ -1,6 +1,6 @@
 # Circle Panda — production completion gate
 
-Last checked: 2026-11-05
+Last checked: 2026-11-06
 Repository: `musicpromo4444/circle-panda-AI`
 Supabase rebuild project: `chcyncvieekjousgzlrg` (`eu-west-1`)
 Production host: `https://circle-panda-ai.vercel.app`
@@ -8,7 +8,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 ## Verified from provider control planes
 
 - Supabase project state is `ACTIVE_HEALTHY`; SQL connectivity and table introspection are working.
-- Live database contains the rebuilt application schema and 143 recorded migrations. Do not replay or bulk-apply historical migrations.
+- Live database contains the rebuilt application schema and 147 recorded migrations. Do not replay or bulk-apply historical migrations.
 - Owner account `circlepandaapp@gmail.com` is confirmed as `admin` and permanent VIP (`is_vip=true`, `vip_expires_at=NULL`).
 - Vercel production environment contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for production, preview and development. Secret values are intentionally not copied here.
 - Three Supabase Edge Functions are registered ACTIVE: `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
