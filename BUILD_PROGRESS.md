@@ -126,3 +126,43 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Feed post reporting now shows the selected post preview and keeps submission errors visible inside the modal. The report flow is backed by the private report table and admin-only queue/audit functions.
 - Corrected an admin moderation mapping issue: crush reports reference a `crush_posts` row, so the queue now resolves the actual target profile through `crush_posts.user_id` and shows the caption preview instead of treating the crush-post ID as a user ID.
 - Current app code reached READY at `https://circle-panda-ai.vercel.app` on commit `c6b13fd106fdbf7989d93e397a9bace2f983ae1e`. Production build still reports a large, lazily loaded city-data chunk (~8 MB minified); initial builds succeed, but location-selector bundle splitting remains a performance follow-up.
+
+
+## 2026-11-06 launch-readiness continuation
+
+### Provider and database evidence
+
+- Confirmed the intended Supabase project is **Circle Panda Rebuilt**, ref `chcyncvieekjousgzlrg`, region `eu-west-1`, status `ACTIVE_HEALTHY`, PostgreSQL `17.11.0.003`. No access to the old SekuPanda project was used.
+- The live public schema contains 78 base tables; RLS is enabled on all 78, with zero public tables found with RLS disabled.
+- Storage has four buckets and 14 storage policies: `dating-profile-photos` and `group-media` are private; `event-covers` and `crush-post-photos` are public.
+- Twenty-one tables are in `supabase_realtime`.
+- All three registered Edge Functions are ACTIVE: `create-panda-account` (JWT verification off by design for the custom signup endpoint, with strict origin allow-list, validation and IP-fingerprint rate limit), `initialize-coin-purchase` (JWT verification on), and `paystack-webhook` (Paystack HMAC-SHA512 signature verification).
+- The owner account `circlepandaapp@gmail.com` is still confirmed as `admin` and permanent VIP (`is_vip=true`, `vip_expires_at=NULL`).
+- Frontend RPC references in the main app, Hot Seat, Crush, Daily Activities, campaign admin, global action slot and VIP call controls were compared with the live database: every referenced RPC exists. The audited table references also resolve to live tables/views or the named storage buckets.
+- The Paystack completion RPC is executable by `service_role` only, not `anon` or `authenticated`. It locks the purchase row, checks the amount/currency, and returns an `already_credited` result for a replay after the order is paid. The internal ad-reward RPC is not executable by client roles; the public claim wrapper rejects `ad_reward` unless trusted verification is implemented.
+
+### Migration reconciliation — no unsafe replay
+
+- The live ledger contains 146 applied migration entries. The repository currently contains 70 SQL migration files, with 66 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
+- Eighty applied ledger entries have no matching committed file, and one migration name stem is duplicated in the repository. These are historical source-control/reproducibility gaps, not permission to replay the SQL. No migration was applied in this run because no unapplied schema change was verified. Reconstruct or baseline the missing historical migration source before relying on this repository to recreate the database from scratch.
+
+### Implementation and performance changes
+
+- Replaced the all-countries `country-state-city` city dataset with `countrycitystatejson/client` (pinned to `26.09.2802`), which loads city data per selected country. Updated both `LocationFields.tsx` and Dating's country/state validation in `App.tsx`.
+- Previous production build emitted an 8,065.11 KB city chunk (2,188.44 KB gzip). The new build emits country-scoped chunks instead; Nigeria is 27.63 KB, the largest observed country chunks are India 278.99 KB and the US 271.97 KB, and the metadata/client chunk is deferred at 303.40 KB. No monolithic 8 MB city chunk remains.
+- Lazy-loaded the Crush, Hot Seat, Daily Activities, daily campaign admin and VIP call-control panels. The main JS chunk fell from 526.92 KB (145.73 KB gzip) to 426.07 KB (121.45 KB gzip), about a 19% reduction. The latest Vite build no longer emits the >500 KB chunk warning.
+- GitHub Actions build run [#646](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42187638796) passed on commit `4c7b9043ed7e54866a4e59c5558e2565cf12927c`. The latest Vercel production deployment for that commit is **READY** and has no alias error.
+- Vercel confirms `circle-panda-ai.vercel.app` is a verified project domain, is present on the production deployment alias list, and has no production password protection (SSO is limited to preview deployments). Aggregated runtime errors for the last 24 hours returned none; the last 30-minute warning/error log query also returned none. Direct external HTTP rendering and device-level smoke tests were not completed in this run.
+
+### Remaining launch blockers and owner actions
+
+- All six coin packages are enabled but currently have `price_ngn=NULL`. The purchase Edge Function correctly rejects these with HTTP 409; there are no purchase orders. The owner must set the intended NGN prices in the admin dashboard before payment can be tested.
+- The Paystack secret must be present only in Supabase Edge Function secrets. The webhook URL is `https://chcyncvieekjousgzlrg.supabase.co/functions/v1/paystack-webhook`; the Paystack dashboard must subscribe to `charge.success` and `charge.failed`. Secret presence and a real signed webhook were not testable through the available control-plane metadata.
+- Google and Apple auth toggles are both off in the database. The owner must configure provider credentials and redirect URLs in Supabase Auth, test them, then enable the toggles.
+- Supabase Auth's leaked-password protection remains disabled according to the security advisor; the owner must enable it.
+- No rewarded-ad provider or verifiable completion callback is configured. BC ad payouts remain disabled; do not enable them until server-side completion verification exists.
+- Two-account authenticated journeys, real Paystack success/failure/replay, OAuth, ad callback, and Android/desktop browser smoke tests have not been performed. A READY build and zero observed runtime errors do not prove those flows pass.
+- Current Supabase advisor findings: four internal RLS-enabled tables intentionally have no direct client policies; one public SECURITY DEFINER getter exposes only Google/Apple enabled booleans; 138 authenticated-callable SECURITY DEFINER functions remain on the advisor review list. All 138 were checked for a pinned empty search_path; the five without `auth.uid()` are read-only public getters, and no mutating function without caller identity was found in the broad scan. Admin-prefixed functions have admin-role guard patterns. Continue targeted authorization tests before launch.
+- Performance advisor currently reports seven multiple-permissive SELECT-policy overlaps and 101 unused-index notices. Do not merge write policies or drop indexes without traffic and semantics review. Health advisor returned no findings.
+
+Do not mark Circle Panda 100% complete until the owner configuration items and authenticated/device acceptance tests above have passing evidence.
