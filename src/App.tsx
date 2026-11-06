@@ -15,6 +15,7 @@ type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups'
 type FeedPost = { id: string; body: string; post_type: string; is_anonymous: boolean; author_name: string | null; created_at: string };
 type FeedComment = { id: string; post_id: string; author_id: string; body: string; created_at: string };
 type FeedReaction = { id: string; post_id: string; user_id: string; reaction: string };
+type NotificationRow = { id:string; actor_id:string|null; notification_type:string; title:string; body:string; target_type:string|null; target_id:string|null; read_at:string|null; created_at:string };
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null; media_type?: string | null; media_path?: string | null; view_once?: boolean };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
@@ -71,6 +72,11 @@ export default function App() {
   const [signupCountry, setSignupCountry] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState('');
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [vipPostIds, setVipPostIds] = useState<Set<string>>(() => new Set());
   const [, setIsVipMember] = useState(false);
@@ -171,6 +177,90 @@ export default function App() {
     setDailyActivityPopup(false);
     setSection('DailyActivities');
   }
+
+  async function loadNotifications() {
+    if (!supabase || !session) return;
+    setNotificationsLoading(true);
+    setNotificationsError('');
+    try {
+      const [listResult, unreadResult] = await Promise.all([
+        supabase.from('notifications')
+          .select('id,actor_id,notification_type,title,body,target_type,target_id,read_at,created_at')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase.from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', session.user.id)
+          .is('read_at', null),
+      ]);
+      if (listResult.error) throw listResult.error;
+      const rows = (listResult.data ?? []) as NotificationRow[];
+      setNotifications(rows);
+      setNotificationUnreadCount(unreadResult.count ?? rows.filter(row => !row.read_at).length);
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : 'Could not load notifications.');
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }
+
+  async function markNotificationRead(notification: NotificationRow) {
+    if (!supabase || !session || notification.read_at) return;
+    const readAt = new Date().toISOString();
+    const { error } = await supabase.from('notifications')
+      .update({ read_at: readAt })
+      .eq('id', notification.id)
+      .eq('user_id', session.user.id);
+    if (error) {
+      setNotificationsError(error.message);
+      return;
+    }
+    setNotifications(rows => rows.map(row => row.id === notification.id ? { ...row, read_at: readAt } : row));
+    setNotificationUnreadCount(count => Math.max(0, count - 1));
+  }
+
+  async function markAllNotificationsRead() {
+    if (!supabase || !session || notificationUnreadCount === 0) return;
+    const readAt = new Date().toISOString();
+    const { error } = await supabase.from('notifications')
+      .update({ read_at: readAt })
+      .eq('user_id', session.user.id)
+      .is('read_at', null);
+    if (error) {
+      setNotificationsError(error.message);
+      return;
+    }
+    setNotifications(rows => rows.map(row => row.read_at ? row : { ...row, read_at: readAt }));
+    setNotificationUnreadCount(0);
+  }
+
+  async function openNotification(notification: NotificationRow) {
+    await markNotificationRead(notification);
+    const target = (notification.target_type ?? '') + ' ' + notification.notification_type;
+    const normalized = target.toLowerCase();
+    const destination: Section =
+      normalized.includes('message') || normalized.includes('chat') ? 'Messages' :
+      normalized.includes('dating') || normalized.includes('match') ? 'Dating' :
+      normalized.includes('group') ? 'Groups' :
+      normalized.includes('event') || normalized.includes('blast') ? 'Events' :
+      normalized.includes('crush') || normalized.includes('wcw') || normalized.includes('mcm') ? 'Crush' :
+      normalized.includes('hot_seat') || normalized.includes('hot seat') || normalized.includes('hotseat') ? 'HotSeat' :
+      'Confessions';
+    setSection(destination);
+    setNotificationsOpen(false);
+  }
+
+  useEffect(() => {
+    setNotificationsOpen(false);
+    if (!session?.user.id) {
+      setNotifications([]);
+      setNotificationUnreadCount(0);
+      setNotificationsError('');
+      return;
+    }
+    void loadNotifications();
+  }, [session?.user.id]);
 
   useEffect(() => {
     const client = supabase;
@@ -654,7 +744,28 @@ export default function App() {
       </button>)}
     </nav>
     <main className="main-area">
-      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><PandaCoinArtwork /></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="icon-button theme-toggle" title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><svg viewBox="0 0 24 24" aria-hidden="true">{theme==='dark' ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></> : <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></>}</svg></button><button className="icon-button notification-button" title="Notifications" aria-label="Notifications" onClick={() => setNotice('You are all caught up.')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button><button className="profile-chip profile-chip-icon-only" onClick={() => setSection('Profile')} title="Your profile" aria-label="Your profile"><span className="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2z"/></svg></span></button></div></header>
+      <header className="topbar"><div className="mobile-brand">🐼 <strong>circle<span className="brand-green">panda</span></strong></div><div className="top-actions"><button className="coin-balance-chip" title="Open Panda wallet" onClick={() => setSection('Wallet')}><span className="coin-token" aria-hidden="true"><PandaCoinArtwork /></span><span className="coin-balance-copy"><strong>{coinBalance === null ? '—' : coinBalance.toLocaleString()}</strong><small>BC</small></span></button><button className="icon-button theme-toggle" title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><svg viewBox="0 0 24 24" aria-hidden="true">{theme==='dark' ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></> : <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></>}</svg></button><div className="notification-anchor">
+        <button type="button" className="icon-button notification-button" title="Notifications" aria-label={"Notifications" + (notificationUnreadCount ? ", " + notificationUnreadCount + " unread" : "")} aria-expanded={notificationsOpen} onClick={() => { const opening = !notificationsOpen; setNotificationsOpen(opening); if (opening) void loadNotifications(); }}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          {notificationUnreadCount > 0 && <span className="notification-unread-count">{notificationUnreadCount > 99 ? '99+' : notificationUnreadCount}</span>}
+        </button>
+        {notificationsOpen && <section className="notification-panel" role="dialog" aria-label="Notifications">
+          <header className="notification-panel-header">
+            <div><strong>Notifications</strong><small>{notificationUnreadCount ? notificationUnreadCount + ' unread' : 'You’re all caught up'}</small></div>
+            <div className="notification-panel-actions">
+              <button type="button" disabled={notificationUnreadCount === 0} onClick={() => void markAllNotificationsRead()}>Mark all read</button>
+              <button type="button" aria-label="Close notifications" onClick={() => setNotificationsOpen(false)}>×</button>
+            </div>
+          </header>
+          {notificationsLoading ? <div className="notification-empty">Loading your notifications…</div> :
+            notificationsError ? <div className="notification-empty notification-error">{notificationsError}<button type="button" onClick={() => void loadNotifications()}>Try again</button></div> :
+            notifications.length ? <div className="notification-list">{notifications.map(item => <button type="button" key={item.id} className={"notification-item" + (item.read_at ? "" : " unread")} onClick={() => void openNotification(item)}>
+              <span className="notification-item-mark">{item.read_at ? '•' : '●'}</span>
+              <span className="notification-item-copy"><strong>{item.title}</strong><span>{item.body}</span><small>{new Date(item.created_at).toLocaleString()}</small></span>
+            </button>)}</div> :
+            <div className="notification-empty">No notifications yet. Updates from your circle will appear here.</div>}
+        </section>}
+      </div><button className="profile-chip profile-chip-icon-only" onClick={() => setSection('Profile')} title="Your profile" aria-label="Your profile"><span className="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2z"/></svg></span></button></div></header>
       <div className={`page-wrap page-${section.toLowerCase()}`}>
 <div className="welcome-row"><div><p className="eyebrow">{section === 'Dating' ? 'A SPACE FOR REAL CONNECTIONS' : section === 'Confessions' ? 'WELCOME BACK TO CIRCLE PANDA' : 'WELCOME BACK TO YOUR WORLD'}</p><h1>{section === 'Home' ? 'Your circle, in one place.' : section === 'Confessions' ? 'Secret Confessions' : section === 'HotSeat' ? 'Hot Seat' : active.name}<span className="heading-period">.</span></h1><p className="section-hint">{section === 'Confessions' ? 'Post your secret confessions, and nobody will know it was you. Nobody will judge you. Feel free to post.' : active.hint}</p></div></div>
                 {(section === 'Home' || section === 'Confessions') && <div className="confession-shortcuts" aria-label="Circle Panda quick actions"><button type="button" className="confession-shortcut" onClick={() => setShowCrushUploadChoice(true)}><span className="shortcut-circle upload-3d"><span className="shortcut-symbol">＋</span></span><strong>Upload</strong><small>Upload your crush picture</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','wcw'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♡</span></span><strong className="shortcut-acronym">WCW</strong><small>Woman Crush Wednesday</small></button><button type="button" className="confession-shortcut" onClick={() => { localStorage.setItem('circle-panda-crush-type','mcm'); sessionStorage.setItem('circle-panda-open-crush-upload','1'); setSection('Confessions'); setCrushPanelKey(key => key + 1); }}><span className="shortcut-circle"><span className="shortcut-symbol corner-symbol">♛</span></span><strong className="shortcut-acronym">MCM</strong><small>Man Crush Monday</small></button></div>}
