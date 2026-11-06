@@ -234,3 +234,44 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - No rewarded-ad provider or signed completion callback is configured. Do not enable BC ad payouts.
 - Authenticated two-account tests (auth, feed/confessions/reports/moderation, requests/DM, wallet, dating, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications, admin) and Android/desktop browser/media/refresh smoke tests remain unperformed because no dedicated test-account credentials or interactive browser session were available. CI/build success and zero observed runtime errors do not prove these flows pass.
 - Do not mark Circle Panda 100% complete until owner configuration and all critical authenticated/device acceptance tests have passing evidence.
+
+
+## Latest continuation — 2026-11-06 (database hardening, notifications, release gate)
+
+### Verified project and migration state
+
+- Rechecked the exact target Supabase project before work: `chcyncvieekjousgzlrg`, **Circle Panda Rebuilt**, `eu-west-1`, PostgreSQL 17.11, state `ACTIVE_HEALTHY`; SQL connectivity remained available.
+- Reconciled the live migration ledger against the repository tree after the changes: **152 applied migrations and 152 exact-version SQL files**, with no missing, extra or duplicate versions. The three new applied versions are `20261106092044_harden_public_client_role_privileges`, `20261106092233_revoke_public_function_execute`, and `20261106092801_add_notifications_to_realtime`. Do not replay or bulk-apply the historical migration set.
+- The owner account `circlepandaapp@gmail.com` remains `user_roles.role='admin'`, permanent VIP, and `vip_expires_at=NULL`.
+
+### Database security and service checks
+
+- All **78/78 public base tables** have RLS enabled; 104 public policies exist. No public table is missing RLS. Four RLS-enabled internal tables intentionally have no direct client policies: `admin_audit_log`, `feed_content_reports`, `moderation_reviews`, and `signup_rate_limits`.
+- Storage: four buckets and 14 policies. Crush photos and event covers are public-read buckets; dating-profile photos and group media remain private with owner, mutual-match, group-membership, active-VIP and view-once checks. All nine public views use `security_invoker=true`.
+- Realtime publication now contains **22 tables**, including `notifications`.
+- All three Edge Functions remain ACTIVE: `create-panda-account` (v7, JWT verification disabled for public signup), `initialize-coin-purchase` (v2, JWT verification enabled), and `paystack-webhook` (v2, JWT verification disabled for the signed server webhook).
+- Re-ran Supabase advisors: four INFO RLS/no-policy findings for the internal tables above; one WARN for the deliberately public, read-only `get_public_auth_provider_settings()`; 138 authenticated-callable SECURITY DEFINER functions remain in the advisor review queue. Five callable getters do not reference `auth.uid()`; they are read-only catalogue/feed/settings functions. All 138 authenticated-callable definer functions reference caller identity or an explicit admin guard; admin-prefixed definer functions reviewed all contain an admin-role check. Every SECURITY DEFINER function has a pinned search_path. Twenty-six Hot Seat/admin functions pin `public` (some also `pg_temp`) but use schema-qualified application objects; the rest pin an empty path. No function retains EXECUTE for the PostgreSQL `PUBLIC` pseudo-role.
+- Found and fixed an over-broad client privilege default: anonymous clients previously inherited table/sequence/function privileges that RLS alone cannot safely constrain for operations such as TRUNCATE. The applied migrations now leave `anon` with only SELECT on `public.coin_packages`, no anonymous sequence privileges, and explicit EXECUTE only on the public provider-availability getter. All PUBLIC function EXECUTE grants were revoked. `authenticated` retains the DML required by RLS-protected app flows but no longer has TRUNCATE, MAINTAIN, REFERENCES or TRIGGER privileges on public tables. The current migration-owner (`postgres`) default ACL is hardened for future app objects. All 88 current public objects are owned by `postgres`. Supabase-managed `supabase_admin` default ACLs remain broad and could not be changed by the migration role; no current public objects are owned by that role, so future platform-managed objects in `public` should be reviewed if any are introduced.
+- Performance advisor: seven reviewed SELECT-policy overlaps and 101 unused-index INFO notices remain. Do not merge policies or drop indexes without workload evidence. Health advisor returned no findings.
+
+### Application changes in this run
+
+- Replaced the inert notification toast with a real per-user notification inbox: latest 30 rows, exact unread count, mark-one-read, mark-all-read, error/retry state, and routing to the related app section. The unread badge now updates from a user-filtered Supabase Realtime INSERT subscription; `notifications` was added to the Realtime publication. Database RLS limits reads/updates to the notification owner.
+- Clarified the daily activity popup: ad-funded rewards now explicitly say they are paused until trusted ad playback is verified. The server-side reward wrapper rejects direct ad claims, the internal payout RPC is service-role-only, and ad-only activity start/completion paths reject unverified playback. No rewarded BC payout was enabled.
+- Static source-to-schema audit checked 20 TypeScript source files: all literal frontend RPC names, table/view references and storage bucket references resolve in the live database. Dynamic Hot Seat/admin RPC references were also present.
+- Reviewed core transaction paths: message trigger enforces 1 BC per non-VIP DM and the dating free window; dating match RPCs enforce participant confirmation; group-message trigger enforces normal-group activation and active-VIP gates; Event Blast free monthly claims use the user's local timezone; WCW/MCM paid voting is server-side; Paystack crediting locks the order and is idempotent. These are code/database reviews, not two-account acceptance tests.
+
+### Build and deployment evidence
+
+- GitHub Actions run [#42195661828](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42195661828) passed checkout, Node setup, `npm install`, and `npm run build` for commit `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29`.
+- Latest Vercel production deployment `dpl_8ce9tEzHPyJWtPFTfaB65Jvb5f23` for the same commit is **READY**. The `circle-panda-ai.vercel.app` domain is verified, assigned as a production alias, has no alias error, and has no production password protection; SSO protection is limited to previews.
+- Vercel returned no production warning/error logs in the latest 30-minute query and no runtime errors in the latest 24-hour aggregation. The Vercel control plane confirms alias assignment, but direct external HTTP/browser rendering was not completed.
+
+### Remaining owner actions and release gates
+
+- All six enabled BC coin packages still have `price_ngn=NULL`; there are zero purchase orders. Owner must set prices, configure `PAYSTACK_SECRET_KEY` only in Supabase Edge Function secrets, register the documented webhook URL and `charge.success`/`charge.failed` events, and run signed success/failure/replay tests. The available control plane does not expose Edge Function secret-presence metadata, so secret presence and a real webhook remain unverified. Vercel contains only the public `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` variables; their values were not decrypted.
+- Google and Apple Auth flags remain false. Owner must configure provider credentials and redirect URLs in Supabase Auth and test each provider before enabling the admin toggles.
+- Supabase organization plan is **Free**. Leaked-password protection remains disabled; the owner must approve the Pro-or-higher plan upgrade and enable the Auth setting.
+- No rewarded-ad provider or server-verifiable completion callback is configured. Keep BC ad payouts disabled.
+- No dedicated two-account test credentials or interactive browser session are available in this run. Authentication, feed/confession/report/moderation, requests/DM, BC wallet, Paystack, dating 72-hour/1-BC, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin flows still need two-account acceptance testing. Android/desktop responsive, media, refresh-persistence, console and network smoke tests also remain open.
+- CI currently runs a production build only; it has no unit/E2E suite. Do not mark the rebuild 100% complete until the owner actions and critical acceptance tests pass with evidence.
