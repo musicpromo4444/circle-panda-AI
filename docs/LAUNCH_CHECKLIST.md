@@ -78,7 +78,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 
 ### Migration ledger reconciliation
 
-- Live migration ledger: 148 applied entries. Repository: 72 SQL files; 68 unique exact-name matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 80 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
+- Live migration ledger: 148 applied entries. Repository: 72 SQL files; 69 exact-name file matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 79 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
 - No migrations were replayed. No verified unapplied schema change was found. The missing historical SQL source is a repository reproducibility gap; reconstruct a baseline/history before using this repository to provision a fresh database.
 
 ### Performance work completed
@@ -129,3 +129,33 @@ Production host: `https://circle-panda-ai.vercel.app`
 - WCW/MCM: three free votes per local week, then 50 BC per extra vote. The ad-funded alternative remains disabled pending verifiable ad completion.
 - The database trigger schedules MCM for Monday 10:00 AM and WCW for Wednesday 10:00 AM in the profile timezone. The November 6 vote migration aligns free and paid vote quotas to that same local week and serializes concurrent claims.
 - Normal groups retain the three-member activation gate; VIP groups do not require three members, and the admin role has the expected group-access bypass.
+
+
+## Latest verified continuation — 2026-11-06
+
+### Completed safely in this run
+
+- Wallet ad-reward messaging now clearly says **Rewarded ads paused** and **Provider required**, rather than advertising a fixed free-BC amount while no verified ad provider exists. The server wrapper continues to reject direct ad-reward claims; the internal reward RPC is service-role-only. No ad payouts were enabled.
+- Confirmed Supabase project health and SQL connectivity; 78/78 public base tables have RLS enabled, 104 public policies exist, no anonymous write policies exist, four internal tables remain intentionally policy-less, four storage buckets have 14 policies, and 21 tables are in Realtime.
+- Confirmed the owner account remains admin and permanent VIP.
+- Reviewed SECURITY DEFINER metadata: 158 total, 138 authenticated-callable and one anonymous read-only getter; every callable function has a pinned search_path. Five functions without auth.uid() are read-only getters. Keep the function-by-function authorization tests open.
+- Reconciled the ledger and repository by exact migration name: 148 applied ledger rows, 72 repository SQL files, 69 exact file-name matches, 79 already-applied ledger names without committed source, three repository-only names whose live schema effects are present, and one duplicated migration stem. No migration was applied because no missing live schema effect was verified.
+- GitHub Actions [run #42190532994](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42190532994) passed `npm install` and `npm run build`. Vercel deployment for commit `25c76cc7d09262ca61e1b51d1bfaded032006aee` is **READY** and includes the verified production alias. The project domain is verified; production password protection is off; SSO applies to previews only.
+- Runtime error aggregation returned zero errors for 24 hours; no warning/error runtime logs appeared in the last 30 minutes.
+
+### Current owner configuration blockers
+
+1. All six coin packages are enabled but have `price_ngn=NULL`; there are zero purchase orders. Set the intended NGN prices before payment tests.
+2. Add the Paystack secret only to Supabase Edge Function secrets, configure the webhook URL and `charge.success`/`charge.failed` events, and perform signed success/failure/replay tests. Secret presence and a real webhook remain unverified.
+3. Configure Google and Apple OAuth credentials and redirect URLs in Supabase Auth; test each provider before enabling the database/admin toggles. Both flags currently remain false.
+4. Enable Supabase Auth leaked-password protection in Auth settings. The official guide states it is available on Pro plan and above: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+5. Keep rewarded-ad BC payouts disabled until a provider supplies a server-verifiable completion callback.
+
+### Still not acceptance-tested
+
+- Two-account authenticated journeys across sign-up/login, confession/feed/report/moderation, message requests/DM, wallet rewards/deductions, Paystack, dating 72-hour/1-BC rules, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls.
+- Android and desktop browser smoke tests, including media upload, refresh persistence, loading/error states, console/network errors and responsive layouts.
+- Direct external HTTP rendering was not completed in this run; Vercel domain and deployment alias assignment were verified in the control plane only.
+- The CI workflow currently builds but does not run unit or E2E tests. A READY build is not proof that user journeys pass.
+
+**Release status remains NOT COMPLETE.** Do not mark 100% until every owner action and critical acceptance test has evidence of passing.
