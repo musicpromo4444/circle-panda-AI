@@ -21,11 +21,11 @@ The rebuilt database is online and healthy. The live schema includes the core so
 
 The owner account `circlepandaapp@gmail.com` is configured as an administrator and permanent VIP in the rebuild project. The three registered Supabase Edge Functions are `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
 
-The latest production deployment for commit `98e46b781d1d93f19981255433b3cd62de221e79` reached **READY** and is aliased to:
+The latest verified application-code deployment for commit `4c7b9043ed7e54866a4e59c5558e2565cf12927c` reached **READY** and is aliased to:
 
 - https://circle-panda-ai.vercel.app
 
-The production build is not, by itself, proof that all user journeys or payment integrations have passed acceptance testing. Paystack credentials and signed-webhook testing, Google/Apple OAuth credentials, a verifiable rewarded-ad callback, leaked-password protection, and authenticated two-account plus mobile/desktop smoke tests remain launch gates. See [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) for the evidence-based checklist.
+The large all-countries city-data bundle has been replaced by country-scoped lazy chunks, and secondary feature panels are lazy-loaded; the main JavaScript chunk is now 426.07 KB minified (121.45 KB gzip). The live database also includes the applied migration `20261106083427_fix_crush_vote_timezone_and_concurrency.sql`, which aligns free/paid WCW/MCM vote quotas to the voter's timezone and serializes concurrent vote claims.\n\nThe production build is not, by itself, proof that all user journeys or payment integrations have passed acceptance testing. All six BC coin packages still need owner-set NGN prices before checkout can be tested. Paystack credentials and signed-webhook testing, Google/Apple OAuth credentials, a verifiable rewarded-ad callback, leaked-password protection, and authenticated two-account plus mobile/desktop smoke tests remain launch gates. See [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) for the evidence-based checklist.
 
 ## Local development
 
