@@ -1,10 +1,10 @@
 # Circle Panda rebuild — persistent completion tracker
 
-Last verified: 2026-10-22 (UTC)
+Last verified: 2026-11-06 (UTC)
 Repository: `musicpromo4444/circle-panda-AI`
 Active Supabase project: `chcyncvieekjousgzlrg` — **Circle Panda Rebuilt**
 Production URL: https://circle-panda-ai.vercel.app
-Latest source change: `646a20bbecd22d921246fe3a64ad66d88409345f` (admin wallet/VIP group access fixes; Vercel deployment READY).
+Latest app code deployment: `4c7b9043ed7e54866a4e59c5558e2565cf12927c` (secondary feature panels lazy-loaded; Vercel deployment READY).\nLatest database migration: `20261106083427_fix_crush_vote_timezone_and_concurrency.sql` (applied to the active rebuild project).
 
 ## Scope guard
 
@@ -18,7 +18,7 @@ Only work on the new `circle-panda-AI` repository and the `Circle Panda Rebuilt`
 - VIP enforcement: active expiry is checked in the UI, VIP-room entry, group membership, message reads/sends, and group-media access. Admin role remains a separate backend permission. Administrator account verified as admin and permanent VIP.
 - Wallet: six database-backed BC package tiers, admin editing of coin amounts and NGN prices, secure Paystack initialization/webhook code, signed webhook validation, idempotent wallet crediting, and purchase-status handling.
 - Authentication: phone OTP password recovery, Google/Apple sign-in entry points controlled by admin settings, and rate limiting on public account creation.
-- Performance: country and state datasets load separately; the large city dataset is deferred until a user opens the area selector. Added an index for `coin_purchase_orders.package_id` to support package joins.
+- Performance: country/state metadata and per-country city data load on demand; the former monolithic ~8 MB city chunk has been replaced with country-scoped chunks (see the 2026-11-06 audit below). Added an index for `coin_purchase_orders.package_id` to support package joins.
 - Security migrations are applied to the active Supabase project and committed under `supabase/migrations/`.
 - Added read-only RLS policies: storefront can read enabled coin packages with a valid positive NGN price; signed-in users can read only their own purchase orders. Signup rate-limit state remains inaccessible to client roles.
 
