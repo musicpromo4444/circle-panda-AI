@@ -1,4 +1,3 @@
--- Keep dating photos in the existing private bucket and enforce blurred/unblurred access.
 DROP POLICY IF EXISTS "members read photos on published dating profiles" ON storage.objects;
 
 CREATE POLICY "dating profile photos follow blur and mutual match rules"

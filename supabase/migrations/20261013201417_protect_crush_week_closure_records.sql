@@ -1,0 +1,1 @@
+drop policy if exists "Administrators can read crush week closures" on public.crush_week_closures; create policy "Administrators can read crush week closures" on public.crush_week_closures for select to authenticated using (exists(select 1 from public.user_roles r where r.user_id=(select auth.uid()) and r.role='admin'));

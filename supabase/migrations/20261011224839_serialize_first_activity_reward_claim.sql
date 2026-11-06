@@ -25,7 +25,9 @@ begin
     v_user_id := new.sender_id; v_reference_id := new.id;
     select c.conversation_type into v_conversation_type from public.conversations c where c.id = new.conversation_id;
     v_activity_key := case when v_conversation_type = 'group' then 'group_message' else 'private_message' end;
-  else return new; end if;
+  else
+    return new;
+  end if;
 
   insert into public.user_activity_events(user_id,activity_key,reference_id)
   values (v_user_id,v_activity_key,v_reference_id)
@@ -36,7 +38,10 @@ begin
   insert into public.wallet_accounts(user_id,bc_balance) values (v_user_id,0) on conflict (user_id) do nothing;
   perform 1 from public.wallet_accounts wa where wa.user_id = v_user_id for update;
 
-  if not exists (select 1 from public.wallet_transactions wt where wt.user_id = v_user_id and wt.reason = 'reward:first_activity_reward') then
+  if not exists (
+    select 1 from public.wallet_transactions wt
+    where wt.user_id = v_user_id and wt.reason = 'reward:first_activity_reward'
+  ) then
     select es.numeric_value into v_reward from public.economy_settings es where es.setting_key = 'first_activity_reward';
     v_reward := coalesce(v_reward,0);
     update public.wallet_accounts set bc_balance = bc_balance + v_reward, updated_at = now() where user_id = v_user_id;

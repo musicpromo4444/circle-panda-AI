@@ -12,6 +12,7 @@ create policy "users can view own activity events" on public.user_activity_event
 for select to authenticated using (auth.uid() = user_id);
 revoke insert, update, delete on public.user_activity_events from authenticated;
 
+-- Keep first-activity BC automatic so it cannot be claimed without doing an activity.
 alter function public.claim_economy_reward(text) rename to claim_economy_reward_internal;
 revoke all on function public.claim_economy_reward_internal(text) from public, authenticated;
 create or replace function public.claim_economy_reward(p_reward_key text)

@@ -8,17 +8,6 @@ alter table public.dating_profiles
   add column if not exists ideal_weekend text,
   add column if not exists conversation_topic text,
   add column if not exists smile_prompt text;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conname = 'dating_profiles_preferred_age_range_check'
-      and conrelid = 'public.dating_profiles'::regclass
-  ) then
-    alter table public.dating_profiles
-      add constraint dating_profiles_preferred_age_range_check
-      check (preferred_age_min >= 18 and preferred_age_max >= preferred_age_min and preferred_age_max <= 120);
-  end if;
-end
-$$;
+alter table public.dating_profiles
+  add constraint dating_profiles_preferred_age_range_check
+  check (preferred_age_min >= 18 and preferred_age_max >= preferred_age_min and preferred_age_max <= 120);

@@ -1,0 +1,1 @@
+drop index if exists public.group_message_reactions_one_per_user_idx;

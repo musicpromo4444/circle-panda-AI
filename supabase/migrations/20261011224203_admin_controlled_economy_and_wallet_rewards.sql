@@ -139,6 +139,7 @@ begin
 
   insert into public.wallet_accounts(user_id,bc_balance) values (v_user_id,0) on conflict (user_id) do nothing;
   select wa.bc_balance into v_balance from public.wallet_accounts wa where wa.user_id = v_user_id for update;
+
   select max(wt.created_at) into v_last_claim
   from public.wallet_transactions wt
   where wt.user_id = v_user_id and wt.reason = v_reason;
