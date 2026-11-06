@@ -77,6 +77,7 @@ export default function App() {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+  const notificationIds = useRef(new Set<string>());
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [vipPostIds, setVipPostIds] = useState<Set<string>>(() => new Set());
   const [, setIsVipMember] = useState(false);
@@ -196,6 +197,7 @@ export default function App() {
       ]);
       if (listResult.error) throw listResult.error;
       const rows = (listResult.data ?? []) as NotificationRow[];
+      notificationIds.current = new Set(rows.map(row => row.id));
       setNotifications(rows);
       setNotificationUnreadCount(unreadResult.count ?? rows.filter(row => !row.read_at).length);
     } catch (error) {
@@ -255,11 +257,33 @@ export default function App() {
     setNotificationsOpen(false);
     if (!session?.user.id) {
       setNotifications([]);
+      notificationIds.current = new Set();
       setNotificationUnreadCount(0);
       setNotificationsError('');
       return;
     }
     void loadNotifications();
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    const client = supabase;
+    const userId = session?.user.id;
+    if (!client || !userId) return;
+    const channel = client.channel('notifications-' + userId)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: 'user_id=eq.' + userId,
+      }, payload => {
+        const incoming = payload.new as NotificationRow;
+        if (notificationIds.current.has(incoming.id)) return;
+        notificationIds.current.add(incoming.id);
+        setNotifications(rows => [incoming, ...rows].slice(0, 30));
+        if (!incoming.read_at) setNotificationUnreadCount(count => count + 1);
+      })
+      .subscribe();
+    return () => { void client.removeChannel(channel); };
   }, [session?.user.id]);
 
   useEffect(() => {
