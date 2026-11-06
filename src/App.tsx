@@ -3,11 +3,12 @@ import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './lib/supabase';
 import LocationFields, { CountryDropdown, type LocationValue } from './components/LocationFields';
+import GlobalActionSlot from './components/GlobalActionSlot';
+
 const CrushFeature = lazy(() => import('./components/CrushFeature'));
 const HotSeatFeature = lazy(() => import('./HotSeatFeature'));
 const DailyActivitiesFeature = lazy(() => import('./components/DailyActivitiesFeature'));
 const DailyCampaignAdmin = lazy(() => import('./components/DailyCampaignAdmin'));
-import GlobalActionSlot from './components/GlobalActionSlot';
 const VipCallControls = lazy(() => import('./components/VipCallControls'));
 
 type Section = 'Home' | 'Confessions' | 'Crush' | 'Dating' | 'Events' | 'Groups' | 'Messages' | 'HotSeat' | 'DailyActivities' | 'VIP' | 'Wallet' | 'Profile' | 'Admin';
