@@ -78,7 +78,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 
 ### Migration ledger reconciliation
 
-- Live migration ledger: 146 applied entries. Repository: 70 SQL files; 66 unique exact-name matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 80 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
+- Live migration ledger: 147 applied entries. Repository: 70 SQL files; 67 unique exact-name matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 80 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
 - No migrations were replayed. No verified unapplied schema change was found. The missing historical SQL source is a repository reproducibility gap; reconstruct a baseline/history before using this repository to provision a fresh database.
 
 ### Performance work completed
@@ -105,3 +105,12 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Health advisor: no findings.
 
 **Release status: NOT COMPLETE.** Do not enable live purchases or rewarded BC payouts until their server-side configuration and end-to-end tests pass. Do not mark 100% complete until every release gate has evidence.
+
+
+### Additional server-side Crush vote correction — 2026-11-06
+
+- Found that free and paid weekly WCW/MCM vote paths used different week boundaries: the free vote implementation used the voter's saved timezone, while the quota wrapper and paid-vote path counted against the database/server week. The paid path also did not reject a nominee from a previous local week.
+- Applied and committed migration `20261106083427_fix_crush_vote_timezone_and_concurrency.sql` to the active rebuild project.
+- Free and paid votes now use the same validated profile timezone and local Monday-week window, reject stale-week nominees, and share a per-user transaction advisory lock so parallel free/paid requests cannot race past the three-free-vote limit.
+- Free votes now award the configured vote XP as well; paid extra votes retain the configured BC charge and the existing already-voted no-double-charge response. The authenticated grants and pinned empty search_path were verified unchanged after migration.
+- The ad-funded extra-vote path remains unavailable until a server-verifiable ad callback exists. Authenticated two-account voting and concurrency tests still need to be run; SQL definition/ACL verification is not a substitute for those tests.
