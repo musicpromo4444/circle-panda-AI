@@ -4,7 +4,7 @@ Last verified: 2026-11-06 (UTC)
 Repository: `musicpromo4444/circle-panda-AI`
 Active Supabase project: `chcyncvieekjousgzlrg` — **Circle Panda Rebuilt**
 Production URL: https://circle-panda-ai.vercel.app
-Latest app code deployment: `4c7b9043ed7e54866a4e59c5558e2565cf12927c` (secondary feature panels lazy-loaded; Vercel deployment READY).\nLatest database migration: `20261106083427_fix_crush_vote_timezone_and_concurrency.sql` (applied to the active rebuild project).
+Latest app code deployment: `4c7b9043ed7e54866a4e59c5558e2565cf12927c` (secondary feature panels lazy-loaded; Vercel deployment READY).\nLatest database migrations: `20261106083427_fix_crush_vote_timezone_and_concurrency.sql` and `20261106084052_fix_event_blast_monthly_timezone.sql` (both applied to the active rebuild project).
 
 ## Scope guard
 
@@ -143,7 +143,7 @@ Update this tracker as each vertical feature is implemented and tested so comple
 
 ### Migration reconciliation — no unsafe replay
 
-- The live ledger contains 147 applied migration entries. The repository currently contains 71 SQL migration files, with 67 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
+- The live ledger contains 148 applied migration entries. The repository currently contains 72 SQL migration files, with 68 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
 - Eighty applied ledger entries have no matching committed file, and one migration name stem is duplicated in the repository. These are historical source-control/reproducibility gaps, not permission to replay the SQL. No migration was applied in this run because no unapplied schema change was verified. Reconstruct or baseline the missing historical migration source before relying on this repository to recreate the database from scratch.
 
 ### Implementation and performance changes
@@ -175,3 +175,18 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - Free and paid votes now use the same validated profile timezone and local Monday-week window, reject stale-week nominees, and share a per-user transaction advisory lock so parallel free/paid requests cannot race past the three-free-vote limit.
 - Free votes now award the configured vote XP as well; paid extra votes retain the configured BC charge and the existing already-voted no-double-charge response. The authenticated grants and pinned empty search_path were verified unchanged after migration.
 - The ad-funded extra-vote path remains unavailable until a server-verifiable ad callback exists. Authenticated two-account voting and concurrency tests still need to be run; SQL definition/ACL verification is not a substitute for those tests.
+
+
+### Additional monthly Event Blast correction — 2026-11-06
+
+- The free Event Blast status and claim functions previously measured the monthly window using the database/server timezone. Both now use the user's validated profile timezone, with UTC fallback, so the eligibility display and server-side claim share the same local calendar month.
+- The existing entitlement is preserved: one free blast per calendar month, 100 unique reach for standard accounts and 500 for active VIP accounts. A namespaced per-user transaction advisory lock prevents two simultaneous claims from consuming the monthly allowance twice.
+- Applied migration `20261106084052_fix_event_blast_monthly_timezone.sql`. Both functions retain authenticated-only execution and an empty pinned search_path. The database definitions and grants were verified after application; a two-account/month-boundary E2E test remains outstanding.
+
+### Core product-rule snapshot checked in the live database
+
+- Welcome bonus: 200 BC; first activity reward: 2 BC.
+- Direct-message sender cost: 1 BC; dating free window: 72 hours; post-window dating message cost: 1 BC.
+- WCW/MCM: three free votes per local week, then 50 BC per extra vote. The ad-funded alternative remains disabled pending verifiable ad completion.
+- The database trigger schedules MCM for Monday 10:00 AM and WCW for Wednesday 10:00 AM in the profile timezone. The November 6 vote migration aligns free and paid vote quotas to that same local week and serializes concurrent claims.
+- Normal groups retain the three-member activation gate; VIP groups do not require three members, and the admin role has the expected group-access bypass.
