@@ -21,7 +21,7 @@ The rebuilt database is online and healthy. The live schema includes the core so
 
 The owner account `circlepandaapp@gmail.com` is configured as an administrator and permanent VIP in the rebuild project. The three registered Supabase Edge Functions are `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
 
-The latest verified application-code deployment for commit `4c7b9043ed7e54866a4e59c5558e2565cf12927c` reached **READY** and is aliased to:
+The latest verified application-code deployment for commit `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29` (live per-user notification inbox and ad-reward safety messaging) reached **READY** as deployment `dpl_8ce9tEzHPyJWtPFTfaB65Jvb5f23` and is aliased to:
 
 - https://circle-panda-ai.vercel.app
 
