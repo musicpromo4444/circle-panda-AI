@@ -974,9 +974,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
   useEffect(() => {
     let active = true;
     if (!location.country) { setLocationHasStates(false); return () => { active = false; }; }
-    import('country-state-city').then(geo => {
-      const country = geo.Country.getAllCountries().find(item => item.name === location.country || item.isoCode === location.country);
-      if (active) setLocationHasStates(geo.State.getStatesOfCountry(country?.isoCode || location.country).length > 0);
+    import('countrycitystatejson/client').then(geo => {
+      const country = geo.getCountries().find(item => item.name === location.country || item.shortName === location.country);
+      if (active) setLocationHasStates((geo.getStatesByShort(country?.shortName || location.country) ?? []).length > 0);
     }).catch(() => { if (active) setLocationHasStates(false); });
     return () => { active = false; };
   }, [location.country]);
@@ -1225,9 +1225,9 @@ function DatingFeature({ userId, onOpenMessages }: { userId: string; onOpenMessa
 
   async function countryHasStates(countryName: string) {
     if (!countryName) return false;
-    const geo = await import('country-state-city');
-    const country = geo.Country.getAllCountries().find(item => item.name === countryName || item.isoCode === countryName);
-    return geo.State.getStatesOfCountry(country?.isoCode || countryName).length > 0;
+    const geo = await import('countrycitystatejson/client');
+    const country = geo.getCountries().find(item => item.name === countryName || item.shortName === countryName);
+    return (geo.getStatesByShort(country?.shortName || countryName) ?? []).length > 0;
   }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>, publishNow: boolean) {
