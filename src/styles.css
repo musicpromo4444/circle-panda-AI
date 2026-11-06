@@ -3136,3 +3136,36 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .group-message .group-message-author{display:block;margin-bottom:4px}
 .group-chat-composer .group-view-once-toggle{max-width:74px;overflow:hidden}
 @media(max-width:390px){.group-chat-composer .group-view-once-toggle{display:none}.group-chat-composer input{min-width:0}.group-chat-composer{gap:3px}}
+
+
+/* Live account notifications */
+.notification-anchor{position:relative;display:flex;align-items:center}
+.notification-unread-count{position:absolute;top:-6px;right:-7px;min-width:17px;height:17px;padding:0 4px;display:grid;place-items:center;border-radius:20px;background:#d94b55;border:1px solid #f5c1c4;color:#fff;font-size:9px;font-weight:900;line-height:1}
+.notification-panel{position:absolute;z-index:1200;top:calc(100% + 13px);right:0;width:min(370px,calc(100vw - 28px));max-height:min(520px,72vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #6e572c;border-radius:16px;background:linear-gradient(150deg,#14231d,#101821);box-shadow:0 22px 60px #0009;color:#f2f6f2}
+.notification-panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid #314237}
+.notification-panel-header>div:first-child{display:grid;gap:4px}
+.notification-panel-header strong{font-size:13px}
+.notification-panel-header small{font-size:10px;color:#9db0a3}
+.notification-panel-actions{display:flex;align-items:center;gap:9px}
+.notification-panel-actions button,.notification-error button{border:0;background:none;color:#f0cf79;font-size:10px;font-weight:800}
+.notification-panel-actions button:last-child{font-size:20px;color:#c6d2c8}
+.notification-list{overflow:auto;overscroll-behavior:contain}
+.notification-item{width:100%;display:flex;align-items:flex-start;gap:11px;padding:13px 15px;border:0;border-bottom:1px solid #26362d;background:transparent;color:inherit;text-align:left}
+.notification-item:hover{background:#1c3025}
+.notification-item.unread{background:#1a2d22}
+.notification-item-mark{flex:0 0 17px;padding-top:2px;color:#efcf78;font-size:9px}
+.notification-item-copy{min-width:0;display:grid;gap:5px}
+.notification-item-copy strong{font-size:11px;color:#f4f6f2}
+.notification-item-copy>span{font-size:11px;line-height:1.5;color:#b7c5bb;overflow-wrap:anywhere}
+.notification-item-copy small{font-size:9px;color:#81958a}
+.notification-empty{padding:24px 18px;text-align:center;color:#a9b8ad;font-size:11px;line-height:1.6}
+.notification-error{color:#ffd3b0}
+.notification-error button{display:block;margin:10px auto 0}
+.theme-light .notification-panel{background:#fff;border-color:#d6bd7b;color:#17231c;box-shadow:0 20px 50px #17231c24}
+.theme-light .notification-panel-header{border-bottom-color:#e6e9e4}
+.theme-light .notification-panel-header small,.theme-light .notification-item-copy small{color:#68776c}
+.theme-light .notification-item{border-bottom-color:#edf0ec}
+.theme-light .notification-item:hover,.theme-light .notification-item.unread{background:#f0f7ee}
+.theme-light .notification-item-copy strong{color:#18241c}
+.theme-light .notification-item-copy>span{color:#53645a}
+@media(max-width:760px){.notification-panel{right:-44px;top:calc(100% + 11px);max-height:68vh}.notification-panel-header{padding:13px}.notification-item{padding:12px 13px}}
