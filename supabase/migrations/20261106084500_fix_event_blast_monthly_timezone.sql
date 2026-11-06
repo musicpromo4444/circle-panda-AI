@@ -101,7 +101,7 @@ BEGIN
     RAISE EXCEPTION 'Only the event creator can promote this event';
   END IF;
 
-  IF p_target_scope NOT IN ('worldwide', 'country', 'state', 'city', 'area') THEN
+  IF p_target_scope IS NULL OR p_target_scope NOT IN ('worldwide', 'country', 'state', 'city', 'area') THEN
     RAISE EXCEPTION 'Invalid target audience';
   END IF;
 
