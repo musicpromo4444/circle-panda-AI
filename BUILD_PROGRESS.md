@@ -143,7 +143,7 @@ Update this tracker as each vertical feature is implemented and tested so comple
 
 ### Migration reconciliation — no unsafe replay
 
-- The live ledger contains 146 applied migration entries. The repository currently contains 70 SQL migration files, with 66 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
+- The live ledger contains 147 applied migration entries. The repository currently contains 70 SQL migration files, with 67 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
 - Eighty applied ledger entries have no matching committed file, and one migration name stem is duplicated in the repository. These are historical source-control/reproducibility gaps, not permission to replay the SQL. No migration was applied in this run because no unapplied schema change was verified. Reconstruct or baseline the missing historical migration source before relying on this repository to recreate the database from scratch.
 
 ### Implementation and performance changes
@@ -166,3 +166,12 @@ Update this tracker as each vertical feature is implemented and tested so comple
 - Performance advisor currently reports seven multiple-permissive SELECT-policy overlaps and 101 unused-index notices. Do not merge write policies or drop indexes without traffic and semantics review. Health advisor returned no findings.
 
 Do not mark Circle Panda 100% complete until the owner configuration items and authenticated/device acceptance tests above have passing evidence.
+
+
+### Additional server-side Crush vote correction — 2026-11-06
+
+- Found that free and paid weekly WCW/MCM vote paths used different week boundaries: the free vote implementation used the voter's saved timezone, while the quota wrapper and paid-vote path counted against the database/server week. The paid path also did not reject a nominee from a previous local week.
+- Applied and committed migration `20261106083427_fix_crush_vote_timezone_and_concurrency.sql` to the active rebuild project.
+- Free and paid votes now use the same validated profile timezone and local Monday-week window, reject stale-week nominees, and share a per-user transaction advisory lock so parallel free/paid requests cannot race past the three-free-vote limit.
+- Free votes now award the configured vote XP as well; paid extra votes retain the configured BC charge and the existing already-voted no-double-charge response. The authenticated grants and pinned empty search_path were verified unchanged after migration.
+- The ad-funded extra-vote path remains unavailable until a server-verifiable ad callback exists. Authenticated two-account voting and concurrency tests still need to be run; SQL definition/ACL verification is not a substitute for those tests.
