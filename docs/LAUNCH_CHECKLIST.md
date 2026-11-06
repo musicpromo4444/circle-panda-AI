@@ -8,7 +8,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 ## Verified from provider control planes
 
 - Supabase project state is `ACTIVE_HEALTHY`; SQL connectivity and table introspection are working.
-- Live database contains the rebuilt application schema and 147 recorded migrations. Do not replay or bulk-apply historical migrations.
+- Live database contains the rebuilt application schema and 148 recorded migrations. Do not replay or bulk-apply historical migrations.
 - Owner account `circlepandaapp@gmail.com` is confirmed as `admin` and permanent VIP (`is_vip=true`, `vip_expires_at=NULL`).
 - Vercel production environment contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for production, preview and development. Secret values are intentionally not copied here.
 - Three Supabase Edge Functions are registered ACTIVE: `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
@@ -78,7 +78,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 
 ### Migration ledger reconciliation
 
-- Live migration ledger: 147 applied entries. Repository: 71 SQL files; 67 unique exact-name matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 80 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
+- Live migration ledger: 148 applied entries. Repository: 72 SQL files; 68 unique exact-name matches; 3 file names do not exactly match the ledger, but their intended schema effects are already present; 80 applied ledger entries have no corresponding committed migration file. One migration name stem is duplicated in the repository.
 - No migrations were replayed. No verified unapplied schema change was found. The missing historical SQL source is a repository reproducibility gap; reconstruct a baseline/history before using this repository to provision a fresh database.
 
 ### Performance work completed
@@ -114,3 +114,18 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Free and paid votes now use the same validated profile timezone and local Monday-week window, reject stale-week nominees, and share a per-user transaction advisory lock so parallel free/paid requests cannot race past the three-free-vote limit.
 - Free votes now award the configured vote XP as well; paid extra votes retain the configured BC charge and the existing already-voted no-double-charge response. The authenticated grants and pinned empty search_path were verified unchanged after migration.
 - The ad-funded extra-vote path remains unavailable until a server-verifiable ad callback exists. Authenticated two-account voting and concurrency tests still need to be run; SQL definition/ACL verification is not a substitute for those tests.
+
+
+### Additional monthly Event Blast correction — 2026-11-06
+
+- The free Event Blast status and claim functions previously measured the monthly window using the database/server timezone. Both now use the user's validated profile timezone, with UTC fallback, so the eligibility display and server-side claim share the same local calendar month.
+- The existing entitlement is preserved: one free blast per calendar month, 100 unique reach for standard accounts and 500 for active VIP accounts. A namespaced per-user transaction advisory lock prevents two simultaneous claims from consuming the monthly allowance twice.
+- Applied migration `20261106084052_fix_event_blast_monthly_timezone.sql`. Both functions retain authenticated-only execution and an empty pinned search_path. The database definitions and grants were verified after application; a two-account/month-boundary E2E test remains outstanding.
+
+### Core product-rule snapshot checked in the live database
+
+- Welcome bonus: 200 BC; first activity reward: 2 BC.
+- Direct-message sender cost: 1 BC; dating free window: 72 hours; post-window dating message cost: 1 BC.
+- WCW/MCM: three free votes per local week, then 50 BC per extra vote. The ad-funded alternative remains disabled pending verifiable ad completion.
+- The database trigger schedules MCM for Monday 10:00 AM and WCW for Wednesday 10:00 AM in the profile timezone. The November 6 vote migration aligns free and paid vote quotas to that same local week and serializes concurrent claims.
+- Normal groups retain the three-member activation gate; VIP groups do not require three members, and the admin role has the expected group-access bypass.
