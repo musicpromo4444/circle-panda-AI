@@ -143,8 +143,8 @@ Update this tracker as each vertical feature is implemented and tested so comple
 
 ### Migration reconciliation — no unsafe replay
 
-- The live ledger contains 148 applied migration entries. The repository currently contains 72 SQL migration files, with 68 unique exact name matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
-- Eighty applied ledger entries have no matching committed file, and one migration name stem is duplicated in the repository. These are historical source-control/reproducibility gaps, not permission to replay the SQL. No migration was applied in this run because no unapplied schema change was verified. Reconstruct or baseline the missing historical migration source before relying on this repository to recreate the database from scratch.
+- The live ledger contains 148 applied migration entries. The repository currently contains 72 SQL migration files, with 69 exact-name file matches. Three committed files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`; the corresponding live effects were checked and are already present (group message reply/reaction schema, dating searcher experience, and five daily-activity tables).
+- Seventy-nine applied ledger entries have no matching committed file, and one migration name stem is duplicated in the repository. These are historical source-control/reproducibility gaps, not permission to replay the SQL. No migration was applied in this run because no unapplied schema change was verified. Reconstruct or baseline the missing historical migration source before relying on this repository to recreate the database from scratch.
 
 ### Implementation and performance changes
 
@@ -190,3 +190,45 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - WCW/MCM: three free votes per local week, then 50 BC per extra vote. The ad-funded alternative remains disabled pending verifiable ad completion.
 - The database trigger schedules MCM for Monday 10:00 AM and WCW for Wednesday 10:00 AM in the profile timezone. The November 6 vote migration aligns free and paid vote quotas to that same local week and serializes concurrent claims.
 - Normal groups retain the three-member activation gate; VIP groups do not require three members, and the admin role has the expected group-access bypass.
+
+
+## 2026-11-06 continued production audit
+
+### Safe wallet UI correction
+
+- The wallet previously displayed a fixed “Get 100 Free BC” ad CTA and exposed the configured ad reward amount/cooldown in the user-facing rules, even though no rewarded-ad provider or verifiable completion callback exists.
+- Updated the wallet CTA to **Rewarded ads paused** and the user-facing economy tiles to **Paused / Provider required**. The existing click handler already returned a pause notice without crediting coins; this change removes the misleading advertised payout. Commit: `25c76cc7d09262ca61e1b51d1bfaded032006aee`.
+- Confirmed the live public reward wrapper rejects `ad_reward`; the internal reward RPC is executable only by `service_role`, not `anon` or `authenticated`. Keep ad payouts disabled until trusted server-side completion verification is implemented.
+
+### Fresh Supabase control-plane and database verification
+
+- Project `chcyncvieekjousgzlrg` (“Circle Panda Rebuilt”, `eu-west-1`) is `ACTIVE_HEALTHY`; a harmless SQL connectivity check succeeded on PostgreSQL 17.11.
+- All 78 public base tables have RLS enabled; none were found with RLS disabled. There are 104 public RLS policies. The only anonymous policy is read-only access to enabled, priced coin packages; there are no anonymous write policies. All exposed public views inspected use `security_invoker=true`.
+- Four internal tables (`admin_audit_log`, `feed_content_reports`, `moderation_reviews`, `signup_rate_limits`) intentionally have RLS enabled without direct client policies; access is through guarded backend/RPC flows.
+- Storage has four buckets and 14 policies: dating photos and group media are private; event covers and crush-post photos are public. The `supabase_realtime` publication contains 21 tables.
+- All three Edge Functions are ACTIVE: `create-panda-account` (JWT verification off for public signup; server-side validation/rate limit), `initialize-coin-purchase` (JWT required), and `paystack-webhook` (JWT off; Paystack HMAC-SHA512 verification in code).
+- Owner account `circlepandaapp@gmail.com` is still `admin` and permanent VIP (`is_vip=true`, `vip_expires_at=NULL`).
+- Database scan found 158 SECURITY DEFINER functions; 138 are executable by authenticated users and one read-only provider-settings getter is executable by anon. All callable SECURITY DEFINER functions have a pinned `search_path`. The five callable functions without `auth.uid()` are read-only public getters/catalogue functions. The 138 authenticated-callable warnings still require targeted authorization tests; they are not treated as automatically safe.
+- Security Advisor currently reports four RLS-enabled/no-policy internal tables, one anonymous SECURITY DEFINER getter, 138 authenticated-callable SECURITY DEFINER functions, and leaked-password protection disabled. Performance Advisor reports seven multiple-permissive-policy warnings and 101 unused-index informational notices. Health Advisor returned no findings.
+
+### Migration ledger reconciliation — corrected exact counts
+
+- Live migration ledger: 148 applied entries. Current repository: 72 SQL migration files; 69 file names match applied ledger names; 79 applied ledger names have no matching committed SQL file. Three repository files have no exact ledger-name match: `group_chat_replies_reactions`, `add_dating_searcher_experience`, and `daily_activities_weekday_rewards`. One migration stem (`harden_dating_discovery_rpc`) is duplicated in two files with identical content.
+- Rechecked the three repository-only migrations against live objects: `messages.reply_to_message_id`, its index, `group_message_reactions` and its four authenticated policies are present; `dating_profiles.searcher_experience` is present; daily activity catalog/schedule/state/completion/attempt tables, 11 catalog rows, seven schedule rows, and seven weekday-login settings are present. No schema effect was found missing, so no migration was replayed or applied.
+- The 79 missing files are already-applied historical source gaps, not unapplied migrations. Representative missing-file paths have no recoverable commit history in this repository. A reviewed baseline/schema archive is still needed before this repository can reliably recreate the live database from scratch.
+
+### Latest CI and production deployment
+
+- GitHub Actions run [#42190532994](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42190532994) passed: checkout, Node setup, `npm install`, and `npm run build` all succeeded. The repository currently has no unit/E2E test script.
+- Vercel production deployment `dpl_9U7hhha7wGAX375peBSNQzFhLgfG` for commit `25c76cc7d09262ca61e1b51d1bfaded032006aee` is **READY**, with `circle-panda-ai.vercel.app` assigned as an alias and no alias error. The project domain is verified; production password protection is off and SSO protection applies only to previews.
+- Vercel project environment metadata contains only the public client variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; no secret values were decrypted. Paystack/OAuth credentials must remain server-side.
+- Runtime error aggregation returned no errors for the last 24 hours, and the last 30-minute production warning/error log query returned no entries. The deployment alias is verified in Vercel's control plane, but a direct external HTTP/browser request was not completed in this run.
+
+### Remaining owner actions and uncompleted tests
+
+- All six enabled coin packages still have `price_ngn=NULL`; there are zero purchase orders. Configure the six NGN prices in the admin dashboard, set `PAYSTACK_SECRET_KEY` only in Supabase Edge Function secrets, configure the webhook URL and `charge.success`/`charge.failed` events, then run signed success/failure/replay tests. Secret presence and a real Paystack webhook have not been verified.
+- Google and Apple auth flags remain off. Configure provider credentials and redirect URLs in Supabase Auth, test both providers, then enable the admin toggles.
+- Supabase Auth leaked-password protection remains disabled. Supabase's password-security guide says this feature is available on Pro plan and above; the owner must enable it in Auth settings if the project plan supports it: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+- No rewarded-ad provider or signed completion callback is configured. Do not enable BC ad payouts.
+- Authenticated two-account tests (auth, feed/confessions/reports/moderation, requests/DM, wallet, dating, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications, admin) and Android/desktop browser/media/refresh smoke tests remain unperformed because no dedicated test-account credentials or interactive browser session were available. CI/build success and zero observed runtime errors do not prove these flows pass.
+- Do not mark Circle Panda 100% complete until owner configuration and all critical authenticated/device acceptance tests have passing evidence.
