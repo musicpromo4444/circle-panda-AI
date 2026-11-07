@@ -276,3 +276,38 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - No rewarded-ad provider or server-verifiable completion callback is configured. Keep BC ad payouts disabled.
 - No dedicated two-account test credentials or interactive browser session are available in this run. Authentication, feed/confession/report/moderation, requests/DM, BC wallet, Paystack, dating 72-hour/1-BC, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin flows still need two-account acceptance testing. Android/desktop responsive, media, refresh-persistence, console and network smoke tests also remain open.
 - CI currently runs a production build only; it has no unit/E2E suite. Do not mark the rebuild 100% complete until the owner actions and critical acceptance tests pass with evidence.
+
+
+## Latest continuation — 2026-11-07 (anonymous-confession RPC privacy hardening)
+
+### Supabase state and migration reconciliation
+- Started by checking the exact target project: `chcyncvieekjousgzlrg`, **Circle Panda Rebuilt**, region `eu-west-1`, status `ACTIVE_HEALTHY`; read-only SQL connectivity succeeded.
+- Reconciled the live migration ledger against committed `supabase/migrations/`: **153 applied migrations = 153 repository SQL files**, with no missing versions, extra files, duplicate versions or version/name mismatches. No historical migration was replayed.
+- Applied and committed `20261107082130_revoke_legacy_confession_author_exposure.sql`.
+
+### Security defect found and fixed
+- The legacy `public.get_public_confessions(integer)` SECURITY DEFINER RPC returned `author_id` for anonymous confession rows. The current React app does not call this RPC; it reads `feed_posts_public`, a `security_invoker=true` view that omits author IDs and returns a null author name for anonymous posts.
+- Revoked `EXECUTE` on the legacy RPC from `authenticated`. Verified `has_function_privilege` is false for both `authenticated` and `anon`. The public feed's existing view and app behavior were not changed.
+- Latest security advisor now reports 137 authenticated-callable SECURITY DEFINER functions (down from 138), one intentionally public read-only auth-provider availability getter, and four INFO notices for RLS-enabled internal tables with no direct client policies.
+- Current SECURITY DEFINER inventory: 158 functions; all 158 have a pinned `search_path`; 137 are callable by authenticated clients; one read-only getter is callable by anon; zero retain EXECUTE for PostgreSQL PUBLIC. The four authenticated-callable definer functions without `auth.uid()` are read-only getters for coin packages, event-blast plans, auth-provider availability and WCW/MCM current-week data. All authenticated-callable `admin_*` definer functions inspected contain an admin-role guard.
+- Rechecked client table privileges: no public-table anonymous INSERT/UPDATE/DELETE privileges and no authenticated TRUNCATE/MAINTAIN/TRIGGER/REFERENCES privileges. Anonymous sequence usage found only on Supabase's `realtime.subscription_id_seq`, not in `public`.
+- 78/78 public base tables have RLS enabled. Four storage buckets have 14 storage policies; dating photos and group media are private, while crush-post photos and event covers are public. Realtime publishes 22 tables, including `notifications`.
+- All three Edge Functions are ACTIVE: `create-panda-account` (JWT verification off for the guarded public signup flow), `initialize-coin-purchase` (JWT verification on), and `paystack-webhook` (JWT verification off; handler validates Paystack HMAC-SHA512). No secret values were read or changed.
+- Owner `circlepandaapp@gmail.com` remains `user_roles.role='admin'`, permanent VIP, `is_vip=true`, `vip_expires_at=NULL`; credentials were not changed.
+- Performance advisor: seven reviewed multiple-permissive SELECT-policy warnings and 101 unused-index INFO notices remain. Health advisor returned no findings. Unused indexes/policy overlaps were not changed without workload evidence.
+
+### App, build and deployment evidence
+- Reviewed the current confession feed call sites: the app reads `feed_posts_public` and does not call the revoked legacy RPC. No visual/product behavior was changed.
+- Rechecked sponsored activity safety: UI keeps ad-only activities at “Setup required”; `claim_economy_reward('ad_reward')` explicitly rejects direct ad claims and the internal reward RPC is not executable by client roles. No ad payout was enabled.
+- GitHub Actions [run #42355149494](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42355149494) passed checkout, Node setup, `npm install` and `npm run build` for commit `75fe0cc8fe8396f47912a819008849a48422b961`. Build completed in 3.49 seconds. Country-specific location chunks are split; the largest listed main bundle was about 430 KB (uncompressed), with no prior ~8 MB monolithic city chunk or Vite >500 KB chunk warning in this build log.
+- Latest Vercel production deployment `dpl_5nMEQp2E5K4xTwy4Cop3tg8mAJKE` for the same commit is **READY**, assigned to `circle-panda-ai.vercel.app`, with `aliasError=null`. Runtime error aggregation found no errors in the last 24 hours.
+- A direct HTTP probe could not resolve external DNS in the execution environment. The Vercel control plane confirms the production alias, but direct browser rendering and Android/desktop smoke tests remain unverified.
+
+### Remaining launch gates — NOT COMPLETE
+- All six coin packages are enabled but still have `price_ngn=NULL`; no purchase orders exist. Owner must set the intended NGN prices, configure `PAYSTACK_SECRET_KEY` only in Supabase Edge Function secrets, register the webhook and `charge.success`/`charge.failed` events, then run signed success/failure/replay tests. Secret presence is not exposed by the available control plane.
+- Google and Apple auth flags remain false. Owner must configure provider credentials and redirect URLs in Supabase Auth, test both providers, then enable the corresponding admin settings.
+- Leaked-password protection remains disabled; Supabase security advisor continues to flag it. The organization was previously confirmed on the Free plan; owner approval of the required Pro-or-higher plan upgrade and enabling the Auth setting remain outstanding.
+- No rewarded-ad provider or server-verifiable completion callback is configured. Keep BC ad payouts disabled.
+- No dedicated two-account test credentials or interactive browser session are available. Auth, confession/feed/report/moderation, request/DM, wallet, Paystack, dating 72-hour/1-BC, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin acceptance tests remain unpassed.
+- CI still runs build only; it has no automated unit/E2E suite. Android/desktop media, refresh persistence, responsive, console and network smoke tests remain open.
+- Do not mark Circle Panda complete until all owner configuration and critical acceptance tests have passing evidence.
