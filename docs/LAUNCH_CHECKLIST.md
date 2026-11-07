@@ -196,3 +196,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Still not passed: authenticated two-account journeys across all critical feature areas, Paystack signed success/failure/replay, Google/Apple OAuth, direct public HTTP/browser rendering, and Android/desktop responsive/media/refresh smoke tests. CI still runs a build only, not E2E tests.
 
 **Release status remains NOT COMPLETE.** The production alias and deployment are verified in Vercel's control plane, but do not treat this as direct browser validation or proof that all user journeys pass.
+### Post-update verification — 2026-11-07
+- Checked profile column-level grants: authenticated clients cannot SELECT date_of_birth or address_line, cannot UPDATE is_vip or vip_expires_at, and profile row updates remain restricted by the own-user RLS policy.
+- The documentation commit for this tracker, 9751aa5bac5759838019e2fa3aa306c333f9dfd0, also passed GitHub Actions run #42355404636 (npm install and npm run build).
+- Newest Vercel production deployment for that commit, dpl_5bR6fdMiWgK3kozM8dBxjHpUfJLW, reached READY and retains the circle-panda-ai.vercel.app production alias with aliasError=null. This is a documentation/migration-source update; app source remains unchanged.
