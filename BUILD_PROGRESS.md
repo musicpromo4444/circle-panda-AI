@@ -311,3 +311,8 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - No dedicated two-account test credentials or interactive browser session are available. Auth, confession/feed/report/moderation, request/DM, wallet, Paystack, dating 72-hour/1-BC, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin acceptance tests remain unpassed.
 - CI still runs build only; it has no automated unit/E2E suite. Android/desktop media, refresh persistence, responsive, console and network smoke tests remain open.
 - Do not mark Circle Panda complete until all owner configuration and critical acceptance tests have passing evidence.
+
+### Post-update verification — 2026-11-07
+- Checked profile column-level grants: authenticated clients cannot SELECT date_of_birth or address_line, cannot UPDATE is_vip or vip_expires_at, and profile row updates remain restricted by the own-user RLS policy.
+- The documentation commit for this tracker, 9751aa5bac5759838019e2fa3aa306c333f9dfd0, also passed GitHub Actions run #42355404636 (npm install and npm run build).
+- Newest Vercel production deployment for that commit, dpl_5bR6fdMiWgK3kozM8dBxjHpUfJLW, reached READY and retains the circle-panda-ai.vercel.app production alias with aliasError=null. This is a documentation/migration-source update; app source remains unchanged.
