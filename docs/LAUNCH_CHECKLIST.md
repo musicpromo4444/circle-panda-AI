@@ -1,6 +1,6 @@
 # Circle Panda — production completion gate
 
-Last checked: 2026-11-06
+Last checked: 2026-11-07
 Repository: `musicpromo4444/circle-panda-AI`
 Supabase rebuild project: `chcyncvieekjousgzlrg` (`eu-west-1`)
 Production host: `https://circle-panda-ai.vercel.app`
@@ -8,19 +8,19 @@ Production host: `https://circle-panda-ai.vercel.app`
 ## Verified from provider control planes
 
 - Supabase project state is `ACTIVE_HEALTHY`; SQL connectivity and table introspection are working.
-- Live database contains the rebuilt application schema and 152 recorded migrations. Do not replay or bulk-apply historical migrations.
+- Live database contains the rebuilt application schema and 153 recorded migrations. Do not replay or bulk-apply historical migrations.
 - Owner account `circlepandaapp@gmail.com` is confirmed as `admin` and permanent VIP (`is_vip=true`, `vip_expires_at=NULL`).
 - Vercel production environment contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for production, preview and development. Secret values are intentionally not copied here.
 - Three Supabase Edge Functions are registered ACTIVE: `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
-- Latest app-code commit `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29` is deployed in production as `dpl_8ce9tEzHPyJWtPFTfaB65Jvb5f23` and is assigned to the verified alias `circle-panda-ai.vercel.app`; subsequent commits in this tracker update documentation only.
+- Latest app-code commit `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29` remains unchanged. The latest production deployment is `dpl_5nMEQp2E5K4xTwy4Cop3tg8mAJKE` for migration-source commit `75fe0cc8fe8396f47912a819008849a48422b961`; it is READY and assigned to the verified alias `circle-panda-ai.vercel.app`.
 - Previous production deployment for commit `9480684c9b8dfb0021ee1f6bc1639474a31925d8` is also **READY**.
 - Vercel runtime error aggregation for the last 24 hours returned no runtime errors. This is not a substitute for browser or authenticated user testing.
-- Migration reconciliation on 2026-11-06: all 152 live ledger versions match exactly one committed `supabase/migrations/` filename; no missing, extra or duplicate versions. Do not replay or bulk-apply historical migrations.
+- Migration reconciliation on 2026-11-07: all 153 live ledger versions match exactly one committed `supabase/migrations/` filename; no missing, extra, duplicate or mismatched versions. Do not replay or bulk-apply historical migrations.
 - Removed redundant index `group_message_reactions_one_per_user_idx`; the existing UNIQUE constraint still enforces one reaction per user.
 - Added a primary key to `public.signup_rate_limits`; verified in PostgreSQL.
 - Hardened the SECURITY DEFINER wrappers `claim_economy_reward`, `create_group`, and `request_context_message_secure` with explicit signed-in checks.
 - Optimized the 52 RLS policies previously flagged for per-row auth function evaluation. Supabase performance advisor no longer reports `auth_rls_initplan`; the missing-primary-key notice is also cleared.
-- Live security review of authenticated-callable SECURITY DEFINER functions: 138 are flagged by the advisor because authenticated users have EXECUTE grants. The reviewed function bodies use caller identity/ownership/membership checks or explicit admin-role checks for protected operations. Five functions do not reference `auth.uid()`: `get_coin_packages`, `get_event_blast_plans`, `get_public_auth_provider_settings`, `get_public_confessions`, and `get_wcw_mcm_current_week`; these are read-only public catalogue/feed/settings getters. Continue a function-by-function authorization review before launch; the advisor warning is a review queue, not proof that every function is exploitable.
+- Live security review of authenticated-callable SECURITY DEFINER functions: 137 remain in the advisor review queue. The reviewed function bodies use caller identity/ownership/membership checks or explicit admin-role checks for protected operations. Four authenticated-callable functions do not reference `auth.uid()`: `get_coin_packages`, `get_event_blast_plans`, `get_public_auth_provider_settings`, and `get_wcw_mcm_current_week`; these are read-only catalogue/feed/settings getters. The legacy `get_public_confessions(integer)` RPC was found to return `author_id` for anonymous posts and is no longer executable by client roles (see 2026-11-07 entry below).
 - Security advisor still reports four RLS-enabled internal tables without direct client policies (`admin_audit_log`, `feed_content_reports`, `moderation_reviews`, `signup_rate_limits`). These are intentionally not directly accessible to client roles and are accessed through guarded backend/RPC flows.
 - Performance advisor still reports seven multiple-permissive-policy warnings and 101 unused-index informational notices. The seven SELECT policy overlaps were reviewed as a combination of owner/admin `ALL` policies and public-to-authenticated read policies; no merge was applied because careless merging could change write permissions. Unused-index notices should be assessed after representative production traffic, not blindly dropped.
 - Security advisor still flags the public auth-provider-settings SECURITY DEFINER RPC; it returns only Google/Apple enabled booleans. Leaked-password protection remains flagged and still needs to be enabled in Supabase Auth settings.
@@ -41,7 +41,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 4. **Rewarded ads:** keep BC rewards disabled until an ad provider and server-verifiable completion callback are configured.
 5. **Authenticated end-to-end tests with at least two test accounts:** sign-up/login/recovery; confession create/read/react/comment/report; request/accept/decline and DM; BC earning/spending; dating profile/discovery/request/free period/paid messages/review; groups and VIP gates; event creation/attendance/blasts; WCW/MCM schedule/voting; Hot Seat host/viewer lifecycle, gifts, comments, questions and bids; notifications; admin settings and moderation.
 6. **Production smoke test:** open the production alias on Android and desktop; check routes, media uploads, refresh persistence, empty/error/loading states, mobile layouts, browser console and network errors. Verify public reachability and absence of unintended deployment protection.
-7. **Performance pass:** split the large deferred city-data bundle (historically ~8 MB minified) and measure initial route loading on a mobile connection.
+7. **Performance pass:** country-specific city data is now split into deferred country chunks; the latest CI build no longer has the historical ~8 MB monolithic city chunk or a >500 KB Vite chunk warning. Measure initial route loading on a real mobile connection before sign-off.
 8. **Release sign-off:** confirm all critical flows pass, no unresolved high/critical security findings remain, backups/restore path are understood, and the live Paystack account is approved before enabling real-money purchases.
 
 ## Important operating rules
@@ -181,3 +181,18 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Still not passed: two-account authenticated acceptance across all critical journeys; Paystack signed success/failure/replay; Google/Apple OAuth; Android and desktop browser/media/refresh smoke tests. CI has no unit/E2E test suite. Owner configuration and these tests remain mandatory before release.
 
 **Release status remains NOT COMPLETE.** Never mark 100% until all owner actions and critical acceptance tests pass with evidence.
+
+## Latest continuation — 2026-11-07
+
+- Supabase project chcyncvieekjousgzlrg was checked first and remained ACTIVE_HEALTHY in eu-west-1; read-only SQL connectivity succeeded.
+- Live migration ledger and repository now reconcile exactly: 153 applied migrations and 153 exact-version/name files, with no missing, extra, duplicate or mismatched versions. The new migration is 20261107082130_revoke_legacy_confession_author_exposure.sql.
+- Privacy fix: revoked authenticated execution of legacy get_public_confessions(integer) because its SECURITY DEFINER response included author_id even for anonymous confessions. Confirmed the current frontend does not call this RPC; it uses feed_posts_public, a security_invoker=true view that omits author IDs and masks anonymous author names. Verified both authenticated and anon now lack EXECUTE on the legacy RPC.
+- Database checks: 78/78 public base tables have RLS; four storage buckets have 14 policies; dating photos and group media are private; 22 tables are in Realtime including notifications. No anonymous public-table write privileges or authenticated elevated table privileges (TRUNCATE, MAINTAIN, TRIGGER, REFERENCES) were found. The owner account remains admin and permanent VIP.
+- SECURITY DEFINER review: 158 functions total, all with pinned search paths; 137 are authenticated-callable, one intentionally public read-only auth-provider getter, and zero PUBLIC EXECUTE grants. Admin-prefixed authenticated-callable definer RPCs inspected contain admin-role guards. Security advisor: four INFO internal-table/no-policy notices, one WARN for the read-only public getter, 137 authenticated-callable definer warnings, and leaked-password protection disabled. Performance advisor: seven SELECT-policy overlaps and 101 unused-index INFO notices. Health advisor: no findings.
+- All three Edge Functions remain ACTIVE with expected JWT settings: public signup handler (custom validation/rate limiting), authenticated purchase initializer, and signature-validated Paystack webhook. No secrets were exposed or changed. Rewarded-ad claims remain blocked until a server-verifiable ad callback exists.
+- Six coin packages remain enabled with price_ngn=NULL; no purchase orders exist. Google and Apple auth flags remain false. Owner must configure Paystack prices/secrets/webhook and Google/Apple credentials/redirects. Supabase leaked-password protection remains disabled; owner approval of the required Pro-or-higher plan upgrade and enabling the Auth setting are still needed.
+- CI run #42355149494 passed npm install and npm run build for commit 75fe0cc8fe8396f47912a819008849a48422b961; build completed in 3.49 seconds. Country-specific location chunks are split; largest listed main bundle was about 430 KB uncompressed, with no ~8 MB monolithic city chunk or >500 KB Vite warning.
+- Latest Vercel production deployment dpl_5nMEQp2E5K4xTwy4Cop3tg8mAJKE is READY, assigned to circle-panda-ai.vercel.app, and has no alias error. Runtime error aggregation returned no errors in the last 24 hours. Direct HTTP probing failed because external DNS could not resolve in the execution environment; no browser session was available.
+- Still not passed: authenticated two-account journeys across all critical feature areas, Paystack signed success/failure/replay, Google/Apple OAuth, direct public HTTP/browser rendering, and Android/desktop responsive/media/refresh smoke tests. CI still runs a build only, not E2E tests.
+
+**Release status remains NOT COMPLETE.** The production alias and deployment are verified in Vercel's control plane, but do not treat this as direct browser validation or proof that all user journeys pass.
