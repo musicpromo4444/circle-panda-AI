@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -154,9 +155,12 @@ export default function GlobalActionSlot({ isAdmin, section, onNavigate }: {
         <button className="primary-button" type="submit" disabled={saving}>{saving?'Saving…':'Save universal icon settings'} <span>✓</span></button>
       </form>}
     </section>}
-    {showFloating && config && <button type="button" className="global-action-float" onClick={activate} aria-label={config.label} title={config.description}>
-      <span className="global-action-float-icon">{config.icon}</span><span className="global-action-float-copy"><strong>{config.label}</strong><small>{config.description}</small></span><span className="global-action-float-arrow">↗</span>
-    </button>}
+    {showFloating && config && typeof document !== 'undefined' && createPortal(
+      <button type="button" className="global-action-float" onClick={activate} aria-label={config.label} title={config.description}>
+        <span className="global-action-float-icon" aria-hidden="true">{config.icon}</span>
+      </button>,
+      document.body
+    )}
     {popup && config && <div className="global-action-backdrop" onClick={()=>setPopup(false)}><section className="global-action-popup" role="dialog" aria-modal="true" aria-labelledby="global-action-popup-title" onClick={event=>event.stopPropagation()}>
       <button type="button" className="global-action-popup-close" aria-label="Close popup" onClick={()=>setPopup(false)}>×</button>
       <div className="global-action-popup-icon">{config.icon}</div><p className="eyebrow">{config.action_type==='ad'?'SPONSORED MESSAGE':config.action_type==='giveaway'?'GIVEAWAY / SWEEPSTAKE':'CIRCLE PANDA ACTIVITY'}</p>
