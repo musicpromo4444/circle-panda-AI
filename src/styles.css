@@ -3169,3 +3169,24 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
 .theme-light .notification-item-copy strong{color:#18241c}
 .theme-light .notification-item-copy>span{color:#53645a}
 @media(max-width:760px){.notification-panel{right:-44px;top:calc(100% + 11px);max-height:68vh}.notification-panel-header{padding:13px}.notification-item{padding:12px 13px}}
+
+/* Mobile daily reward sheet: keep the full seven-day streak inside the viewport. */
+@media(max-width:480px){
+  .daily-game-backdrop{padding:12px;overflow-x:hidden}
+  .daily-login-modal{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    min-height:calc(100dvh - 24px);
+    max-height:calc(100dvh - 24px);
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 12px calc(14px + env(safe-area-inset-bottom, 0px));
+    overflow-x:hidden;
+  }
+  .daily-login-modal .eyebrow{max-width:100%;overflow-wrap:anywhere;line-height:1.6}
+  .daily-streak-strip{width:100%;min-width:0;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+  .daily-streak-day{min-width:0;padding:7px 1px;overflow:hidden}
+  .daily-streak-day.today{transform:translateY(-3px);min-height:88px}
+  .daily-streak-day.today strong{font-size:1.1rem}
+  .daily-streak-day.today em{font-size:.46rem;padding:3px 4px}
+  .daily-login-ad-slot{min-width:0;max-width:100%;font-size:.65rem;letter-spacing:.05em}
+}
