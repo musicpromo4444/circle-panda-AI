@@ -814,7 +814,7 @@ export default function App() {
               {reactionPickerPost === post.id && <div className="reaction-picker">{[{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'surprised',emoji:'😮'},{key:'angry',emoji:'😠'},{key:'panda',emoji:'🐼'}].map(item => <button key={item.key} className={myReactions[post.id] === item.key ? 'selected' : ''} onClick={() => void toggleReaction(post.id,item.key)} title={item.key}>{item.emoji}</button>)}</div>}
               {expandedComments[post.id] && <div className="comments-panel">{(commentsByPost[post.id] ?? []).map(comment => <div className={`comment-row${vipCommentAuthorIds.has(comment.author_id) ? ` vip-comment-row ${getWeeklyVipAuraClass()}` : ''}`} key={comment.id}><span className={`comment-avatar${vipCommentAuthorIds.has(comment.author_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><div><strong>{commentNames[comment.author_id] || 'Panda'} {vipCommentAuthorIds.has(comment.author_id) && <span className="vip-member-label">VIP</span>}</strong><p>{comment.body}</p><small>{new Date(comment.created_at).toLocaleString()}</small></div></div>)}<form className="comment-form" onSubmit={e => void submitComment(e,post.id)}><input value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(prev => ({...prev,[post.id]:e.target.value}))} placeholder="Write a comment…" maxLength={2000} required /><button className="primary-button">Send</button></form></div>}</article>)}</div> : <div className="empty-state"><span>✦</span><h3>Your circle starts here.</h3><p>Be the first to share something. Your posts will appear here after publishing.</p></div>}
         </>}
-        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel key={section === 'Crush' ? crushPanelKey : section} section={section} userId={session.user.id} onOpenMessages={() => setSection('Messages')} onNavigate={setSection} isAdmin={isAdmin} />}
+        {section !== 'Home' && section !== 'Confessions' && <FeaturePanel key={section === 'Crush' ? crushPanelKey : section} section={section} userId={session.user.id} coinBalance={coinBalance} onOpenMessages={() => setSection('Messages')} onNavigate={setSection} isAdmin={isAdmin} />}
         <GlobalActionSlot isAdmin={isAdmin} section={section} onNavigate={setSection} />
         <footer className="page-footer"><span>© 2026 Circle Panda</span><span>Built for real connection <b>●</b></span></footer>
       </div>
@@ -841,7 +841,7 @@ export default function App() {
   </div>;
 }
 
-function FeaturePanel({ section, userId, onOpenMessages, onNavigate, isAdmin }: { section: Section; userId: string; onOpenMessages: () => void; onNavigate: (section: Section) => void; isAdmin:boolean }) {
+function FeaturePanel({ section, userId, coinBalance, onOpenMessages, onNavigate, isAdmin }: { section: Section; userId: string; coinBalance: number | null; onOpenMessages: () => void; onNavigate: (section: Section) => void; isAdmin:boolean }) {
   if (section === 'Messages') return <MessagesFeature userId={userId} />;
   if (section === 'HotSeat') return <Suspense fallback={<div className="empty-state">Loading Hot Seat…</div>}><HotSeatFeature userId={userId} onOpenWallet={() => onNavigate('Wallet')} onOpenMessages={() => onNavigate('Messages')} isAdmin={false} /></Suspense>;
   if (section === 'DailyActivities') return <Suspense fallback={<div className="empty-state">Loading daily activities…</div>}><DailyActivitiesFeature userId={userId} onReward={async () => { window.dispatchEvent(new Event('circle-panda-wallet-updated')); }} /></Suspense>;
@@ -2500,17 +2500,22 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
   const canManageOpenGroup = Boolean(openGroup && (openGroup.creator_id === userId || ['creator','admin'].includes(myGroupRoles[openGroup.id] || '')));
   const canEditOpenGroupInfo = Boolean(openGroup && myGroups[openGroup.id] && (canManageOpenGroup || groupEditInfo === 'admins_members'));
 
-  async function showGroupSettings() {
-    if (!supabase || !openGroup) return;
+  async function showGroupSettings(group: GroupRow) {
+    if (!supabase || groupActionLocks.current['settings-' + group.id]) return;
+    groupActionLocks.current['settings-' + group.id] = true;
     setBusy(true); setNotice('');
-    const { data, error } = await supabase.from('group_settings').select('edit_group_info,send_messages,approve_new_members').eq('group_id',openGroup.id).maybeSingle();
-    if (error) setNotice(error.message);
-    setGroupEditInfo(data?.edit_group_info || 'admins');
-    setGroupNameDraft(openGroup.name);
-    setGroupDescriptionDraft(openGroup.description || '');
-    setGroupSendMessages(data?.send_messages ?? true);
-    setGroupApproveMembers(data?.approve_new_members ?? false);
-    setGroupSettingsOpen(true); setBusy(false);
+    try {
+      const { data, error } = await supabase.from('group_settings').select('edit_group_info,send_messages,approve_new_members').eq('group_id',group.id).maybeSingle();
+      if (error) throw error;
+      setOpenGroupId(group.id); setOpenConversationId(null);
+      setGroupEditInfo(data?.edit_group_info || 'admins');
+      setGroupNameDraft(group.name);
+      setGroupDescriptionDraft(group.description || '');
+      setGroupSendMessages(data?.send_messages ?? true);
+      setGroupApproveMembers(data?.approve_new_members ?? false);
+      setGroupSettingsOpen(true);
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not load group settings.'); }
+    finally { delete groupActionLocks.current['settings-' + group.id]; setBusy(false); }
   }
 
   async function saveGroupDetails(event: FormEvent<HTMLFormElement>) {
@@ -2580,7 +2585,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         const count = memberCounts[group.id] || 0;
         const member = Boolean(myGroups[group.id]);
         const opened = Boolean(group.activated_at);
-        return <article className="group-card" key={group.id}><div className={`group-card-icon${vipGroupUserIds.has(group.creator_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{vipGroupUserIds.has(group.creator_id) && <span className="vip-member-label">VIP creator</span>}{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}</div></div></article>;
+        return <article className="group-card" key={group.id}><div className={`group-card-icon${vipGroupUserIds.has(group.creator_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{vipGroupUserIds.has(group.creator_id) && <span className="vip-member-label">VIP creator</span>}{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}{member && (group.creator_id===userId || ['creator','admin'].includes(myGroupRoles[group.id] || '')) && <button type="button" className="secondary-button" disabled={busy} onClick={()=>void showGroupSettings(group)}>Manage group</button>}</div></div></article>;
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
     {pendingJoinRequests.length > 0 && <section className="group-join-requests"><div className="section-title-row"><div><p className="eyebrow">YOUR COMMUNITY</p><h2>Membership requests</h2><p>Approve or decline requests to join the groups you manage.</p></div><span className="count-pill">{pendingJoinRequests.length} PENDING</span></div><div className="group-join-request-list">{pendingJoinRequests.map(request => { const group = groups.find(item => item.id === request.group_id); return <article className="group-join-request-card" key={request.id}><div><strong>{joinRequestNames[request.user_id] || 'Panda'}</strong><p>Requested to join <b>{group?.name || 'your group'}</b></p><small>{new Date(request.created_at).toLocaleString()}</small></div><div className="group-join-request-actions"><button type="button" className="secondary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,false)}>Decline</button><button type="button" className="primary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,true)}>Approve</button></div></article>; })}</div></section>}
