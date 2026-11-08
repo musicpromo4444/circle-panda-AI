@@ -316,3 +316,39 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - Checked profile column-level grants: authenticated clients cannot SELECT date_of_birth or address_line, cannot UPDATE is_vip or vip_expires_at, and profile row updates remain restricted by the own-user RLS policy.
 - The documentation commit for this tracker, 9751aa5bac5759838019e2fa3aa306c333f9dfd0, also passed GitHub Actions run #42355404636 (npm install and npm run build).
 - Newest Vercel production deployment for that commit, dpl_5bR6fdMiWgK3kozM8dBxjHpUfJLW, reached READY and retains the circle-panda-ai.vercel.app production alias with aliasError=null. This is a documentation/migration-source update; app source remains unchanged.
+
+
+## Latest continuation — 2026-11-08 (live source reconciliation and release CI)
+
+### Supabase state and schema evidence
+- Started with project lookup: `chcyncvieekjousgzlrg`, **Circle Panda Rebuilt**, `eu-west-1`, **ACTIVE_HEALTHY**; read-only SQL connectivity succeeded.
+- Live migration ledger reconciles exactly with committed `supabase/migrations/`: **153 applied / 153 files**, no missing/extra/duplicate/version-name mismatch. No migration was applied in this run.
+- Owner is still admin and permanent VIP, verified in the correct tables: `user_roles.role='admin'`, `profiles.is_vip=true`, `profiles.vip_expires_at=NULL`. No credentials changed.
+- Public schema: **78/78** base tables have RLS. Storage: **4 buckets / 14 policies**; dating photos and group media are private. Realtime: **22 tables**, including notifications.
+- SECURITY DEFINER inventory: **158 total**, all with pinned search paths; **0** EXECUTE grants to PostgreSQL PUBLIC; **1** read-only anon-callable provider-availability getter; **137** authenticated-callable functions. Four authenticated-callable getters lack an `auth.uid()` reference and are read-only catalogue/current-week/provider-setting getters. The 137 advisor warnings remain a review queue; they are not treated as a blanket proof of safety.
+- Security advisor: 4 INFO no-direct-policy findings for internal RLS tables, 1 WARN for the intentionally public read-only auth-provider getter, 137 WARN authenticated-callable SECURITY DEFINER functions, 1 WARN leaked-password protection disabled. The public getter returns only provider-enabled booleans; Google and Apple flags are both 0/false.
+- Performance advisor: 7 reviewed multiple-permissive SELECT-policy warnings and 101 unused-index INFO notices. No changes were made without workload evidence. Health advisor: no findings.
+- All three Edge Functions are ACTIVE: signup v7, purchase initializer v2, Paystack webhook v2. The webhook handler validates HMAC-SHA512 before wallet-credit RPC. Ad reward claim raises an error pending trusted ad-completion verification; internal payout RPC is not executable by client roles.
+- Admin profile verification confirms permanent VIP. Six coin packages are enabled but all have `price_ngn=NULL`; there are zero purchase orders. Supabase Auth currently has only **one** user (the owner).
+
+### Application/source work
+- Detected a source-of-truth mismatch: repository `create-panda-account/index.ts` lagged behind the deployed v7 function. Synced the repository file to the exact deployed v7 source and verified byte-for-byte equality. The live handler includes origin allowlisting, a 16 KiB request cap, 8–128 character password validation, stricter email/phone validation, safe metadata fields, atomic per-IP signup limiting and generic failure responses. No Edge Function secrets or credentials were read or changed.
+- Added `tests/release-contracts.test.mjs` with eight Node built-in tests for public-only browser config, no server secrets in browser source, signup guardrails, authenticated and priced checkout, HMAC-before-credit webhook handling, anonymous confession privacy, user-scoped notifications, and ad-reward blocking.
+- Added `npm test` to package scripts and GitHub Actions before the production build.
+- Final CI run [#42462458038](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42462458038) passed: **8/8 release-contract tests**, `npm install`, and `npm run build`. An initial false-negative test assertion was corrected; it was a test matcher issue, not an application defect.
+
+### Vercel evidence
+- Latest production deployment `dpl_EtuR6RyFd8wUvdFkCeJQHHJZgphX` for commit `2f7a5fea92122ba2389841f6f0312d543b2c33dd` is **READY** with `aliasError=null` and `circle-panda-ai.vercel.app` assigned. The Vercel domain is verified.
+- Build output: main bundle 429.92 KB minified / 122.51 KB gzip. Country-specific location chunks remain split; the former ~8 MB monolithic city-data chunk is not present.
+- Vercel runtime error aggregation returned no errors over the last 24 hours.
+- Direct public HTTP/browser rendering was not completed; verified alias assignment is not equivalent to browser smoke testing.
+
+### Owner actions and unpassed acceptance gates
+- Owner must set six NGN coin package prices; configure `PAYSTACK_SECRET_KEY` only in Supabase Edge Function secrets; register webhook and `charge.success`/`charge.failed`; run signed success/failure/replay tests. Secret presence cannot be read through the available control plane.
+- Configure Google and Apple provider credentials and redirect URLs in Supabase Auth before enabling their currently false flags.
+- Supabase organization is on Free plan; owner must approve Pro-or-higher upgrade and enable leaked-password protection.
+- No rewarded-ad provider/server-verifiable callback is configured; keep payouts disabled.
+- Only one Auth user exists, so two-account tests cannot run without a second test account. No production test account was created. Authentication and the requested two-account flows remain untested.
+- Browser rendering, Android/desktop smoke, media upload, refresh persistence, responsive layout and console/network tests remain unverified.
+
+**Circle Panda is deployed, but production completion is NOT achieved.** Continue only with evidence-based tests and safe fixes; never mark 100% while any critical gate is open.

@@ -200,3 +200,45 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Checked profile column-level grants: authenticated clients cannot SELECT date_of_birth or address_line, cannot UPDATE is_vip or vip_expires_at, and profile row updates remain restricted by the own-user RLS policy.
 - The documentation commit for this tracker, 9751aa5bac5759838019e2fa3aa306c333f9dfd0, also passed GitHub Actions run #42355404636 (npm install and npm run build).
 - Newest Vercel production deployment for that commit, dpl_5bR6fdMiWgK3kozM8dBxjHpUfJLW, reached READY and retains the circle-panda-ai.vercel.app production alias with aliasError=null. This is a documentation/migration-source update; app source remains unchanged.
+
+
+## Latest continuation — 2026-11-08 (source reconciliation and CI security contracts)
+
+### Target project and migration ledger
+- Started with Supabase project lookup: `chcyncvieekjousgzlrg`, **Circle Panda Rebuilt**, region `eu-west-1`, status **ACTIVE_HEALTHY**. Read-only SQL connectivity succeeded.
+- Reconciled the live migration ledger with committed `supabase/migrations/`: **153 applied = 153 SQL files**, with no missing, extra, duplicate or version/name mismatch. No migration was missing, so none was applied.
+- The owner account was checked against the correct profile record: `user_roles.role='admin'`, `profiles.is_vip=true`, `profiles.vip_expires_at=NULL`. Credentials were not changed. (The VIP fields are in `profiles`, not `auth.users`.)
+
+### Database, storage, Realtime and function checks
+- All **78/78** public base tables have RLS enabled.
+- Storage has four buckets and 14 policies: event covers and confession/crush photos are public; dating-profile photos and group media remain private.
+- Realtime publishes 22 tables, including `notifications`.
+- There are 158 public SECURITY DEFINER functions; all 158 have a pinned `search_path`; zero retain EXECUTE for PostgreSQL `PUBLIC`. One read-only auth-provider availability getter is callable by `anon`; 137 are callable by `authenticated`. Four authenticated-callable getters do not reference `auth.uid()` and are read-only catalogue/current-week/provider-availability getters. Continue treating the advisor's 137-function warning as a review queue, not as proof that every function is risk-free.
+- The legacy anonymous-confession RPC remains revoked for authenticated users; the current app uses `feed_posts_public`. The live ad-reward claim RPC rejects `ad_reward`, and the internal payout RPC is not executable by `anon` or `authenticated`.
+- All three Edge Functions are ACTIVE: `create-panda-account` v7 (JWT verification off for the custom guarded public signup flow), `initialize-coin-purchase` v2 (JWT on), and `paystack-webhook` v2 (JWT off; handler verifies the Paystack signature).
+- Security advisor: four INFO internal-table/no-policy notices; one WARN for the deliberately public read-only provider-availability getter; 137 WARN authenticated-callable SECURITY DEFINER functions; one WARN for leaked-password protection disabled. The provider getter returns only Google/Apple enabled booleans; both flags are currently false.
+- Performance advisor: seven reviewed overlapping SELECT-policy warnings and 101 unused-index INFO notices. No policy merge or index deletion was made without workload evidence. Health advisor returned no findings.
+
+### Source drift corrected and regression checks added
+- Found that committed `supabase/functions/create-panda-account/index.ts` was older than live Edge Function v7: repository code allowed wildcard CORS and lacked the live payload cap, maximum password length, stricter phone/email validation, safe metadata allowlist and generic failure responses.
+- Synced the repository file to the exact live v7 source and verified byte-for-byte equality. The deployed function itself was already v7; no secret or credential was read or changed and no Edge Function redeploy was needed.
+- Added eight Node built-in release/security contract tests and made GitHub Actions run `npm test` before `npm run build`. Tests cover browser-only public Supabase variables, no server secrets in browser source, signup hardening, authenticated/price-validated checkout initialization, Paystack HMAC-before-credit ordering, anonymous-confession RPC revocation, user-scoped notification reads/Realtime, and disabled unverified ad payouts.
+- The first test run exposed a brittle assertion in the test (it expected template interpolation while the app correctly builds the Realtime filter by string concatenation). The assertion was corrected; the final run passed **8/8 tests** and the production build.
+- Passing CI: [run #42462458038](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42462458038), commit `2f7a5fea92122ba2389841f6f0312d543b2c33dd`.
+
+### Production build and deployment
+- Vercel production deployment `dpl_EtuR6RyFd8wUvdFkCeJQHHJZgphX` for the same commit reached **READY**, with `aliasError=null` and aliases including `circle-panda-ai.vercel.app`. The production domain is verified in Vercel.
+- Vercel build output: main bundle **429.92 KB minified / 122.51 KB gzip**; country/location data remains split into deferred country chunks (largest listed country chunk 303.40 KB). The former ~8 MB monolithic city bundle is not present.
+- Runtime error aggregation returned no errors in the latest 24 hours.
+- Direct public HTTP fetch/browser rendering could not be completed in this environment. The domain/alias are verified by Vercel control-plane records only; do not claim browser rendering or mobile/desktop smoke tests passed.
+
+### Remaining launch gates — NOT COMPLETE
+- There is currently **one** Supabase Auth user (the owner/admin). No second account or disposable test users were created in production. Two-account authenticated acceptance tests remain blocked until a second test account is supplied/authorized.
+- All six coin packages remain enabled with `price_ngn=NULL`; there are zero purchase orders. Owner must set the intended NGN prices, configure `PAYSTACK_SECRET_KEY` only in Supabase Edge Function secrets, register the webhook and `charge.success`/`charge.failed` events, then test signed success/failure/replay. Secret presence in Supabase Edge Function secrets is not exposed by the available control plane.
+- Vercel environment listing shows only the two public client variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; no server/payment secrets were requested or decrypted.
+- Google and Apple auth flags are both false. Owner must configure provider credentials and redirect URLs in Supabase Auth and test the providers before enabling them.
+- Supabase organization is on the Free plan; leaked-password protection remains disabled. Owner must approve the required Pro-or-higher plan upgrade and enable the Auth setting.
+- No rewarded-ad provider or server-verifiable completion callback exists. Keep BC ad payouts disabled.
+- Remaining tests: two-account authentication, confessions/feed/report/moderation, message requests/DMs, BC rewards/deductions, Paystack/webhook, dating 72-hour/1-BC rules, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls; also direct browser, Android/desktop, media upload, refresh persistence, responsive layout, console/network smoke tests.
+
+**Release status remains NOT COMPLETE.** Do not mark 100% until the owner configuration and critical acceptance tests above have passing evidence.

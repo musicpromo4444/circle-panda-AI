@@ -17,17 +17,17 @@ A rebuild of Circle Panda using React, TypeScript, Vite, and Supabase.
 
 ## Current status
 
-The rebuilt database is online and healthy. The live schema includes the core social, messaging, wallet, dating, groups, events, WCW/MCM, Hot Seat, moderation, and daily-activity systems. RLS is enabled on all 78 public base tables, and security-sensitive writes are handled through transactional RPCs with signed-in, ownership, membership, or admin checks as appropriate.
+The rebuilt database is online and healthy. All 78 public base tables have RLS enabled. The live migration ledger and committed repository migrations reconcile exactly at **153/153**. Storage has four buckets and 14 policies; 22 tables are published to Realtime, including notifications.
 
-The owner account `circlepandaapp@gmail.com` is an administrator and permanent VIP in the rebuild project (`profiles.is_vip=true`, `profiles.vip_expires_at=NULL`). The three registered Supabase Edge Functions are `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
+The owner account `circlepandaapp@gmail.com` remains an administrator and permanent VIP (`profiles.is_vip=true`, `profiles.vip_expires_at=NULL`). The three registered Supabase Edge Functions are `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
 
-The latest verified production application commit before the current CI guardrail update is `b2cb72f01e6e0fdefa726a32b5fc7def58267b8b`; its deployment reached **READY** and is aliased to:
+The latest production deployment is `dpl_EtuR6RyFd8wUvdFkCeJQHHJZgphX`, built from commit `2f7a5fea92122ba2389841f6f0312d543b2c33dd`, and is **READY** with the verified alias:
 
 - https://circle-panda-ai.vercel.app
 
-The large all-countries city-data bundle has been replaced by country-scoped lazy chunks, and secondary feature panels are lazy-loaded; the main JavaScript chunk was 426.07 KB minified (121.45 KB gzip) in the last recorded build. The live database and repository have **153/153** migration versions reconciled. The notification inbox uses user-scoped reads and Realtime updates. Anonymous confession reads use the privacy-safe `feed_posts_public` view.
+The large all-countries city-data bundle has been replaced by country-scoped deferred chunks. The latest build's main JavaScript chunk is 429.92 KB minified (122.51 KB gzip). Secondary feature panels are lazy-loaded. GitHub Actions now runs eight release/security contract tests and the production build.
 
-The production build is not, by itself, proof that all user journeys or payment integrations have passed acceptance testing. All six BC coin packages still need owner-set NGN prices before checkout can be tested. Paystack credentials and signed-webhook testing, Google/Apple OAuth credentials, a verifiable rewarded-ad callback, leaked-password protection, and authenticated two-account plus mobile/desktop smoke tests remain launch gates. See [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) for the evidence-based checklist.
+The production build is not, by itself, proof that all user journeys or payment integrations have passed acceptance testing. All six BC coin packages still need owner-set NGN prices before checkout can be tested. Paystack credentials and signed-webhook testing, Google/Apple OAuth credentials, a verifiable rewarded-ad callback, leaked-password protection, authenticated two-account tests, and browser/Android/desktop smoke tests remain launch gates. See [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) and [BUILD_PROGRESS.md](BUILD_PROGRESS.md).
 
 ## Local development
 
