@@ -3190,3 +3190,56 @@ body:has(.hot-seat-shell) .mobile-bottom-nav{display:none!important}
   .daily-streak-day.today em{font-size:.46rem;padding:3px 4px}
   .daily-login-ad-slot{min-width:0;max-width:100%;font-size:.65rem;letter-spacing:.05em}
 }
+
+/* Universal action is a true viewport-pinned icon, rendered through a body portal. */
+.global-action-float{
+  position:fixed!important;
+  left:max(14px,env(safe-area-inset-left))!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:calc(104px + env(safe-area-inset-bottom,0px))!important;
+  z-index:1200!important;
+  width:58px!important;
+  height:58px!important;
+  min-width:58px!important;
+  max-width:58px!important;
+  min-height:58px!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1.5px solid #f5d47d!important;
+  border-radius:50%!important;
+  background:linear-gradient(145deg,#292b30,#171b22)!important;
+  color:#ffe49a!important;
+  box-shadow:0 5px 18px #0009,0 0 0 3px #e9bd5526,0 0 18px #e9bd5540!important;
+  transform:none!important;
+  transition:none!important;
+  backdrop-filter:blur(10px);
+  -webkit-tap-highlight-color:transparent;
+}
+.global-action-float:hover,.global-action-float:active,.global-action-float:focus-visible{
+  transform:none!important;
+}
+.global-action-float-icon{
+  display:grid!important;
+  place-items:center!important;
+  width:100%!important;
+  height:100%!important;
+  flex:0 0 100%!important;
+  border:0!important;
+  border-radius:50%!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  font-size:29px!important;
+  line-height:1!important;
+}
+.global-action-float-copy,.global-action-float-arrow{display:none!important}
+@media(max-width:700px){
+  .global-action-float{
+    left:max(12px,env(safe-area-inset-left))!important;
+    bottom:calc(100px + env(safe-area-inset-bottom,0px))!important;
+    width:54px!important;height:54px!important;min-width:54px!important;max-width:54px!important;
+    min-height:54px!important;
+  }
+}
