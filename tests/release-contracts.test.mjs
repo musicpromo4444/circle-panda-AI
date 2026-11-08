@@ -81,7 +81,8 @@ test('anonymous confession author IDs stay behind the privacy-safe feed view', (
 test('notification inbox subscriptions remain user-scoped', () => {
   const app = read('src/App.tsx');
   assert.match(app, /from\(['"]notifications['"]\)/);
-  assert.match(app, /user_id=eq\.\$\{userId\}/);
+  assert.match(app, /filter:\s*['"]user_id=eq\.['"]\s*\+\s*userId/);
+  assert.match(app, /\.eq\(['"]user_id['"],\s*session\.user\.id\)/);
 });
 
 test('unverified rewarded-ad completion cannot directly claim BC in the UI', () => {
