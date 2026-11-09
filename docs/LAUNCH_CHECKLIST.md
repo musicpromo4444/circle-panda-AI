@@ -242,3 +242,35 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Remaining tests: two-account authentication, confessions/feed/report/moderation, message requests/DMs, BC rewards/deductions, Paystack/webhook, dating 72-hour/1-BC rules, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls; also direct browser, Android/desktop, media upload, refresh persistence, responsive layout, console/network smoke tests.
 
 **Release status remains NOT COMPLETE.** Do not mark 100% until the owner configuration and critical acceptance tests above have passing evidence.
+
+## Latest continuation — 2026-11-09
+
+### Verified again
+- Supabase project `chcyncvieekjousgzlrg` was checked first: **ACTIVE_HEALTHY**, `eu-west-1`; read-only SQL connectivity succeeded.
+- Migration ledger and repository tree reconcile exactly: **153/153**, no missing, extra, duplicate or version/name mismatch. No migration was applied.
+- Owner account remains admin and permanent VIP: `user_roles.role='admin'`, `profiles.is_vip=true`, `profiles.vip_expires_at=NULL`. No credentials changed.
+- Public database: 78/78 base tables have RLS, 104 policies, 9/9 views use `security_invoker=true`; no anon table write grants/policies and no authenticated elevated table privileges. Sensitive profile column grants remain absent.
+- Storage: four buckets / 14 policies. Public image buckets: crush-post-photos and event-covers (5 MiB); private buckets: dating-profile-photos (5 MiB) and group-media (50 MiB, allowed image/video/audio types). Realtime publishes 22 tables including notifications.
+- SECURITY DEFINER: 158 total, 158 pinned search paths, zero PostgreSQL PUBLIC EXECUTE grants, 137 authenticated-callable and one anon-callable read-only provider-settings getter. Four authenticated-callable no-`auth.uid()` functions are read-only catalog/schedule/provider getters. No authenticated-callable `admin_*` definer was found without an admin-role guard. The legacy author-ID confession RPC is service-role-only.
+- All three Edge Functions are ACTIVE and live source matches GitHub byte-for-byte: signup v7, purchase initializer v2, Paystack webhook v2. No secrets were read or changed.
+- Security advisor: four intentional internal no-direct-policy notices, one public read-only provider getter warning, 137 authenticated-callable definer warnings, leaked-password protection disabled. Performance advisor: seven reviewed SELECT-policy overlaps and 101 unused-index INFO notices. Health advisor: no findings.
+- Rewarded-ad claim rejects `ad_reward`; do not enable payouts without a trusted provider completion callback.
+- Six coin packages (100, 300, 700, 1,200, 2,500, 5,000 BC) are enabled but all prices are NULL; zero purchase orders. Google/Apple provider flags are false. Auth currently has only the owner account.
+
+### Group chat implementation and release checks
+- Two failed group-chat deployments were traced to TypeScript errors: missing `coinBalance` in the Groups route and unused `showGroupSettings`. App commit `6812e7f397c2554f81782d8ca18dc9eee5b6aee9` fixes both and is Vercel **READY**.
+- Added a ninth regression test covering the full-screen group chat layout, BC balance and creator/admin management controls. CI [run #42597096673](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42597096673) passed **9/9 tests**, dependency install and production build.
+- Latest app deployment: `dpl_AtxcccZP9YKrVkQUweYDQFEr4aoK`, production alias `circle-panda-ai.vercel.app`, `aliasError=null`. Vercel runtime error aggregation: no errors in the last 24 hours.
+- Build assets: main JS 430.25 KB (122.57 KB gzip); CSS 288.84 KB (56.04 KB gzip); deferred location client chunk 303.40 KB (76.98 KB gzip). Country data is dynamically imported; city/area lists are loaded only when the area field opens. The former ~8 MB monolithic city bundle is absent.
+- Direct HTTP/browser rendering could not be verified because external web access returned an internal/access error. Control-plane alias verification is not browser acceptance.
+
+### Open launch gates
+1. Owner sets the six intended NGN coin prices, configures Paystack secret only in Supabase Edge Function secrets, registers webhook plus `charge.success`/`charge.failed`, then provides a safe window for signed success/failure/replay tests.
+2. Owner configures Google and Apple OAuth credentials and redirect URLs in Supabase Auth, then verifies each provider before enabling the corresponding flags.
+3. Owner completes the plan/settings action required to enable leaked-password protection; the Auth advisor still reports it disabled.
+4. Owner chooses/configures a rewarded-ad provider with a server-verifiable completion callback. Keep BC ad payout blocked until then.
+5. Supply/authorize a second disposable test account or a non-production test environment. Production Auth currently has one user; no production test user was created. Two-account journeys remain untested.
+6. Run authenticated acceptance tests for signup/login/recovery, confession/feed/report/moderation, message requests/DM, BC earn/spend, Paystack, dating 72-hour/1-BC, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls.
+7. Complete real Android and desktop browser smoke tests for rendering, responsive layouts, media upload, refresh persistence, console and network errors.
+
+**Release status remains NOT COMPLETE.** No critical gate is marked passed without direct evidence.
