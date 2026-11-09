@@ -93,3 +93,22 @@ test('unverified rewarded-ad completion cannot directly claim BC in the UI', () 
   assert.doesNotMatch(activity, /claim_economy_reward/);
   assert.match(migration, /Ad rewards are only credited after trusted ad-completion verification/);
 });
+
+test('group chat keeps its full-screen conversation, BC balance, and creator/admin management controls', () => {
+  const app = read('src/App.tsx');
+  const styles = read('src/styles.css');
+
+  assert.match(app, /if \(section === 'Groups'\) return <GroupsFeature userId=\{userId\} coinBalance=\{coinBalance\} \/>;/);
+  assert.match(app, /function GroupsFeature\(\{ userId, coinBalance \}/);
+  assert.match(app, /const canManageOpenGroup = Boolean\(openGroup && \(openGroup\.creator_id === userId \|\| \['creator','admin'\]/);
+  assert.match(app, /onClick=\{\(\)=>void showGroupSettings\(group\)\}/);
+  assert.match(app, /className="group-chat-overlay"/);
+  assert.match(app, /className="group-chat-balance"/);
+  assert.match(app, /className="group-chat-history"/);
+  assert.match(app, /className="group-chat-composer"/);
+
+  assert.match(styles, /\.group-chat-overlay\{position:fixed;inset:0/);
+  assert.match(styles, /\.group-chat-panel\{width:min\(1120px,100%\);height:100%/);
+  assert.match(styles, /\.group-chat-history\{flex:1;min-height:0;overflow-y:auto/);
+  assert.match(styles, /@media\(max-width:760px\)\{\.group-chat-overlay\{padding:0\}\.group-chat-panel\{width:100%;height:100dvh/);
+});
