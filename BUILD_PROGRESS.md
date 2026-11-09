@@ -352,3 +352,55 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - Browser rendering, Android/desktop smoke, media upload, refresh persistence, responsive layout and console/network tests remain unverified.
 
 **Circle Panda is deployed, but production completion is NOT achieved.** Continue only with evidence-based tests and safe fixes; never mark 100% while any critical gate is open.
+
+## Latest continuation — 2026-11-09 (group-chat regression guard and release re-audit)
+
+### Target project and migration reconciliation
+- Started by checking Supabase project `chcyncvieekjousgzlrg`: **Circle Panda Rebuilt**, region `eu-west-1`, status **ACTIVE_HEALTHY**. SQL connectivity succeeded.
+- Reconciled the live migration ledger against the recursive GitHub tree for `supabase/migrations/`: **153 applied = 153 exact-version/name files**; no missing, extra, duplicate or version/name mismatches. No migration was applied.
+- Owner account remains `circlepandaapp@gmail.com`, `user_roles.role='admin'`, `profiles.is_vip=true`, `profiles.vip_expires_at=NULL`. Credentials were not changed.
+- Auth currently contains **one user**, the owner/admin. No disposable production account was created.
+
+### Database, grants, storage and Realtime
+- Public schema: **78/78** base tables have RLS enabled; 104 public policies exist; all nine public views use `security_invoker=true`.
+- No public table grants allow `anon` INSERT/UPDATE/DELETE/TRUNCATE. Authenticated clients have no elevated TRUNCATE/MAINTAIN/REFERENCES/TRIGGER table privileges. The checked sensitive profile column grants remain empty: authenticated has no direct SELECT on `date_of_birth` or `address_line`, and no UPDATE on `is_vip` or `vip_expires_at`.
+- Storage buckets: `crush-post-photos` (public, 5 MiB image-only), `event-covers` (public, 5 MiB image-only), `dating-profile-photos` (private, 5 MiB image-only), and `group-media` (private, 50 MiB; allowed image/video/audio MIME types). Four buckets and 14 storage policies remain in place; private dating and group media access stays membership/match/VIP/user-folder controlled.
+- Realtime publishes **22** tables, including `notifications`, group messages/reactions, dating requests/matches and Hot Seat activity.
+
+### SECURITY DEFINER and advisor review
+- **158** public SECURITY DEFINER functions; all 158 have pinned search paths; **zero** have EXECUTE granted to PostgreSQL `PUBLIC`; **137** are callable by `authenticated`, and one read-only provider-availability getter is callable by `anon`.
+- Four authenticated-callable getter functions without an `auth.uid()` reference were rechecked: `get_coin_packages`, `get_event_blast_plans`, `get_public_auth_provider_settings`, and `get_wcw_mcm_current_week`. They are read-only catalog/schedule/provider-availability getters. The legacy `get_public_confessions(integer)` remains executable only by `service_role`; both `anon` and `authenticated` are denied.
+- No authenticated-callable `admin_*` SECURITY DEFINER function was found without an admin-role guard in its definition. This source-level review does not replace a full function-by-function two-account test.
+- `claim_economy_reward('ad_reward')` explicitly raises an error pending trusted ad-completion verification. It remains unavailable to `anon`; the UI continues to show ad rewards as setup-required.
+- Security advisor still reports four intentional internal RLS/no-direct-policy tables, one intentionally public read-only provider-settings getter, 137 authenticated-callable SECURITY DEFINER warnings, and leaked-password protection disabled.
+- Performance advisor still reports seven reviewed multiple-permissive SELECT-policy overlaps and 101 unused-index INFO notices. No risky policy merge or unused-index deletion was made without workload evidence. Health advisor returned no findings.
+
+### Edge Functions and payments
+- All three deployed Edge Functions are ACTIVE: `create-panda-account` v7 (custom guarded public signup), `initialize-coin-purchase` v2 (JWT required), and `paystack-webhook` v2 (JWT disabled at gateway; signature checked in handler).
+- Compared live Edge Function `index.ts` contents against GitHub for all three functions: **byte-for-byte matches** (signup 6,177 bytes; purchase initializer 5,288 bytes; webhook 3,539 bytes). No secrets were read or changed.
+- The Paystack completion RPC is service-role-only; it locks the purchase order and checks reference, status, currency and amount before crediting. This is code/SQL review, not a real signed webhook test.
+- Six coin packages remain enabled: 100/300/700/1,200/2,500/5,000 BC; all six have `price_ngn=NULL`. There are zero purchase orders. Owner must set intended NGN prices, configure `PAYSTACK_SECRET_KEY` only in Supabase Edge Function secrets, register the webhook and `charge.success`/`charge.failed` events, then test signed success/failure/replay.
+- Google and Apple auth flags remain `0`/false. Owner must configure provider credentials and redirect URLs in Supabase Auth before enabling them.
+- The Auth security advisor continues to flag leaked-password protection as disabled. Owner-controlled plan/settings action is still required. Rewarded-ad payouts remain disabled until a provider offers a server-verifiable completion callback.
+
+### App implementation and CI
+- Investigated two failed Vercel deployments for the group-chat UI commits `4d7dbd3` and `f3465ff`. Both failed TypeScript build on `coinBalance` being undefined at the Groups route and `showGroupSettings` being declared but unused.
+- The subsequent app commit `6812e7f397c2554f81782d8ca18dc9eee5b6aee9` fixed both: `coinBalance` is passed into `GroupsFeature`, and creator/admin group cards now invoke the settings loader. The full-screen group conversation retains the BC balance, scrollable history, composer and mobile `100dvh` layout.
+- Added a ninth Node release-contract regression test for the group-chat full-screen layout, BC balance and creator/admin management access. CI run [#42597096673](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42597096673) passed **9/9 tests**, `npm install`, and `npm run build` (build completed in 3.34 seconds).
+- This regression test commit `08bfcd119c8772fedb1215919ab3ae199187333b` changes tests only; production app source remains at the passing app commit above.
+
+### Vercel and performance
+- Newest app deployment inspected: `dpl_AtxcccZP9YKrVkQUweYDQFEr4aoK`, commit `6812e7f397c2554f81782d8ca18dc9eee5b6aee9`, **READY**, production aliases include `circle-panda-ai.vercel.app`, `aliasError=null`.
+- The two earlier group-chat UI deployments are confirmed **ERROR** due to the TypeScript issues listed above; the follow-up deployment is READY. Do not use either failed deployment as production.
+- Vercel runtime error aggregation returned no errors in the latest 24 hours.
+- Latest Vercel build output: main JS **430.25 KB / 122.57 KB gzip**; CSS **288.84 KB / 56.04 KB gzip**. The deferred country/location client chunk is **303.40 KB / 76.98 KB gzip**; US/India country chunks are each roughly 272–279 KB raw. `LocationFields` loads the dataset as a dynamic import, and city lists load only when the Area/Local Government field is opened. The former ~8 MB monolithic city bundle is gone, but real-device load timing still needs measurement.
+- Direct public HTTP rendering could not be verified: the external web open returned an access/internal error. Vercel control-plane alias assignment is verified; browser rendering is not.
+
+### Still NOT complete
+- One production Auth user means no genuine two-account test has run. Do not create production test users or mutate real wallet/customer data without owner authorization.
+- No live/test Paystack checkout or signed webhook replay has been tested; package prices and provider configuration are missing.
+- Google/Apple OAuth has not been configured or tested; leaked-password protection remains disabled; no verified ad provider exists.
+- Authentication, confession/feed/report/moderation, message requests/DMs, BC reward/deduction, dating 72-hour/1-BC rules, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin workflows remain unaccepted end-to-end.
+- Android/desktop browser, media upload, refresh persistence, responsive, console and network smoke tests remain unverified.
+
+**Release status: NOT COMPLETE.** Do not mark 100% until owner configuration and all critical authenticated/device acceptance gates have passing evidence.
