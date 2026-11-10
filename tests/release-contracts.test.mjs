@@ -112,3 +112,13 @@ test('group chat keeps its full-screen conversation, BC balance, and creator/adm
   assert.match(styles, /\.group-chat-history\{flex:1;min-height:0;overflow-y:auto/);
   assert.match(styles, /@media\(max-width:760px\)\{\.group-chat-overlay\{padding:0\}\.group-chat-panel\{width:100%;height:100dvh/);
 });
+
+
+test('daily login reward copy matches the explicit claim flow', () => {
+  const app = read('src/App.tsx');
+  assert.match(app, /Claim once per day when you first open Circle Panda/);
+  assert.match(app, /Today’s reward is ready\. Claim it to unlock your daily activities/);
+  assert.match(app, /Claim today’s reward/);
+  assert.match(app, /className="daily-completed-label">Daily claim/);
+  assert.doesNotMatch(app, /Credited automatically at your first app open/);
+});
