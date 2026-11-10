@@ -122,3 +122,18 @@ test('daily login reward copy matches the explicit claim flow', () => {
   assert.match(app, /className="daily-completed-label">Daily claim/);
   assert.doesNotMatch(app, /Credited automatically at your first app open/);
 });
+
+
+test('VIP group metadata and membership are hidden from ineligible accounts', () => {
+  const migration = read('supabase/migrations/20261110091200_restrict_vip_group_discovery_to_eligible_members.sql');
+  assert.match(migration, /create or replace function private\.can_view_group/);
+  assert.match(migration, /p\.is_vip/);
+  assert.match(migration, /p\.vip_expires_at is null or p\.vip_expires_at > now\(\)/);
+  assert.match(migration, /g\.vip_scope = 'worldwide'/);
+  assert.match(migration, /g\.vip_scope = 'country'/);
+  assert.match(migration, /drop policy if exists "groups readable by signed-in users"/);
+  assert.match(migration, /using \(private\.can_view_group\(id\)\)/);
+  assert.match(migration, /drop policy if exists "members can see group membership"/);
+  assert.match(migration, /using \(private\.can_view_group\(group_id\)\)/);
+  assert.match(migration, /revoke all on function private\.can_view_group\(uuid\) from anon/i);
+});
