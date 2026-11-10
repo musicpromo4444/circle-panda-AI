@@ -459,3 +459,8 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - Android/desktop interactive browser and media/refresh persistence smoke tests remain unverified.
 
 **Release status: NOT COMPLETE.** The VIP group metadata leak is fixed and tested at the database-policy level, but owner/provider configuration, verified-contact signup, real two-account flows and device acceptance remain release gates.
+
+
+### Follow-up country-scope verification — 2026-11-10
+- Tested the country-specific VIP branch using temporary Ghana and Nigeria VIP group rows inside a single transaction that was rolled back. With the permanent VIP profile's admin role temporarily removed in that transaction, `private.can_view_group` returned **false** for Ghana and **true** for Nigeria.
+- Post-rollback verification found **zero** temporary group rows; the owner remained admin and permanent VIP. No test data or role changes persisted.
