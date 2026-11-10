@@ -274,3 +274,45 @@ Production host: `https://circle-panda-ai.vercel.app`
 7. Complete real Android and desktop browser smoke tests for rendering, responsive layouts, media upload, refresh persistence, console and network errors.
 
 **Release status remains NOT COMPLETE.** No critical gate is marked passed without direct evidence.
+
+
+## Latest continuation — 2026-11-10: VIP privacy, signup verification, CI and live alias evidence
+
+### Newly closed defect
+- Fixed a real VIP privacy leak: before the migration, any signed-in non-VIP identity could enumerate the VIP group metadata and its member row even though the group-chat RPC correctly denied entry.
+- Migration applied and committed: `20261110091200_restrict_vip_group_discovery_to_eligible_members.sql`.
+- The new private `private.can_view_group(uuid)` helper enforces active VIP expiry, admin bypass, worldwide/country scope and saved-country matching. Broad SELECT policies on `chat_groups` and `group_members` were replaced.
+- Transactional, rolled-back policy tests passed: non-VIP sees zero VIP group/member rows while still seeing ordinary groups; the permanent VIP profile sees the worldwide room even when its admin role is temporarily removed inside the transaction; admin sees the room. No test data or role changes were committed.
+- Migration reconciliation now stands at **154/154 applied/file matches**.
+
+### Current verified baseline
+- Supabase project is `ACTIVE_HEALTHY`; SQL connectivity succeeds.
+- Public tables/RLS: **78/78**; public policies: **104**; security-invoker views: **9/9**.
+- Storage: **4 buckets / 14 policies**; Realtime: **22 tables**.
+- Public SECURITY DEFINER functions: **158**, all pinned search paths; zero PUBLIC EXECUTE; one anon-callable read-only auth-provider getter; 137 authenticated-callable functions.
+- Admin `circlepandaapp@gmail.com`: `role=admin`, permanent VIP `is_vip=true`, `vip_expires_at=NULL`. Credentials unchanged.
+- Edge Functions ACTIVE: signup v7, purchase initializer v2, Paystack webhook v2.
+- Advisors: security — 4 intentional internal RLS/no-policy INFO, 1 public read-only getter WARN, 137 authenticated-callable SECURITY DEFINER WARN, leaked-password protection WARN; performance — 7 multiple-permissive-policy WARN and 96 unused-index INFO; health — no findings.
+
+### New release blocker: signup contact ownership
+- The public signup Edge Function sets `email_confirm=true` or `phone_confirm=true` via service-role account creation without an email/SMS ownership challenge. Input validation and rate limiting do not prove control of the identifier.
+- Before public launch, implement and configure genuine email/phone verification, or explicitly accept and document the impersonation risk. This run did not change signup behavior because the verification flow needs provider configuration and coordinated UI changes.
+
+### Application, CI and deployment
+- Corrected daily-reward wallet wording to match the explicit claim button; no reward logic or amounts changed.
+- Added tests for daily claim copy and VIP group privacy. CI run [#42788762821](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42788762821) passed **11/11 tests**, dependency installation and production build.
+- Latest production deployment `dpl_2ujsofSuAiU2tq5e7MCH1CmzsbC4` is **READY**, commit `6b562f04edacb751df70eb12947198524346eb2d`, with production alias `circle-panda-ai.vercel.app` and no alias error.
+- Live HTTP fetch: root HTML **200**; main JS, React vendor, Supabase vendor and CSS assets **200**. Runtime error aggregation: no errors in the previous 24 hours.
+- Main bundle **430.16 KB / 122.51 KB gzip**; deferred location chunk **303.40 KB / 76.98 KB gzip**; the former ~8 MB monolithic city bundle remains absent.
+- Static HTTP success is not an interactive browser test. Android/desktop smoke, media upload, refresh persistence, responsive and console/network acceptance remain open.
+
+### Owner-controlled launch actions still required
+1. Set the six intended NGN coin-package prices; configure Paystack secret only in Supabase Edge Function secrets; register webhook events and complete real signed success/failure/replay tests.
+2. Configure Google and Apple OAuth credentials and redirect URLs before enabling either provider.
+3. Approve the required Supabase Pro-or-higher plan/settings action and enable leaked-password protection.
+4. Configure an email/SMS verification provider and replace the unverified-contact signup behavior, or explicitly accept that risk.
+5. Configure a rewarded-ad provider with a server-verifiable completion callback. Until then, keep BC ad payouts disabled.
+6. Provide/authorize a second disposable test account or a safe staging environment for genuine two-account acceptance; do not create production test accounts without approval.
+7. Complete interactive Android and desktop acceptance across authentication, feed/confessions/reports/moderation, requests/DMs, wallet, Paystack, dating, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls.
+
+**Production completion remains open.** Do not mark 100% until all critical owner configuration, verified-contact, two-account and device acceptance gates have passing evidence.
