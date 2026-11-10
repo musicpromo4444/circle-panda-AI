@@ -404,3 +404,58 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 - Android/desktop browser, media upload, refresh persistence, responsive, console and network smoke tests remain unverified.
 
 **Release status: NOT COMPLETE.** Do not mark 100% until owner configuration and all critical authenticated/device acceptance gates have passing evidence.
+
+
+## Latest continuation — 2026-11-10 (VIP group privacy fix and release verification)
+
+### Target project and migration ledger
+- Started by checking Supabase project `chcyncvieekjousgzlrg`: **Circle Panda Rebuilt**, `eu-west-1`, **ACTIVE_HEALTHY**. SQL connectivity succeeded.
+- Reconciled live migrations against the complete recursive GitHub tree: **154 applied / 154 committed files**, exact version/name match, no missing, extra or duplicate files.
+- Applied and committed `20261110091200_restrict_vip_group_discovery_to_eligible_members.sql`. No other migration was applied.
+- Owner `circlepandaapp@gmail.com` remains `user_roles.role='admin'`, `profiles.is_vip=true`, `vip_expires_at=NULL`, country Nigeria. No credentials or persistent role changes were made.
+
+### Security defect found and fixed: VIP room metadata/member enumeration
+- Before the fix, a simulated signed-in non-VIP identity could read the existing **Worldwide VIP Group** row and its member row through the broad `chat_groups` and `group_members` SELECT policies (both used `USING (true)`). The actual chat-opening RPC already blocked non-VIP entry, but the room and membership metadata were still enumerable.
+- Added private SECURITY DEFINER helper `private.can_view_group(uuid)`, pinned to an empty search path, using `auth.uid()`, admin role, active VIP status/expiry, VIP scope and the profile's saved country.
+- Replaced broad SELECT policies on `chat_groups` and `group_members`. Ordinary groups remain discoverable to signed-in users; VIP metadata/member rows are visible only to admins or active VIPs in the correct scope. Anonymous execution is revoked; authenticated execution is granted for RLS policy evaluation.
+- Read-only transactional policy probes (all rolled back) passed:
+  - Simulated non-VIP: **0** VIP group rows / **0** VIP member rows; still sees **1** normal group and its **1** member.
+  - Permanent VIP profile with the admin role temporarily removed inside a rolled-back transaction: can see the worldwide VIP group/member.
+  - Admin identity: can see the VIP group/member.
+  - Non-VIP `open_group_chat` calls are denied with the expected membership/VIP errors; owner/admin can open the VIP conversation.
+- Country-scoped VIP branch is implemented and code-reviewed; no country-specific VIP group currently exists for a live data-backed country-branch probe. No production test data was retained.
+
+### Additional database/auth checks
+- Public schema: **78/78** tables have RLS; **104** public policies; **9/9** views use `security_invoker=true`.
+- Storage: **4 buckets / 14 policies**; dating profile photos and group media remain private. Realtime publication: **22 tables**, including notifications.
+- Public SECURITY DEFINER inventory: **158**, all with pinned search paths; **0** PostgreSQL PUBLIC EXECUTE grants; **1** anon-callable read-only provider-availability getter; **137** authenticated-callable functions. The new helper is in the private schema, with authenticated-only execution.
+- Security advisor (2026-11-10): 4 internal RLS/no-policy INFO findings, 1 public read-only provider getter WARN, 137 authenticated-callable SECURITY DEFINER WARNs, and leaked-password protection disabled. Performance advisor: 7 multiple-permissive-policy WARNs and 96 unused-index INFO notices. Health advisor: no findings.
+- All three Edge Functions remain ACTIVE: `create-panda-account` v7, `initialize-coin-purchase` v2, `paystack-webhook` v2.
+- Read-only auth impersonation probes confirmed a non-admin is denied by `admin_list_moderation_reports`; `claim_economy_reward('ad_reward')` rejects with the trusted-ad-verification requirement; and `complete_coin_purchase_secure` is executable only by `service_role`.
+- Economy settings remain `dating_free_hours=72` and `dating_message_cost=1`. All six enabled coin packages still have `price_ngn=NULL`; there are zero purchase orders. Google/Apple flags remain false. Auth still has one user (the owner).
+
+### New authentication launch risk discovered
+- The public signup Edge Function uses service-role `admin.createUser` with both `email_confirm=true` and `phone_confirm=true`. It does not prove that the registrant controls the submitted email address or phone number before marking it confirmed. This is an identity-ownership/impersonation risk, separate from the rate-limit and input-validation protections.
+- Do not describe signup as contact-verified. Before broad public launch, implement a real email/SMS verification flow and configure its provider, or record an explicit owner risk decision. The current signup behavior was not changed in this run because a correct verification flow requires provider configuration and a coordinated UI flow change.
+
+### Application fix and regression tests
+- Fixed inaccurate wallet copy: the daily login reward requires an explicit **Claim today's reward** action, but the wallet page said it was credited automatically. The wallet now says “Claim once per day when you first open Circle Panda” and labels it “Daily claim”; the existing full-screen claim popup/flow is unchanged.
+- Added regression coverage for the daily-claim wording and the VIP group privacy migration. Release-contract suite now has **11 tests**.
+- GitHub Actions run [#42788762821](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42788762821) passed: `npm install`, **11/11 tests**, and `npm run build`.
+- Latest build: main JS **430.16 KB / 122.51 KB gzip**; deferred location-data client chunk **303.40 KB / 76.98 KB gzip**; US and India chunks are separate. The former ~8 MB monolithic city-data bundle remains absent.
+
+### Production verification
+- Latest Vercel production deployment: `dpl_2ujsofSuAiU2tq5e7MCH1CmzsbC4`, commit `6b562f04edacb751df70eb12947198524346eb2d`, **READY**, aliases include `circle-panda-ai.vercel.app`, `aliasError=null`.
+- Direct production fetch on 2026-11-10 returned **HTTP 200** for the root HTML and all referenced main JS, React vendor JS, Supabase vendor JS and CSS assets. The served JS contains the corrected daily-claim wording and no longer contains the inaccurate “Credited automatically” copy.
+- Vercel runtime error aggregation over the last 24 hours returned no errors.
+- This is HTTP/static-asset verification, not interactive browser execution. No Android or desktop device session was available; interactive UI, media upload, refresh persistence, console/network and mobile/desktop smoke tests remain open.
+
+### Still NOT complete
+- Paystack: owner must set six intended NGN package prices, configure `PAYSTACK_SECRET_KEY` only in Supabase Edge Function secrets, register the webhook and `charge.success`/`charge.failed`, then run real signed success/failure/replay tests.
+- Google/Apple: owner must configure provider credentials and redirect URLs before enabling the currently disabled flags.
+- Auth security: owner must approve the required Pro-or-higher Supabase plan/settings action and enable leaked-password protection. A genuine email/phone ownership-verification flow is also required or must be explicitly risk-accepted.
+- Rewarded ads: no provider/server-verifiable completion callback exists; BC ad payouts remain disabled.
+- One Auth user means two-account acceptance has not been run. Do not create production test accounts without owner authorization. Confessions/feed/report/moderation, message requests/DMs, BC rewards/deductions, dating 72-hour/1-BC charges, group/VIP flows, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls still need genuine two-account acceptance.
+- Android/desktop interactive browser and media/refresh persistence smoke tests remain unverified.
+
+**Release status: NOT COMPLETE.** The VIP group metadata leak is fixed and tested at the database-policy level, but owner/provider configuration, verified-contact signup, real two-account flows and device acceptance remain release gates.
