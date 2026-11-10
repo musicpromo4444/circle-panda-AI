@@ -316,3 +316,8 @@ Production host: `https://circle-panda-ai.vercel.app`
 7. Complete interactive Android and desktop acceptance across authentication, feed/confessions/reports/moderation, requests/DMs, wallet, Paystack, dating, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls.
 
 **Production completion remains open.** Do not mark 100% until all critical owner configuration, verified-contact, two-account and device acceptance gates have passing evidence.
+
+
+### Follow-up country-scope verification — 2026-11-10
+- Tested the country-specific VIP branch using temporary Ghana and Nigeria VIP group rows inside a single transaction that was rolled back. With the permanent VIP profile's admin role temporarily removed in that transaction, `private.can_view_group` returned **false** for Ghana and **true** for Nigeria.
+- Post-rollback verification found **zero** temporary group rows; the owner remained admin and permanent VIP. No test data or role changes persisted.
