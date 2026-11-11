@@ -63,6 +63,8 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
+  const [signupPhone, setSignupPhone] = useState('');
+  const [signupVerificationCode, setSignupVerificationCode] = useState('');
   const [phoneRecoveryPending, setPhoneRecoveryPending] = useState(false);
   const [recoveryPhone, setRecoveryPhone] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
@@ -117,6 +119,11 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      if (nextSession) {
+        setEmailConfirmationPending(false);
+        setSignupPhone('');
+        setSignupVerificationCode('');
+      }
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -510,14 +517,30 @@ export default function App() {
         });
         if (createError) throw createError;
         if (!created?.ok) throw new Error(created?.error || 'Could not create your account.');
-        const { error: loginError } = await supabase.auth.signInWithPassword(
-          isEmailIdentifier
-            ? { email: identifier.toLowerCase(), password }
-            : { phone: normalizedPhone, password },
-        );
-        if (loginError) throw loginError;
-        setEmailConfirmationPending(false);
-        setNotice('Welcome to Circle Panda. Your account is ready and you are signed in.');
+
+        // A successful database insert is not proof of contact ownership. Keep the
+        // account signed out until Supabase verifies the email link or SMS code.
+        setEmailConfirmationPending(true);
+        setSignupVerificationCode('');
+        if (isEmailIdentifier) {
+          setSignupPhone('');
+          const { error: deliveryError } = await supabase.auth.resend({
+            type: 'signup',
+            email: identifier.toLowerCase(),
+            options: { emailRedirectTo: window.location.origin },
+          });
+          if (deliveryError) {
+            throw new Error('Your account was created, but the confirmation email could not be sent. Use Resend confirmation email after email delivery is configured.');
+          }
+          setNotice('Check your email and open the Circle Panda confirmation link. You can sign in after your email is verified.');
+        } else {
+          setSignupPhone(normalizedPhone);
+          const { error: deliveryError } = await supabase.auth.resend({ type: 'sms', phone: normalizedPhone });
+          if (deliveryError) {
+            throw new Error('Your account was created, but the SMS verification code could not be sent. Use Resend verification code after phone/SMS delivery is configured.');
+          }
+          setNotice(`Enter the SMS verification code sent to ${normalizedPhone} to finish creating your account.`);
+        }
       } else {
         const identifier = email.trim();
         if (!identifier) throw new Error('Enter your phone number or email.');
@@ -541,11 +564,40 @@ export default function App() {
     if (!supabase || !email.trim() || authBusy) return;
     setAuthBusy(true);
     try {
-      const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim().toLowerCase() });
-      if (error) throw error;
-      setNotice('If the account needs confirmation, a new confirmation email has been requested.');
+      const result = signupPhone
+        ? await supabase.auth.resend({ type: 'sms', phone: signupPhone })
+        : await supabase.auth.resend({
+            type: 'signup',
+            email: email.trim().toLowerCase(),
+            options: { emailRedirectTo: window.location.origin },
+          });
+      if (result.error) throw result.error;
+      setNotice(signupPhone
+        ? 'A new SMS verification code has been requested.'
+        : 'If the account needs confirmation, a new confirmation email has been requested.');
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not resend the confirmation email.');
+      setNotice(error instanceof Error ? error.message : 'Could not resend the verification message.');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function verifySignupPhone(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !signupPhone || !signupVerificationCode.trim() || authBusy) return;
+    setAuthBusy(true); setNotice('');
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: signupPhone,
+        token: signupVerificationCode.trim(),
+        type: 'sms',
+      });
+      if (error) throw error;
+      setEmailConfirmationPending(false);
+      setSignupVerificationCode('');
+      setNotice('Your phone number is verified. Welcome to Circle Panda.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Phone verification failed. Check the code and try again.');
     } finally {
       setAuthBusy(false);
     }
@@ -738,10 +790,11 @@ export default function App() {
         </form>
         {(authProviders.google || authProviders.apple) && <div className="auth-provider-buttons">{authProviders.google && <button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('google')}><span aria-hidden="true">G</span> Continue with Google</button>}{authProviders.apple && <button type="button" className="auth-provider-button" disabled={!supabaseConfigured || authBusy} onClick={() => void signInWithProvider('apple')}><span aria-hidden="true">●</span> Continue with Apple</button>}</div>}
         {(authProviders.google || authProviders.apple) && <p className="auth-provider-note">Enabled providers also need their client credentials and redirect URLs configured in Supabase Auth.</p>}
-        <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); setEmailConfirmationPending(false); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
+        <p className="switch-auth">{authMode === 'signup' ? 'Already part of the circle?' : 'New to Circle Panda?'} <button onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setNotice(''); setEmailConfirmationPending(false); setSignupPhone(''); setSignupVerificationCode(''); }}>{authMode === 'signup' ? 'Sign in' : 'Create account'}</button></p>
         {authMode === 'login' && !phoneRecoveryPending && <button type="button" className="text-button" onClick={() => void sendPasswordReset()} disabled={authBusy}>Forgot password?</button>}
         {authMode === 'login' && phoneRecoveryPending && <form className="auth-form phone-recovery-form" onSubmit={finishPhonePasswordReset}><p className="feature-copy">Reset password for {recoveryPhone}</p><label>SMS verification code<input value={recoveryCode} onChange={e=>setRecoveryCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required placeholder="Enter the code" /></label><label>New password<input type="password" value={recoveryNewPassword} onChange={e=>setRecoveryNewPassword(e.target.value)} minLength={8} required autoComplete="new-password" placeholder="At least 8 characters" /></label><label>Confirm new password<input type="password" value={recoveryConfirmPassword} onChange={e=>setRecoveryConfirmPassword(e.target.value)} minLength={8} required autoComplete="new-password" placeholder="Enter it again" /></label><button className="primary-button full" disabled={authBusy}>{authBusy?'Verifying…':'Verify code & reset password'}</button><button type="button" className="text-button" disabled={authBusy} onClick={()=>{setPhoneRecoveryPending(false);setRecoveryCode('');setNotice('');}}>Cancel password reset</button></form>}
-        {emailConfirmationPending && authMode === 'signup' && <button type="button" className="text-button" onClick={() => void resendSignupConfirmation()} disabled={authBusy}>Resend confirmation email</button>}
+        {emailConfirmationPending && authMode === 'signup' && signupPhone && <form className="auth-form phone-recovery-form" onSubmit={verifySignupPhone}><p className="feature-copy">We sent a verification code to {signupPhone}. Enter it below to verify your phone number.</p><label>SMS verification code<input value={signupVerificationCode} onChange={e=>setSignupVerificationCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required placeholder="Enter the code" /></label><button className="primary-button full" disabled={authBusy || !signupVerificationCode.trim()}>{authBusy?'Verifying…':'Verify phone number'}</button></form>}
+        {emailConfirmationPending && authMode === 'signup' && <button type="button" className="text-button" onClick={() => void resendSignupConfirmation()} disabled={authBusy}>{signupPhone ? 'Resend verification code' : 'Resend confirmation email'}</button>}
         {notice && <p className="notice">{notice}</p>}
         <p className="fine-print">A fresh build. A better way to connect.</p>
       </section>
