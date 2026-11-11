@@ -143,8 +143,8 @@ test('VIP group metadata and membership are hidden from ineligible accounts', ()
 test('new accounts require verified email or SMS before sign-in', () => {
   const app = read('src/App.tsx');
   const signup = read('supabase/functions/create-panda-account/index.ts');
-  assert.match(signup, /email_confirm:\\s\*false/);
-  assert.match(signup, /phone_confirm:\\s\*false/);
+  assert.match(signup, /email_confirm:\s*false/);
+  assert.match(signup, /phone_confirm:\s*false/);
   assert.match(app, /supabase\.auth\.resend\(\{[\s\S]*type: 'signup'[\s\S]*email:/);
   assert.match(app, /supabase\.auth\.resend\(\{ type: 'sms', phone: normalizedPhone \}\)/);
   assert.match(app, /supabase\.auth\.verifyOtp\(\{[\s\S]*phone: signupPhone,[\s\S]*type: 'sms'/);
