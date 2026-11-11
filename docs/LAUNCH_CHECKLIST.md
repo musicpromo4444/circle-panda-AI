@@ -321,3 +321,46 @@ Production host: `https://circle-panda-ai.vercel.app`
 ### Follow-up country-scope verification — 2026-11-10
 - Tested the country-specific VIP branch using temporary Ghana and Nigeria VIP group rows inside a single transaction that was rolled back. With the permanent VIP profile's admin role temporarily removed in that transaction, `private.can_view_group` returned **false** for Ghana and **true** for Nigeria.
 - Post-rollback verification found **zero** temporary group rows; the owner remained admin and permanent VIP. No test data or role changes persisted.
+
+
+## Latest release evidence — 2026-11-11
+
+### Verified at the start of this run
+- Supabase project `chcyncvieekjousgzlrg` is **ACTIVE_HEALTHY** in `eu-west-1`; SQL connectivity succeeds.
+- Live migration ledger and GitHub `supabase/migrations/` directory match exactly: **154/154** version/name pairs. No migration was missing; none was applied.
+- Public application tables with RLS: **78/78**. Storage: **4 buckets / 14 policies**. Realtime publication: **22 tables**.
+- SECURITY DEFINER inventory: **158 public + 4 private**; all 162 have a pinned search path; zero have PostgreSQL PUBLIC EXECUTE.
+- Owner remains admin and permanent VIP (`circlepandaapp@gmail.com`, `is_vip=true`, `vip_expires_at=NULL`); credentials unchanged.
+- One Auth user exists (owner only). Dating economy is still **72 free hours / 1 BC per paid message**.
+
+### Signup contact-ownership implementation — code complete, delivery still unverified
+- Signup Edge Function now sets `email_confirm=false` and `phone_confirm=false`; server-side signup rate limiting remains.
+- Signup UI requests an email confirmation link or SMS OTP, supports resend, and provides a phone OTP verification form. It no longer automatically signs the new account in.
+- Supabase Edge Function `create-panda-account` is ACTIVE at **version 8**. Its deployed source matches GitHub byte-for-byte. Purchase initializer v2 and Paystack webhook v2 also match their committed source.
+- **Owner action:** configure Supabase Auth email/SMTP and SMS delivery/redirect settings, then test actual email-link and phone-OTP delivery and verification. No provider delivery has been claimed as passed.
+
+### CI and production evidence
+- GitHub Actions [run #42987033844](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/42987033844): **12/12 tests passed**, `npm install` passed, `npm run build` passed.
+- Vercel deployment [dpl_6kefkpyPuGd9kZJunYgohQgGRMEz](https://vercel.com/replystagepro-6977/circle-panda-ai/6kefkpyPuGd9kZJunYgohQgGRMEz): **READY**, production alias `circle-panda-ai.vercel.app`, no alias error.
+- Public root HTML, main JS and CSS returned HTTP 200. The served JS contains the new email/SMS verification UI. Vercel reported no runtime errors in the last 24 hours.
+- Main JS is **431.96 KB / 122.86 KB gzip**; deferred location chunk **303.40 KB / 76.99 KB gzip**. Former ~8 MB monolithic city bundle remains absent.
+- HTTP/static asset success is not an interactive browser/device test. Android and desktop smoke tests remain open.
+
+### Current advisor and configuration blockers
+- Security advisor: 4 intentional internal RLS/no-policy INFO findings; 1 public read-only auth-provider getter warning; 137 authenticated-callable SECURITY DEFINER warnings; leaked-password protection disabled.
+- Performance advisor: 7 multiple-permissive-policy warnings and 96 unused-index INFO notices. Health advisor: no findings.
+- Google/Apple OAuth are disabled. All six enabled coin packages have null NGN prices; there are zero purchase orders. Paystack secrets/webhook and live payment behavior remain unverified.
+- Rewarded-ad BC payouts remain blocked; no server-verifiable ad provider callback exists.
+- One production Auth user means no genuine two-account workflow has been accepted. Do not create production test users without owner authorization.
+
+### Remaining release gates
+- [ ] Configure/test Supabase email/SMTP and SMS verification delivery; verify real email and phone challenges.
+- [ ] Set the six intended NGN coin prices; configure server-side Paystack secret/webhook; test signed success, failure and replay/idempotency.
+- [ ] Configure Google/Apple OAuth credentials and redirect URLs before enabling either provider.
+- [ ] Upgrade/approve the required Supabase plan/settings action and enable leaked-password protection.
+- [ ] Configure a server-verifiable rewarded-ad provider; keep BC ad payouts disabled until verified.
+- [ ] Authorize a second disposable test account or safe staging environment.
+- [ ] Complete two-account acceptance for authentication, confessions/feed, reports/moderation, message requests/DMs, BC rewards/deductions, dating, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin controls.
+- [ ] Complete interactive Android and desktop smoke tests, including media upload, refresh persistence, responsive layout and console/network checks.
+
+**Production completion remains open. Do not mark 100% until every critical owner/provider and two-account/device gate has passing evidence.**
