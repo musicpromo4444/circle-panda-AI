@@ -71,8 +71,9 @@ Deno.serve(async (req) => {
 
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
-    // Public signup uses the service-role API so it can confirm phone/email immediately.
-    // Apply an atomic per-IP fingerprint limit before creating any account.
+    // The service-role API is used only to preserve the server-side signup rate limit
+    // and trusted metadata. Contact ownership must be proven by Supabase Auth before
+    // the new account can sign in; never auto-confirm a submitted email or phone.
     const clientIp = req.headers.get("cf-connecting-ip")
       || req.headers.get("x-real-ip")
       || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
@@ -97,13 +98,13 @@ Deno.serve(async (req) => {
       ? await admin.auth.admin.createUser({
           email: identifier.toLowerCase(),
           password,
-          email_confirm: true,
+          email_confirm: false,
           user_metadata: userMetadata,
         })
       : await admin.auth.admin.createUser({
           phone: normalizePhone(identifier),
           password,
-          phone_confirm: true,
+          phone_confirm: false,
           user_metadata: userMetadata,
         });
 
