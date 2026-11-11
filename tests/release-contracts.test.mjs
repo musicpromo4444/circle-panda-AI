@@ -43,8 +43,9 @@ test('signup edge function matches the hardened deployed guard contract', () => 
   assert.match(signup, /password\.length\s*<\s*8\s*\|\|\s*password\.length\s*>\s*128/);
   assert.match(signup, /check_signup_rate_limit/);
   assert.match(signup, /safeMetadata/);
-  assert.match(signup, /email_confirm:\s*true/);
-  assert.match(signup, /phone_confirm:\s*true/);
+  assert.match(signup, /email_confirm:\s*false/);
+  assert.match(signup, /phone_confirm:\s*false/);
+  assert.doesNotMatch(signup, /email_confirm:\s*true|phone_confirm:\s*true/);
   assert.match(signup, /SUPABASE_SERVICE_ROLE_KEY/);
 });
 
@@ -136,4 +137,17 @@ test('VIP group metadata and membership are hidden from ineligible accounts', ()
   assert.match(migration, /drop policy if exists "members can see group membership"/);
   assert.match(migration, /using \(private\.can_view_group\(group_id\)\)/);
   assert.match(migration, /revoke all on function private\.can_view_group\(uuid\) from anon/i);
+});
+
+
+test('new accounts require verified email or SMS before sign-in', () => {
+  const app = read('src/App.tsx');
+  const signup = read('supabase/functions/create-panda-account/index.ts');
+  assert.match(signup, /email_confirm:\\s\*false/);
+  assert.match(signup, /phone_confirm:\\s\*false/);
+  assert.match(app, /supabase\.auth\.resend\(\{[\s\S]*type: 'signup'[\s\S]*email:/);
+  assert.match(app, /supabase\.auth\.resend\(\{ type: 'sms', phone: normalizedPhone \}\)/);
+  assert.match(app, /supabase\.auth\.verifyOtp\(\{[\s\S]*phone: signupPhone,[\s\S]*type: 'sms'/);
+  assert.match(app, /You can sign in after your email is verified/);
+  assert.doesNotMatch(app, /signInWithPassword\(\s*isEmailIdentifier/);
 });
