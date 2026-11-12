@@ -1,6 +1,6 @@
 # Circle Panda — production completion gate
 
-Last checked: 2026-11-07
+Last checked: 2026-11-12
 Repository: `musicpromo4444/circle-panda-AI`
 Supabase rebuild project: `chcyncvieekjousgzlrg` (`eu-west-1`)
 Production host: `https://circle-panda-ai.vercel.app`
@@ -364,3 +364,34 @@ Production host: `https://circle-panda-ai.vercel.app`
 - [ ] Complete interactive Android and desktop smoke tests, including media upload, refresh persistence, responsive layout and console/network checks.
 
 **Production completion remains open. Do not mark 100% until every critical owner/provider and two-account/device gate has passing evidence.**
+
+
+## 2026-11-12 verification — current production gate status
+
+### Verified on 2026-11-12
+
+- Supabase `chcyncvieekjousgzlrg` is `ACTIVE_HEALTHY`; SQL connectivity works; PostgreSQL 17.11.
+- Migration ledger and repository directory reconcile exactly: **155 live / 155 committed**, no missing or extra entries. Latest: `20261112084424_revoke_unused_crush_week_public_rpc`.
+- 78/78 public base tables have RLS; 9 public views; 104 public policies; 22 Realtime tables; 4 storage buckets and 14 storage policies.
+- All 158 SECURITY DEFINER functions have pinned search paths; zero PUBLIC EXECUTE. The four internal RLS/no-policy tables have no direct anon/authenticated table grants.
+- Admin `circlepandaapp@gmail.com` remains `admin` and permanent VIP (`is_vip=true`, expiry NULL).
+- All three Edge Functions are ACTIVE and their deployed source exactly matches GitHub: signup v8, Paystack initialization v2, webhook v2.
+- The unused `get_wcw_mcm_current_week()` SECURITY DEFINER RPC was revoked from browser roles because it bypassed scheduled-post visibility; current CrushFeature uses direct RLS-protected table reads. Regression test added.
+- GitHub Actions run [#733](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/43185523375) passed 13/13 tests and the production build.
+- Vercel deployment `dpl_Fuw4ztzctNrAGQqc9dxqkgs716Rd` is READY and assigned to the public alias. Root HTML, JS and CSS returned HTTP 200.
+- Storage bucket visibility: dating photos and group media private; crush photos and event covers public.
+- Public provider flags: Google=false, Apple=false.
+- Auth users: 1. Coin packages: 6, all currently `price_ngn=NULL`; purchase orders: 0.
+
+### Outstanding launch gates
+
+- Paystack prices, server-side secret, webhook setup, real payment and idempotency replay.
+- Google and Apple provider credentials and real login tests.
+- SMTP/SMS delivery and real email/phone verification.
+- Leaked-password protection (security advisor warning; owner setting).
+- Two-account authenticated acceptance tests across feed/confessions/reports/moderation, requests/DMs, BC economy, dating, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin.
+- Android and desktop interactive browser smoke tests.
+- Server-verifiable rewarded-ad provider; BC payouts remain disabled.
+- Security advisor still reports 136 authenticated-callable SECURITY DEFINER functions, one intentionally public auth-provider boolean getter, four internal RLS/no-policy tables and leaked-password protection disabled. Performance advisor reports 7 overlapping permissive-policy warnings and 96 unused-index notices; health advisor has no findings.
+
+**Do not mark production 100% complete.** The single Auth user and absent provider configuration prevent genuine two-account, payment, OAuth, delivery and device acceptance testing. No production customer or administrator credentials were changed.
