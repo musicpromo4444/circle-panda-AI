@@ -154,7 +154,7 @@ test('new accounts require verified email or SMS before sign-in', () => {
 
 
 test('legacy WCW/MCM SECURITY DEFINER RPC is not callable by browser roles', () => {
-  const migration = read('supabase/migrations/20261112084500_revoke_unused_crush_week_public_rpc.sql');
+  const migration = read('supabase/migrations/20261112084424_revoke_unused_crush_week_public_rpc.sql');
   const sourceFiles = walk('src').map(read).join('\n');
   assert.match(migration, /revoke all on function public\.get_wcw_mcm_current_week\(\) from public, anon, authenticated/i);
   assert.doesNotMatch(sourceFiles, /get_wcw_mcm_current_week/);
