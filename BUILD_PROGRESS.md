@@ -1,6 +1,6 @@
 # Circle Panda rebuild — persistent completion tracker
 
-Last verified: 2026-11-06 (UTC)
+Last verified: 2026-11-12 (UTC)
 Repository: `musicpromo4444/circle-panda-AI`
 Active Supabase project: `chcyncvieekjousgzlrg` — **Circle Panda Rebuilt**
 Production URL: https://circle-panda-ai.vercel.app
@@ -517,3 +517,52 @@ Do not mark Circle Panda 100% complete until the owner configuration items and a
 8. Complete interactive Android and desktop browser/device smoke tests.
 
 **Release status: NOT COMPLETE.** Signup now requires a real Supabase confirmation challenge in code and the deployed Edge Function, but delivery is unverified until owner provider configuration. No two-account or payment flow is claimed as passed.
+
+
+## 2026-11-12 run — unused WCW/MCM RPC client access revoked
+
+Scope remained limited to `musicpromo4444/circle-panda-AI` and Supabase project `chcyncvieekjousgzlrg` (Circle Panda Rebuilt, `eu-west-1`). The old SekuPanda project was not accessed.
+
+### Database and migration evidence
+
+- Project state: `ACTIVE_HEALTHY`; PostgreSQL 17.11. A harmless SQL connectivity query succeeded at 2026-11-12 08:39 UTC.
+- Live migration ledger: **155** entries; committed `supabase/migrations/`: **155** files; exact version/name match, no missing or extra migrations.
+- Latest applied migration: `20261112084424_revoke_unused_crush_week_public_rpc`.
+- Public base tables: 78; RLS enabled on 78/78; public views: 9; public RLS policies: 104.
+- SECURITY DEFINER functions: 158; all have pinned search paths; zero PUBLIC EXECUTE grants.
+- Client-executable SECURITY DEFINER counts after this run: anon 1 (the intentionally public auth-provider boolean getter), authenticated 136.
+- Realtime publication: 22 public tables.
+- Storage: 4 buckets and 14 policies. `dating-profile-photos` and `group-media` are private; `crush-post-photos` and `event-covers` are public.
+- Four internal tables (`admin_audit_log`, `feed_content_reports`, `moderation_reviews`, `signup_rate_limits`) have RLS but no client policies; direct SELECT/INSERT/UPDATE/DELETE grants to anon/authenticated were verified absent.
+- Owner account `circlepandaapp@gmail.com`: role `admin`, `is_vip=true`, `vip_expires_at=NULL`. Credentials unchanged.
+
+### Security fix
+
+The legacy `public.get_wcw_mcm_current_week()` SECURITY DEFINER RPC was not referenced by any current `src/` file. It returned scheduled crush cards through a definer function without enforcing the table's `scheduled_for` RLS visibility condition. The current `CrushFeature` reads `crush_posts` directly under RLS. Migration `20261112084424_revoke_unused_crush_week_public_rpc` revoked EXECUTE from `PUBLIC`, `anon`, and `authenticated`; SQL confirmed all three roles now lack EXECUTE, while the coin-package, event-plan and public auth-provider getters remain available as required. This removes one authenticated SECURITY DEFINER advisor finding.
+
+Regression coverage was added in `tests/release-contracts.test.mjs`. The first test attempt had an over-escaped regex and failed 1/13; the assertion was corrected, and the final CI run passed 13/13.
+
+### Edge Functions and release evidence
+
+- `create-panda-account`: ACTIVE v8, `verify_jwt=false` with its own origin, payload, validation and signup-rate-limit controls.
+- `initialize-coin-purchase`: ACTIVE v2, JWT required.
+- `paystack-webhook`: ACTIVE v2, JWT disabled because it verifies Paystack's signed webhook.
+- Deployed Edge Function source for all three was compared byte-for-byte with the committed GitHub files; all matched.
+- Signup creates unconfirmed email/phone identities; the production JS bundle includes email/SMS resend and OTP verification code. Delivery through configured SMTP/SMS providers remains untested.
+- GitHub Actions run [#733](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/43185523375), commit `6dd624c77ba50839f09e84ab33961c19ac8aa162`: npm install, **13/13 tests**, and `npm run build` all passed.
+- Latest Vercel production deployment `dpl_Fuw4ztzctNrAGQqc9dxqkgs716Rd` is READY for commit `6dd624c77ba50839f09e84ab33961c19ac8aa162`; aliases include `circle-panda-ai.vercel.app`; alias error is null.
+- Public production root HTML, main JavaScript (448,135 bytes) and CSS (289,617 bytes) returned HTTP 200. The JS contains the email/SMS verification flow. This is an HTTP smoke test, not an interactive browser/device test.
+
+### Current blockers — do not mark complete
+
+- Auth user count remains 1 (the owner account); no second test identity was created. Genuine two-account acceptance tests remain unperformed.
+- All six coin packages are enabled but have `price_ngn=NULL`; `coin_purchase_orders` count is 0. No real Paystack payment or webhook replay test has been performed.
+- Google and Apple provider flags are both false. Provider credentials/redirects are not configured or verified.
+- Email/SMS verification delivery is not confirmed; owner must configure and test Supabase Auth delivery providers.
+- Leaked-password protection remains disabled per the security advisor; owner must enable it in Supabase Auth settings.
+- Rewarded-ad BC payouts remain disabled until server-verifiable completion is configured.
+- Security advisor: four internal RLS/no-policy notices; one intentional anon SECURITY DEFINER getter returning only Google/Apple enabled booleans; 136 authenticated-callable SECURITY DEFINER warnings; leaked-password protection warning. The public getter remains because the unauthenticated login UI uses it.
+- Performance advisor: 7 multiple-permissive-policy warnings and 96 unused-index notices. Health advisor: no findings. No indexes or policy semantics were changed based solely on these warnings.
+- Mobile/desktop interactive smoke tests and browser-driven authenticated flows remain unverified. No claims are made for confessions, reports, DMs, BC rewards/deductions, Paystack, dating 72-hour/1-BC rules, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications or admin end-to-end acceptance.
+
+Owner actions remain: set six NGN prices; configure Paystack secret and webhook; configure Google/Apple providers; configure SMTP/SMS; enable leaked-password protection; provide an authorized second test account or staging environment; and configure a verifiable rewarded-ad provider.
