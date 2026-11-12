@@ -4,7 +4,7 @@ Last verified: 2026-11-12 (UTC)
 Repository: `musicpromo4444/circle-panda-AI`
 Active Supabase project: `chcyncvieekjousgzlrg` — **Circle Panda Rebuilt**
 Production URL: https://circle-panda-ai.vercel.app
-Latest app code commit: `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29`; Vercel production deployment `dpl_8ce9tEzHPyJWtPFTfaB65Jvb5f23` is READY and assigned to `circle-panda-ai.vercel.app`.
+Latest application-code commit: `7ac1e47695d1674f607089abccfbbed52d37c3bf` (email/SMS signup verification); latest Vercel production deployment `dpl_3iq1neSQpiQgL1rrC78h4vGMaZZG` is READY and assigned to `circle-panda-ai.vercel.app` (source commit `5e3771f4f3f3297282453ec53eb75190f034c877`).
 Latest applied migrations: `20261106092044_harden_public_client_role_privileges.sql`, `20261106092233_revoke_public_function_execute.sql`, and `20261106092801_add_notifications_to_realtime.sql`.
 
 ## Scope guard
@@ -549,8 +549,8 @@ Regression coverage was added in `tests/release-contracts.test.mjs`. The first t
 - `paystack-webhook`: ACTIVE v2, JWT disabled because it verifies Paystack's signed webhook.
 - Deployed Edge Function source for all three was compared byte-for-byte with the committed GitHub files; all matched.
 - Signup creates unconfirmed email/phone identities; the production JS bundle includes email/SMS resend and OTP verification code. Delivery through configured SMTP/SMS providers remains untested.
-- GitHub Actions run [#733](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/43185523375), commit `6dd624c77ba50839f09e84ab33961c19ac8aa162`: npm install, **13/13 tests**, and `npm run build` all passed.
-- Latest Vercel production deployment `dpl_Fuw4ztzctNrAGQqc9dxqkgs716Rd` is READY for commit `6dd624c77ba50839f09e84ab33961c19ac8aa162`; aliases include `circle-panda-ai.vercel.app`; alias error is null.
+- GitHub Actions run [#738](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/43185913427), commit `5e3771f4f3f3297282453ec53eb75190f034c877`: npm install, **13/13 tests**, and `npm run build` all passed.
+- Latest Vercel production deployment `dpl_3iq1neSQpiQgL1rrC78h4vGMaZZG` is READY for commit `6dd624c77ba50839f09e84ab33961c19ac8aa162`; aliases include `circle-panda-ai.vercel.app`; alias error is null.
 - Public production root HTML, main JavaScript (448,135 bytes) and CSS (289,617 bytes) returned HTTP 200. The JS contains the email/SMS verification flow. This is an HTTP smoke test, not an interactive browser/device test.
 
 ### Current blockers — do not mark complete
