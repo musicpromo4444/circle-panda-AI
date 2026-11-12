@@ -8,11 +8,11 @@ Production host: `https://circle-panda-ai.vercel.app`
 ## Verified from provider control planes
 
 - Supabase project state is `ACTIVE_HEALTHY`; SQL connectivity and table introspection are working.
-- Live database contains the rebuilt application schema and 153 recorded migrations. Do not replay or bulk-apply historical migrations.
+- Live database contains the rebuilt application schema and 155 recorded migrations. Do not replay or bulk-apply historical migrations.
 - Owner account `circlepandaapp@gmail.com` is confirmed as `admin` and permanent VIP (`is_vip=true`, `vip_expires_at=NULL`).
 - Vercel production environment contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for production, preview and development. Secret values are intentionally not copied here.
 - Three Supabase Edge Functions are registered ACTIVE: `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
-- Latest app-code commit `f8e9ef33d68dfb8f1add406971e5d0c1da44bc29` remains unchanged. The latest production deployment is `dpl_5nMEQp2E5K4xTwy4Cop3tg8mAJKE` for migration-source commit `75fe0cc8fe8396f47912a819008849a48422b961`; it is READY and assigned to the verified alias `circle-panda-ai.vercel.app`.
+- Latest application-code commit: `7ac1e47695d1674f607089abccfbbed52d37c3bf` (email/SMS signup verification). Latest production deployment: `dpl_3iq1neSQpiQgL1rrC78h4vGMaZZG` for source commit `5e3771f4f3f3297282453ec53eb75190f034c877`; it is READY and assigned to the verified alias `circle-panda-ai.vercel.app`.
 - Previous production deployment for commit `9480684c9b8dfb0021ee1f6bc1639474a31925d8` is also **READY**.
 - Vercel runtime error aggregation for the last 24 hours returned no runtime errors. This is not a substitute for browser or authenticated user testing.
 - Migration reconciliation on 2026-11-07: all 153 live ledger versions match exactly one committed `supabase/migrations/` filename; no missing, extra, duplicate or mismatched versions. Do not replay or bulk-apply historical migrations.
@@ -377,7 +377,7 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Admin `circlepandaapp@gmail.com` remains `admin` and permanent VIP (`is_vip=true`, expiry NULL).
 - All three Edge Functions are ACTIVE and their deployed source exactly matches GitHub: signup v8, Paystack initialization v2, webhook v2.
 - The unused `get_wcw_mcm_current_week()` SECURITY DEFINER RPC was revoked from browser roles because it bypassed scheduled-post visibility; current CrushFeature uses direct RLS-protected table reads. Regression test added.
-- GitHub Actions run [#733](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/43185523375) passed 13/13 tests and the production build.
+- GitHub Actions run [#738](https://github.com/musicpromo4444/circle-panda-AI/actions/runs/43185913427) passed 13/13 tests and the production build.
 - Vercel deployment `dpl_Fuw4ztzctNrAGQqc9dxqkgs716Rd` is READY and assigned to the public alias. Root HTML, JS and CSS returned HTTP 200.
 - Storage bucket visibility: dating photos and group media private; crush photos and event covers public.
 - Public provider flags: Google=false, Apple=false.
