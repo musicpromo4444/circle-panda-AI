@@ -395,3 +395,47 @@ Production host: `https://circle-panda-ai.vercel.app`
 - Security advisor still reports 136 authenticated-callable SECURITY DEFINER functions, one intentionally public auth-provider boolean getter, four internal RLS/no-policy tables and leaked-password protection disabled. Performance advisor reports 7 overlapping permissive-policy warnings and 96 unused-index notices; health advisor has no findings.
 
 **Do not mark production 100% complete.** The single Auth user and absent provider configuration prevent genuine two-account, payment, OAuth, delivery and device acceptance testing. No production customer or administrator credentials were changed.
+
+
+## 2026-11-13 — bounded signup request parsing and production recheck
+
+Scope remained limited to musicpromo4444/circle-panda-AI and Supabase project chcyncvieekjousgzlrg (Circle Panda Rebuilt, eu-west-1). The old SekuPanda application/project was not accessed.
+
+### Concrete change
+
+- Hardened supabase/functions/create-panda-account/index.ts: request bodies are now read as a stream in bounded chunks, capped at 16,384 bytes even when Content-Length is absent or inaccurate. The reader is cancelled once the cap is exceeded; JSON parsing happens only after the byte limit is enforced. Malformed JSON and non-object bodies return HTTP 400.
+- Deployed signup Edge Function v9, status ACTIVE, retaining verify_jwt=false for the public signup endpoint. The deployed index.ts was compared with GitHub and matched exactly. No secrets or credentials were read or changed.
+- Added a fourteenth static release-contract test for the streaming body limit in tests/release-contracts.test.mjs.
+- Commits: bd773d4b8d092483792d6b066e4d797b10b410f5 (signup body limit) and f790757fb9e3a50b82f12bbb0c02473a78600375 (regression test).
+- Latest Vercel production deployment dpl_DERraKwBiZxtBtjFYCbc5vop1Vz1 is READY, targets the test commit, and lists circle-panda-ai.vercel.app as an alias with no alias error. Vercel build/deployment succeeded.
+
+### Supabase evidence checked on 2026-11-13
+
+- Project state ACTIVE_HEALTHY; PostgreSQL 17.11; harmless SQL connectivity succeeded.
+- Live migration ledger: 155 entries; latest 20261112084424_revoke_unused_crush_week_public_rpc. No migration was added in this run. The latest committed-directory reconciliation was 155/155 on 2026-11-12; the current ledger remains at 155.
+- Public base tables: 78; RLS enabled on 78/78; public RLS policies: 104.
+- SECURITY DEFINER functions: 158; pinned search paths: 158; PUBLIC EXECUTE grants: 0. One anon-executable function is the intentionally public get_public_auth_provider_settings() getter, returning only Google/Apple enabled booleans. The two authenticated-executable getters without caller-ID checks (get_coin_packages, get_event_blast_plans) are read-only and return enabled catalog fields. The signup rate-limit RPC is not client-executable.
+- Anon has zero public-table write grants. The four internal RLS/no-policy tables (admin_audit_log, feed_content_reports, moderation_reviews, signup_rate_limits) have no direct anon/authenticated SELECT or INSERT grants.
+- Storage: 4 buckets, 14 policies; dating photos and group media remain private. Realtime publication: 22 public tables.
+- Edge Functions: create-panda-account v9, initialize-coin-purchase v2, paystack-webhook v2; all ACTIVE. Signup source exactly matches GitHub after v9 deployment; purchase and webhook sources remain at their previously verified versions.
+- Admin circlepandaapp@gmail.com remains admin, is_vip=true, vip_expires_at=NULL; credentials unchanged.
+- Auth users: 1. Six enabled coin packages still have price_ngn=NULL; purchase orders: 0. Google and Apple provider flags are both false.
+- Security advisor: 4 internal RLS/no-policy INFO notices; 1 intentional anon getter warning; 136 authenticated-callable SECURITY DEFINER warnings; leaked-password protection warning. Performance advisor: 7 multiple-permissive-policy warnings and 96 unused-index notices. Health advisor: no findings.
+
+### Test and verification boundary
+
+- The last directly inspected GitHub Actions run, #43185913427, passed npm install, 13/13 then-existing tests, and npm run build. The fourteenth test was committed after that run; this connector did not expose a newer GitHub Actions run, so 14/14 is not claimed.
+- Vercel's production build for the updated signup source and subsequent test commit reached READY. The deployment alias is verified by Vercel metadata. The web fetcher could not directly open the public host during this run, so no new HTTP/browser claim is made.
+- No real email/SMS delivery, authenticated two-account workflow, Paystack payment/webhook replay, Google/Apple login, rewarded-ad callback, or interactive Android/desktop test was performed.
+
+### Outstanding release gates
+
+- Configure and test SMTP/email and SMS delivery; verify actual contact-ownership challenges.
+- Set the six owner-approved NGN coin-package prices; configure Paystack server-side secret and webhook; test signed success, failure and idempotency replay.
+- Configure Google/Apple provider credentials and redirect URLs, then test real login.
+- Enable leaked-password protection in Supabase Auth.
+- Keep rewarded BC payouts disabled until a server-verifiable ad-completion provider is configured.
+- Authorize a second disposable test account or safe staging environment; complete the two-account acceptance matrix for feed/confessions/reports, message requests/DMs, wallet/rewards/deductions, dating 72-hour/1-BC rules, groups/VIP, events/blasts, WCW/MCM, Hot Seat, notifications and admin.
+- Complete interactive Android and desktop smoke tests, including media upload, refresh persistence, responsive layout, and console/network checks.
+
+Production completion remains open. Do not mark 100% until all provider, payment, two-account and device gates have passing evidence.
