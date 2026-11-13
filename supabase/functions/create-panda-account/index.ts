@@ -29,6 +29,35 @@ function normalizePhone(value: string) {
   return raw;
 }
 
+async function readLimitedBody(req: Request, maxBytes: number): Promise<string | null> {
+  const reader = req.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 Deno.serve(async (req) => {
   const cors = corsHeadersFor(req);
   const respond = (body: Record<string, unknown>, status = 200, headers: Record<string, string> = {}) => json(body, status, { ...cors, ...headers });
@@ -44,7 +73,19 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !serviceKey) return respond({ error: "Signup service is not configured." }, 500);
 
-    const body = await req.json();
+    const rawBody = await readLimitedBody(req, 16_384);
+    if (rawBody === null) return respond({ error: "Request is too large." }, 413, cors);
+
+    let body: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(rawBody);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return respond({ error: "Invalid request body." }, 400, cors);
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return respond({ error: "Invalid JSON request body." }, 400, cors);
+    }
     const name = String(body?.name ?? "").trim();
     const identifier = String(body?.identifier ?? "").trim();
     const password = String(body?.password ?? "");
