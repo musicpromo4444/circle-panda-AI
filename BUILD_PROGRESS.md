@@ -610,3 +610,12 @@ Scope remained limited to musicpromo4444/circle-panda-AI and Supabase project ch
 - Complete interactive Android and desktop smoke tests, including media upload, refresh persistence, responsive layout, and console/network checks.
 
 Production completion remains open. Do not mark 100% until all provider, payment, two-account and device gates have passing evidence.
+
+
+### Follow-up verification (same 2026-11-13 run)
+
+- Ran the deployed bounded-body reader logic under Node v22.16.0 against four cases: valid JSON, exactly 16,384 bytes, 16,385-byte rejection, and malformed JSON parse rejection. **4/4 targeted helper checks passed.** This is a focused helper test, not the full repository test suite.
+- The latest inspected Vercel production deployment at this point, dpl_A8LZxw5MQavYHWMf1U28XSm6UQjz, is READY and includes the public alias circle-panda-ai.vercel.app; alias error is null. Build logs show npm run build, tsc -b && vite build, 350 modules transformed, and successful completion in 19 seconds. Main JS: 432.04 KB (122.92 KB gzip); deferred client chunk: 303.40 KB (76.99 KB gzip).
+- Vercel runtime error aggregation for the last 24 hours returned no runtime errors.
+- .github/workflows/ci.yml is configured for pushes to main and pull requests, running npm install, npm test, and npm run build. The last directly inspected GitHub Actions job remains run #43185913427 with 13/13 then-existing tests passed. The newer fourteenth test has not been verified by an accessible Actions run; do not claim 14/14.
+- Vercel confirms the public alias, but the web fetcher could not open the public host in this run. This is not a successful direct HTTP/browser check.
