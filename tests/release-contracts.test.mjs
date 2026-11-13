@@ -159,3 +159,15 @@ test('legacy WCW/MCM SECURITY DEFINER RPC is not callable by browser roles', () 
   assert.match(migration, /revoke all on function public\.get_wcw_mcm_current_week\(\) from public, anon, authenticated/i);
   assert.doesNotMatch(sourceFiles, /get_wcw_mcm_current_week/);
 });
+
+
+test('signup endpoint streams and caps request bodies before JSON parsing', () => {
+  const signup = read('supabase/functions/create-panda-account/index.ts');
+  assert.match(signup, /async function readLimitedBody\(req: Request, maxBytes: number\)/);
+  assert.match(signup, /const \{ done, value \} = await reader\.read\(\)/);
+  assert.match(signup, /totalBytes > maxBytes/);
+  assert.match(signup, /await reader\.cancel\(\)/);
+  assert.match(signup, /readLimitedBody\(req, 16_384\)/);
+  assert.match(signup, /JSON\.parse\(rawBody\)/);
+  assert.match(signup, /Invalid JSON request body/);
+});
