@@ -171,3 +171,26 @@ test('signup endpoint streams and caps request bodies before JSON parsing', () =
   assert.match(signup, /JSON\.parse\(rawBody\)/);
   assert.match(signup, /Invalid JSON request body/);
 });
+
+
+test('DM and group message writes use secure RPCs and browser roles cannot insert directly', () => {
+  const app = read('src/App.tsx');
+  const browserSource = walk('src').map(read).join('\\n');
+  const migration = read('supabase/migrations/20261114082500_require_secure_message_rpc_writes.sql');
+
+  assert.match(app, /supabase\\.rpc\\(['"]send_dm_message['"]/);
+  assert.match(app, /supabase\\.rpc\\(['"]send_group_message['"]/);
+  assert.doesNotMatch(browserSource, /\\.from\\(['"]messages['"]\\)\\.insert\\s*\\(/);
+  assert.match(app, /p_idempotency_key:\\s*idempotencyKey/);
+  assert.match(app, /p_view_once:\\s*Boolean\\(groupMediaFile && groupMediaViewOnce\\)/);
+  assert.match(app, /className="chat-compose"[^\\n]*maxLength=\\{4000\\}/);
+  assert.match(app, /maxLength=\\{4000\\} placeholder=\\{groupMediaFile/);
+
+  assert.match(migration, /revoke insert on table public\\.messages from public, anon, authenticated/i);
+  assert.match(migration, /drop policy if exists "conversation members can send messages as themselves" on public\\.messages/i);
+  assert.match(migration, /messages_charge_wallet_before_insert/);
+  assert.match(migration, /messages_guard_group_open/);
+  assert.match(migration, /enforce_group_not_closed_on_message_trigger/);
+  assert.match(migration, /create or replace function public\\.send_group_message/i);
+  assert.match(migration, /grant execute on function public\\.send_group_message[\\s\\S]*to authenticated/i);
+});
