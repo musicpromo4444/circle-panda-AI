@@ -181,8 +181,8 @@ test('DM and group message writes use secure RPCs and browser roles cannot inser
   assert.match(app, /supabase\.rpc\(['"]send_dm_message['"]/);
   assert.match(app, /supabase\.rpc\(['"]send_group_message['"]/);
   assert.doesNotMatch(browserSource, /\.from\(['"]messages['"]\)\.insert\s*\(/);
-  assert.match(app, /p_idempotency_key:\s*idempotencyKey/);
-  assert.match(app, /p_idempotency_key:\s*crypto\.randomUUID\(\)/);
+  assert.equal((app.match(/p_idempotency_key:\s*idempotencyKey/g) ?? []).length, 2);
+  assert.match(app, /pendingGroupMessageSend/);
   assert.match(app, /p_view_once:\s*Boolean\(groupMediaFile && groupMediaViewOnce\)/);
   assert.match(app, /className="chat-compose"[^\n]*maxLength=\{4000\}/);
   assert.match(app, /maxLength=\{4000\} placeholder=\{groupMediaFile/);
