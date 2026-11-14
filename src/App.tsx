@@ -2324,6 +2324,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
   const [groupSenderNames, setGroupSenderNames] = useState<Record<string,string>>({});
   const [vipGroupUserIds, setVipGroupUserIds] = useState<Set<string>>(() => new Set());
   const groupActionLocks = useRef<Record<string, boolean>>({});
+  const pendingGroupMessageSend = useRef<{ groupId: string; body: string; file: File | null; replyToId: string | null; viewOnce: boolean; key: string } | null>(null);
 
   async function load() {
     if (!supabase) return;
@@ -2516,6 +2517,19 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
     groupActionLocks.current['send-message'] = true;
     setBusy(true);setNotice('');
     let uploadedPath: string | null = null;
+    const body = chatDraft.trim() || (groupMediaFile ? 'Shared media' : '');
+    const replyToId = replyingTo?.id ?? null;
+    const viewOnce = Boolean(groupMediaFile && groupMediaViewOnce);
+    const pending = pendingGroupMessageSend.current;
+    const idempotencyKey = pending
+      && pending.groupId === openGroupId
+      && pending.body === body
+      && pending.file === groupMediaFile
+      && pending.replyToId === replyToId
+      && pending.viewOnce === viewOnce
+      ? pending.key
+      : crypto.randomUUID();
+    pendingGroupMessageSend.current = { groupId: openGroupId, body, file: groupMediaFile, replyToId, viewOnce, key: idempotencyKey };
     try {
       let mediaType: string | null = null;
       if (groupMediaFile) {
@@ -2527,22 +2541,39 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         const { error: uploadError } = await supabase.storage.from('group-media').upload(uploadedPath,groupMediaFile,{upsert:false,contentType:groupMediaFile.type});
         if (uploadError) throw uploadError;
       }
-      const { error } = await supabase.rpc('send_group_message', {
+      const { data: sentMessageId, error } = await supabase.rpc('send_group_message', {
         p_group_id: openGroupId,
-        p_body: chatDraft.trim() || (groupMediaFile ? 'Shared media' : ''),
+        p_body: body,
         p_media_type: mediaType,
         p_media_path: uploadedPath,
-        p_reply_to_id: replyingTo?.id ?? null,
-        p_view_once: Boolean(groupMediaFile && groupMediaViewOnce),
-        p_idempotency_key: crypto.randomUUID(),
+        p_reply_to_id: replyToId,
+        p_view_once: viewOnce,
+        p_idempotency_key: idempotencyKey,
       });
       if (error) throw error;
+      if (uploadedPath && sentMessageId) {
+        const { data: savedMessage, error: lookupError } = await supabase.from('messages')
+          .select('media_path').eq('id', sentMessageId).maybeSingle();
+        if (!lookupError && savedMessage?.media_path && savedMessage.media_path !== uploadedPath) {
+          await supabase.storage.from('group-media').remove([uploadedPath]);
+          uploadedPath = null;
+        }
+      }
+      pendingGroupMessageSend.current = null;
       setChatDraft(''); setReplyingTo(null); setGroupMediaFile(null); setGroupMediaViewOnce(true);
       const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once')
         .eq('conversation_id',openConversationId).order('created_at',{ascending:true}).limit(200);
       setChatMessages((data ?? []) as ChatMessage[]);
     } catch (error) {
-      if (uploadedPath) await supabase.storage.from('group-media').remove([uploadedPath]).catch(()=>undefined);
+      if (uploadedPath) {
+        const { data: savedMessage, error: lookupError } = await supabase.from('messages')
+          .select('media_path').eq('sender_id', userId).eq('idempotency_key', idempotencyKey).maybeSingle();
+        // Preserve a file if the RPC committed but its response was lost. If the
+        // lookup itself fails, prefer a possible orphan over a broken sent message.
+        if (!lookupError && savedMessage?.media_path !== uploadedPath) {
+          await supabase.storage.from('group-media').remove([uploadedPath]).catch(()=>undefined);
+        }
+      }
       setNotice(error instanceof Error ? error.message : 'Message could not be sent. Please try again.');
     } finally {
       delete groupActionLocks.current['send-message'];
