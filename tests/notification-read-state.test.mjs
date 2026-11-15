@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
 
 test('notification table exposes only owner reads and read_at updates to browser users', () => {
-  const migration = read('supabase/migrations/20261115084500_secure_notification_read_state.sql');
+  const migration = read('supabase/migrations/20261115074835_secure_notification_read_state.sql');
 
   assert.match(migration, /revoke all on table public\.notifications from public, anon, authenticated/i);
   assert.match(migration, /revoke all\s*\([\s\S]*?\) on table public\.notifications from public, anon, authenticated/i);
