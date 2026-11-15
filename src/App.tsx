@@ -216,32 +216,50 @@ export default function App() {
 
   async function markNotificationRead(notification: NotificationRow) {
     if (!supabase || !session || notification.read_at) return;
-    const readAt = new Date().toISOString();
-    const { error } = await supabase.from('notifications')
-      .update({ read_at: readAt })
-      .eq('id', notification.id)
-      .eq('user_id', session.user.id);
+    setNotificationsError('');
+    const { data, error } = await supabase.rpc('mark_notifications_read', {
+      p_notification_id: notification.id,
+    });
     if (error) {
       setNotificationsError(error.message);
       return;
     }
+    const updatedCount = Number(data ?? 0);
+    if (!Number.isFinite(updatedCount) || updatedCount < 0) {
+      setNotificationsError('Could not confirm the notification update. Please refresh.');
+      return;
+    }
+    if (updatedCount === 0) {
+      await loadNotifications();
+      return;
+    }
+    const readAt = new Date().toISOString();
     setNotifications(rows => rows.map(row => row.id === notification.id ? { ...row, read_at: readAt } : row));
-    setNotificationUnreadCount(count => Math.max(0, count - 1));
+    setNotificationUnreadCount(count => Math.max(0, count - updatedCount));
   }
 
   async function markAllNotificationsRead() {
     if (!supabase || !session || notificationUnreadCount === 0) return;
-    const readAt = new Date().toISOString();
-    const { error } = await supabase.from('notifications')
-      .update({ read_at: readAt })
-      .eq('user_id', session.user.id)
-      .is('read_at', null);
+    setNotificationsError('');
+    const { data, error } = await supabase.rpc('mark_notifications_read', {
+      p_notification_id: null,
+    });
     if (error) {
       setNotificationsError(error.message);
       return;
     }
+    const updatedCount = Number(data ?? 0);
+    if (!Number.isFinite(updatedCount) || updatedCount < 0) {
+      setNotificationsError('Could not confirm the notification update. Please refresh.');
+      return;
+    }
+    if (updatedCount === 0) {
+      await loadNotifications();
+      return;
+    }
+    const readAt = new Date().toISOString();
     setNotifications(rows => rows.map(row => row.read_at ? row : { ...row, read_at: readAt }));
-    setNotificationUnreadCount(0);
+    setNotificationUnreadCount(count => Math.max(0, count - updatedCount));
   }
 
   async function openNotification(notification: NotificationRow) {
