@@ -19,7 +19,7 @@ type NotificationRow = { id:string; actor_id:string|null; notification_type:stri
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null; media_type?: string | null; media_path?: string | null; view_once?: boolean };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
-type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
+type ChatConversation = { conversation_id: string; user_id: string; joined_at: string; last_read_at: string | null };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null; searcher_experience?: string | null };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; category?: string | null; is_published: boolean };
 type EventBlastPlan = { id: string; name: string; unique_reach: number; duration_minutes: number; price_usd: number; bc_price: number | null };
@@ -933,7 +933,7 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [messageView, setMessageView] = useState<'requests' | 'messages' | 'sent'>('requests');
   const [totalMessages, setTotalMessages] = useState(0);
-  const [lastMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
+  const [unreadMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
   const [datingMatches, setDatingMatches] = useState<Array<{id:string;user_a?:string;user_b?:string;thread_id:string|null;free_until:string;status:string;photos_revealed?:boolean;my_confirmed?:boolean;other_confirmed?:boolean}>>([]);
   const [chatClock, setChatClock] = useState(Date.now());
   const [datingFreeHours, setDatingFreeHours] = useState(72);
@@ -975,24 +975,68 @@ function MessagesFeature({ userId }: { userId: string }) {
       });
       setNames(nextNames); setVipMessageUserIds(activeVipIds);
     }
-    const { data: memberships } = await supabase.from('conversation_members').select('conversation_id,user_id').eq('user_id', userId);
+    const { data: memberships, error: membershipError } = await supabase.from('conversation_members')
+      .select('conversation_id,user_id,joined_at,last_read_at').eq('user_id', userId);
+    if (membershipError) {
+      setMessageNotice(membershipError.message);
+      setLoading(false);
+      return;
+    }
     const memberRows = (memberships ?? []) as ChatConversation[];
     setConversations(memberRows);
     const conversationIds = [...new Set(memberRows.map(item => item.conversation_id))];
     if (conversationIds.length) {
-      const { data: allMessages } = await supabase.from('messages').select('id,conversation_id,sender_id,created_at').in('conversation_id', conversationIds).order('created_at', { ascending: true });
-      const latest: Record<string,string> = {};
-      (allMessages ?? []).forEach((item: {conversation_id:string;sender_id:string}) => { latest[item.conversation_id] = item.sender_id; });
-      setTotalMessages((allMessages ?? []).length);
-      setLastMessageSender(latest);
-    } else { setTotalMessages(0); setLastMessageSender({}); }
+      const { data: allMessages, error: allMessagesError } = await supabase.from('messages')
+        .select('id,conversation_id,sender_id,created_at')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: true });
+      if (allMessagesError) {
+        setMessageNotice(allMessagesError.message);
+        setTotalMessages(0);
+        setUnreadMessageSender({});
+      } else {
+        const readAtByConversation = new Map(memberRows.map(member => [member.conversation_id, member.last_read_at] as const));
+        const unreadByConversation: Record<string, string> = {};
+        (allMessages ?? []).forEach((item: {conversation_id:string;sender_id:string;created_at:string}) => {
+          if (item.sender_id === userId) return;
+          const readAt = readAtByConversation.get(item.conversation_id);
+          const readAtMs = readAt ? Date.parse(readAt) : 0;
+          const messageAtMs = Date.parse(item.created_at);
+          if (Number.isFinite(messageAtMs) && messageAtMs > readAtMs) {
+            unreadByConversation[item.conversation_id] = item.sender_id;
+          }
+        });
+        const attentionByConversation: Record<string,string> = {};
+        memberRows.forEach(member => {
+          attentionByConversation[member.conversation_id] = unreadByConversation[member.conversation_id] ?? userId;
+        });
+        setTotalMessages((allMessages ?? []).length);
+        setUnreadMessageSender(attentionByConversation);
+      }
+    } else {
+      setTotalMessages(0);
+      setUnreadMessageSender({});
+    }
     setLoading(false);
   }
 
   async function loadMessages(conversationId: string) {
     if (!supabase) return;
     setOpenConversation(conversationId);
-    setLastMessageSender(previous => ({ ...previous, [conversationId]: userId }));
+    const { data: markedRead, error: readError } = await supabase.rpc('mark_conversation_read', {
+      p_conversation_id: conversationId,
+    });
+    if (readError) {
+      setMessageNotice(`Chat opened, but its read status could not be saved: ${readError.message}`);
+    } else if (markedRead === true) {
+      const readAt = new Date().toISOString();
+      setConversations(previous => previous.map(member => member.conversation_id === conversationId
+        ? { ...member, last_read_at: readAt }
+        : member));
+      setUnreadMessageSender(previous => ({ ...previous, [conversationId]: userId }));
+    } else {
+      setMessageNotice('Could not confirm your membership in this conversation. Refresh and try again.');
+    }
     const { data, error } = await supabase.from('messages')
       .select('id,conversation_id,sender_id,body,created_at')
       .eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(200);
@@ -1001,6 +1045,65 @@ function MessagesFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void loadRequests(); }, [userId]);
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !userId) return;
+
+    const readStateChannel = client.channel('dm-read-state-' + userId)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversation_members',
+        filter: 'user_id=eq.' + userId,
+      }, payload => {
+        const updated = payload.new as ChatConversation;
+        if (updated.user_id !== userId) return;
+        setConversations(previous => previous.map(member => member.conversation_id === updated.conversation_id
+          ? { ...member, last_read_at: updated.last_read_at }
+          : member));
+        setUnreadMessageSender(previous => ({ ...previous, [updated.conversation_id]: userId }));
+      })
+      .subscribe();
+
+    // RLS on public.messages limits these inbox events to conversations this user can read.
+    const inboxChannel = client.channel('dm-inbox-' + userId)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      }, payload => {
+        const incoming = payload.new as ChatMessage;
+        if (incoming.sender_id === userId) return;
+        const membership = conversations.find(member => member.conversation_id === incoming.conversation_id);
+        if (!membership) return;
+        const readAtMs = membership.last_read_at ? Date.parse(membership.last_read_at) : 0;
+        const messageAtMs = Date.parse(incoming.created_at);
+        if (!Number.isFinite(messageAtMs) || messageAtMs <= readAtMs) return;
+
+        if (openConversation === incoming.conversation_id) {
+          void client.rpc('mark_conversation_read', { p_conversation_id: incoming.conversation_id })
+            .then(({ data, error }) => {
+              if (error || data !== true) {
+                setMessageNotice('A new message arrived, but its read status could not be saved.');
+                return;
+              }
+              const readAt = new Date().toISOString();
+              setConversations(previous => previous.map(member => member.conversation_id === incoming.conversation_id
+                ? { ...member, last_read_at: readAt }
+                : member));
+              setUnreadMessageSender(previous => ({ ...previous, [incoming.conversation_id]: userId }));
+            });
+        } else {
+          setUnreadMessageSender(previous => ({ ...previous, [incoming.conversation_id]: incoming.sender_id }));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(readStateChannel);
+      void client.removeChannel(inboxChannel);
+    };
+  }, [userId, conversations, openConversation]);
   useEffect(() => { const timer = window.setInterval(() => setChatClock(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!supabase || !openConversation) return;
@@ -1094,7 +1197,7 @@ function MessagesFeature({ userId }: { userId: string }) {
     <div className="messages-overview">
       <div className="message-counter-strip" aria-label="Message activity counters">
         <button type="button" className={messageView === 'requests' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('requests')}><span className="message-counter-label">Requests</span><strong>{incoming.length}</strong>{incoming.length > 0 && <i className="message-alert-dot" aria-label="Requests need attention" />}<small>Inbox</small></button>
-        <button type="button" className={messageView === 'messages' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('messages')}><span className="message-counter-label">Messages</span><strong>{totalMessages}</strong>{activeConversations.some(id => lastMessageSender[id] && lastMessageSender[id] !== userId) && <i className="message-alert-dot" aria-label="Messages need attention" />}<small>{activeConversations.length} chats</small></button>
+        <button type="button" className={messageView === 'messages' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('messages')}><span className="message-counter-label">Messages</span><strong>{totalMessages}</strong>{activeConversations.some(id => unreadMessageSender[id] && unreadMessageSender[id] !== userId) && <i className="message-alert-dot" aria-label="Messages need attention" />}<small>{activeConversations.length} chats</small></button>
         <button type="button" className={messageView === 'sent' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('sent')}><span className="message-counter-label">Sent requests</span><strong>{sent.length}</strong>{sent.some(r => r.status === 'pending') && <i className="message-alert-dot" aria-label="Sent requests awaiting response" />}<small>{sent.filter(r => r.status === 'pending').length} awaiting</small></button>
       </div>
       {messageNotice && <div className="notice inline-notice">{messageNotice}<button onClick={() => setMessageNotice('')}>×</button></div>}
@@ -1105,7 +1208,7 @@ function MessagesFeature({ userId }: { userId: string }) {
         {sent.length ? sent.map(r => <article className={r.status === 'pending' ? 'sent-card request-needs-attention' : 'sent-card'} key={r.id}><div className="sent-card-person"><span className={`request-avatar${vipMessageUserIds.has(r.recipient_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><div><strong>{names[r.recipient_id] || 'Panda'} {vipMessageUserIds.has(r.recipient_id) && <span className="vip-member-label">VIP</span>}</strong><p>Message request · {sourceLabel(r.source_type)}</p></div></div><span className={`status-tag status-${r.status}`}>{r.status}</span>{r.conversation_id && <button className="text-action" onClick={() => void loadMessages(r.conversation_id!)}>Open chat →</button>}</article>) : <div className="empty-state compact"><p>You have not sent a request yet.</p></div>}
       </section>}
       {messageView === 'messages' && <section className="request-section"><div className="section-title-row"><div><h2>Your messages</h2><p>Open a conversation to continue chatting.</p></div><span className="count-pill">{activeConversations.length} CHATS</span></div>
-        {activeConversations.length ? activeConversations.map(id => <button key={id} className={(openConversation === id ? 'chat-list-item selected' : 'chat-list-item') + (lastMessageSender[id] && lastMessageSender[id] !== userId ? ' chat-needs-attention' : '')} onClick={() => void loadMessages(id)}><span className={`request-avatar${vipMessageUserIds.has((requests.find(r => r.conversation_id === id)?.sender_id === userId ? requests.find(r => r.conversation_id === id)?.recipient_id : requests.find(r => r.conversation_id === id)?.sender_id) || '') ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><span><strong>{conversationTitle(id)}</strong><small>Private conversation</small></span><b>→</b></button>) : <div className="empty-state compact"><p>Accept a message request to start your first chat.</p></div>}
+        {activeConversations.length ? activeConversations.map(id => <button key={id} className={(openConversation === id ? 'chat-list-item selected' : 'chat-list-item') + (unreadMessageSender[id] && unreadMessageSender[id] !== userId ? ' chat-needs-attention' : '')} onClick={() => void loadMessages(id)}><span className={`request-avatar${vipMessageUserIds.has((requests.find(r => r.conversation_id === id)?.sender_id === userId ? requests.find(r => r.conversation_id === id)?.recipient_id : requests.find(r => r.conversation_id === id)?.sender_id) || '') ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><span><strong>{conversationTitle(id)}</strong><small>{unreadMessageSender[id] && unreadMessageSender[id] !== userId ? 'New messages' : 'Private conversation'}</small></span><b>→</b></button>) : <div className="empty-state compact"><p>Accept a message request to start your first chat.</p></div>}
       </section>}
     </div>
     <section className="chat-panel">
