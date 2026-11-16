@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
 
 test('conversation read markers are limited to the signed-in member and one column', () => {
-  const migration = read('supabase/migrations/20261116085000_persist_direct_message_read_state.sql');
+  const migration = read('supabase/migrations/20261116080451_persist_direct_message_read_state.sql');
 
   assert.match(migration, /alter table public\.conversation_members enable row level security/i);
   assert.match(migration, /revoke all on table public\.conversation_members from public, anon, authenticated/i);
