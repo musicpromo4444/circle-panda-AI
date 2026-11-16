@@ -933,7 +933,7 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [messageView, setMessageView] = useState<'requests' | 'messages' | 'sent'>('requests');
   const [totalMessages, setTotalMessages] = useState(0);
-  const [unreadMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
+  const [unreadMessageSender, setUnreadMessageSender] = useState<Record<string,string>>({});
   const [datingMatches, setDatingMatches] = useState<Array<{id:string;user_a?:string;user_b?:string;thread_id:string|null;free_until:string;status:string;photos_revealed?:boolean;my_confirmed?:boolean;other_confirmed?:boolean}>>([]);
   const [chatClock, setChatClock] = useState(Date.now());
   const [datingFreeHours, setDatingFreeHours] = useState(72);
