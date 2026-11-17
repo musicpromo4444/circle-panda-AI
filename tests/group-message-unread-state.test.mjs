@@ -38,5 +38,8 @@ test('group directory loads real unread counts and marks a group read only throu
   assert.match(app, /event: 'INSERT', schema: 'public', table: 'messages'/);
   assert.match(app, /event: 'UPDATE', schema: 'public', table: 'conversation_members'/);
   assert.match(app, /document\.visibilityState === 'visible'/);
+  assert.match(app, /document\.hasFocus\(\)/);
+  assert.match(app, /document\.addEventListener\('visibilitychange', markVisibleGroupRead\)/);
+  assert.match(app, /window\.addEventListener\('focus', markVisibleGroupRead\)/);
   assert.doesNotMatch(app, /from\(['"]conversation_members['"]\)\.update\s*\(/);
 });
