@@ -2390,12 +2390,14 @@ function WalletFeature({ userId }: { userId: string }) {
 
 
 type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string; closed_at?: string | null; activated_at?: string | null };
+type GroupUnreadSummaryRow = { group_id: string; unread_count: number | string };
 type GroupJoinRequestRow = { id: string; group_id: string; user_id: string; status: string; created_at: string };
 function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: number | null }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
   const [myGroups, setMyGroups] = useState<Record<string,boolean>>({});
   const [myGroupRoles, setMyGroupRoles] = useState<Record<string,string>>({});
+  const [groupUnreadCounts, setGroupUnreadCounts] = useState<Record<string,number>>({});
   const [pendingJoinRequests, setPendingJoinRequests] = useState<GroupJoinRequestRow[]>([]);
   const [joinRequestNames, setJoinRequestNames] = useState<Record<string,string>>({});
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
@@ -2428,6 +2430,21 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
   const [vipGroupUserIds, setVipGroupUserIds] = useState<Set<string>>(() => new Set());
   const groupActionLocks = useRef<Record<string, boolean>>({});
   const pendingGroupMessageSend = useRef<{ groupId: string; body: string; file: File | null; replyToId: string | null; viewOnce: boolean; key: string } | null>(null);
+
+  async function refreshGroupUnreadCounts() {
+    if (!supabase) return;
+    const { data, error } = await supabase.rpc('get_group_unread_summary');
+    if (error) {
+      setNotice(`Group unread counts could not be refreshed: ${error.message}`);
+      return;
+    }
+    const counts: Record<string,number> = {};
+    ((data ?? []) as GroupUnreadSummaryRow[]).forEach(row => {
+      const count = Number(row.unread_count);
+      if (Number.isFinite(count) && count > 0) counts[row.group_id] = count;
+    });
+    setGroupUnreadCounts(counts);
+  }
 
   async function load() {
     if (!supabase) return;
@@ -2467,6 +2484,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         } else setJoinRequestNames({});
       } else { setPendingJoinRequests([]); setJoinRequestNames({}); }
     }
+    await refreshGroupUnreadCounts();
     setLoading(false);
   }
 
@@ -2484,6 +2502,37 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
     return () => { void channel.unsubscribe(); };
   }, [openConversationId]);
 
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    const channel = client.channel('group-unread-' + userId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        const incoming = payload.new as ChatMessage;
+        if (incoming.sender_id === userId) return;
+        if (openGroupId && openConversationId === incoming.conversation_id && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          void client.rpc('mark_conversation_read', { p_conversation_id: incoming.conversation_id })
+            .then(({ data, error }) => {
+              if (error || data !== true) {
+                setNotice('A new group message arrived, but its read status could not be saved.');
+                void refreshGroupUnreadCounts();
+                return;
+              }
+              setGroupUnreadCounts(previous => {
+                const next = { ...previous };
+                delete next[openGroupId];
+                return next;
+              });
+            });
+          return;
+        }
+        void refreshGroupUnreadCounts();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_members', filter: 'user_id=eq.' + userId }, () => {
+        void refreshGroupUnreadCounts();
+      })
+      .subscribe();
+    return () => { void channel.unsubscribe(); };
+  }, [userId, openConversationId, openGroupId]);
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2562,6 +2611,17 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
     const { data, error } = await supabase.rpc('open_group_chat',{p_group_id:group.id});
     if (error) { setNotice(error.message);return; }
     setOpenGroupId(group.id);setOpenConversationId(data as string);setNotice('');
+    const { data: markedRead, error: readError } = await supabase.rpc('mark_conversation_read', {
+      p_conversation_id: data as string,
+    });
+    if (readError) setNotice(`Group opened, but read status could not be saved: ${readError.message}`);
+    else if (markedRead === true) {
+      setGroupUnreadCounts(previous => {
+        const next = { ...previous };
+        delete next[group.id];
+        return next;
+      });
+    } else setNotice('Group opened, but its read status could not be confirmed. Refresh and try again.');
     const { data: rows, error: messagesError } = await supabase.from('messages')
       .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
     if (messagesError) setNotice(messagesError.message);
@@ -2697,6 +2757,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
   }
 
   const openGroup = groups.find(g => g.id === openGroupId);
+  const totalUnreadGroupMessages = Object.values(groupUnreadCounts).reduce((total, count) => total + count, 0);
   const canManageOpenGroup = Boolean(openGroup && (openGroup.creator_id === userId || ['creator','admin'].includes(myGroupRoles[openGroup.id] || '')));
   const canEditOpenGroupInfo = Boolean(openGroup && myGroups[openGroup.id] && (canManageOpenGroup || groupEditInfo === 'admins_members'));
 
@@ -2771,7 +2832,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section></div>}
-    <section className="group-directory"><div className="section-title-row"><div><p className="eyebrow">YOUR COMMUNITIES</p><h2>All groups</h2><p>Tap a group to join or open its conversation.</p></div><span className="count-pill">{groups.length} GROUPS</span></div>
+    <section className="group-directory"><div className="section-title-row"><div><p className="eyebrow">YOUR COMMUNITIES</p><h2>All groups</h2><p>Tap a group to join or open its conversation.</p></div><span className="count-pill">{groups.length} GROUPS{totalUnreadGroupMessages ? ` · ${totalUnreadGroupMessages} NEW` : ''}</span></div>
       <section className="vip-experience">
         <div className="vip-experience-heading"><div><p className="eyebrow">PRIVATE COMMUNITIES</p><h2>VIP groups</h2><p>Private WhatsApp-style group conversations for verified VIP members.</p></div><span className={myVip ? 'vip-status unlocked' : 'vip-status'}>{myVip ? '✦ VIP UNLOCKED' : '🔒 VIP LOCKED'}</span></div>
         <div className="vip-room-grid">
@@ -2785,7 +2846,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         const count = memberCounts[group.id] || 0;
         const member = Boolean(myGroups[group.id]);
         const opened = Boolean(group.activated_at);
-        return <article className="group-card" key={group.id}><div className={`group-card-icon${vipGroupUserIds.has(group.creator_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{vipGroupUserIds.has(group.creator_id) && <span className="vip-member-label">VIP creator</span>}{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}{member && (group.creator_id===userId || ['creator','admin'].includes(myGroupRoles[group.id] || '')) && <button type="button" className="secondary-button" disabled={busy} onClick={()=>void showGroupSettings(group)}>Manage group</button>}</div></div></article>;
+        return <article className="group-card" key={group.id}><div className={`group-card-icon${vipGroupUserIds.has(group.creator_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{vipGroupUserIds.has(group.creator_id) && <span className="vip-member-label">VIP creator</span>}{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span>{member && (groupUnreadCounts[group.id] ?? 0) > 0 && <span className="count-pill" aria-label={`${groupUnreadCounts[group.id]} unread messages`}>{groupUnreadCounts[group.id]} new</span>}</div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}{member && (group.creator_id===userId || ['creator','admin'].includes(myGroupRoles[group.id] || '')) && <button type="button" className="secondary-button" disabled={busy} onClick={()=>void showGroupSettings(group)}>Manage group</button>}</div></div></article>;
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
     {pendingJoinRequests.length > 0 && <section className="group-join-requests"><div className="section-title-row"><div><p className="eyebrow">YOUR COMMUNITY</p><h2>Membership requests</h2><p>Approve or decline requests to join the groups you manage.</p></div><span className="count-pill">{pendingJoinRequests.length} PENDING</span></div><div className="group-join-request-list">{pendingJoinRequests.map(request => { const group = groups.find(item => item.id === request.group_id); return <article className="group-join-request-card" key={request.id}><div><strong>{joinRequestNames[request.user_id] || 'Panda'}</strong><p>Requested to join <b>{group?.name || 'your group'}</b></p><small>{new Date(request.created_at).toLocaleString()}</small></div><div className="group-join-request-actions"><button type="button" className="secondary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,false)}>Decline</button><button type="button" className="primary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,true)}>Approve</button></div></article>; })}</div></section>}
