@@ -17,7 +17,7 @@ A rebuild of Circle Panda using React, TypeScript, Vite, and Supabase.
 
 ## Current status
 
-The rebuilt database is online and healthy. All 78 public base tables have RLS enabled. The live migration ledger and committed repository migrations reconcile exactly at **153/153**. Storage has four buckets and 14 policies; 22 tables are published to Realtime, including notifications.
+The rebuilt database is online and healthy. All 78 public base tables have RLS enabled. The live migration ledger and committed repository migrations reconcile exactly at **158/158**. Storage has four buckets and 14 policies; 22 tables are published to Realtime, including notifications.
 
 The owner account `circlepandaapp@gmail.com` remains an administrator and permanent VIP (`profiles.is_vip=true`, `profiles.vip_expires_at=NULL`). The three registered Supabase Edge Functions are `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
 
