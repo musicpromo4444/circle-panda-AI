@@ -2635,23 +2635,23 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
     const { data, error } = await supabase.rpc('open_group_chat',{p_group_id:group.id});
     if (error) { setNotice(error.message);return; }
     setOpenGroupId(group.id);setOpenConversationId(data as string);setNotice('');
-    const { data: markedRead, error: readError } = await supabase.rpc('mark_conversation_read', {
-      p_conversation_id: data as string,
-    });
-    if (readError) setNotice(`Group opened, but read status could not be saved: ${readError.message}`);
-    else if (markedRead === true) {
-      setGroupUnreadCounts(previous => {
-        const next = { ...previous };
-        delete next[group.id];
-        return next;
-      });
-    } else setNotice('Group opened, but its read status could not be confirmed. Refresh and try again.');
     const { data: rows, error: messagesError } = await supabase.from('messages')
-      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
+      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once').eq('conversation_id',data as string).order('created_at',{ascending:false}).limit(200);
     if (messagesError) setNotice(messagesError.message);
     else {
-      const messages = (rows ?? []) as ChatMessage[];
+      const messages = ((rows ?? []) as ChatMessage[]).reverse();
       setChatMessages(messages);
+      const { data: markedRead, error: readError } = await supabase.rpc('mark_conversation_read', {
+        p_conversation_id: data as string,
+      });
+      if (readError) setNotice(`Group opened, but read status could not be saved: ${readError.message}`);
+      else if (markedRead === true) {
+        setGroupUnreadCounts(previous => {
+          const next = { ...previous };
+          delete next[group.id];
+          return next;
+        });
+      } else setNotice('Group opened, but its read status could not be confirmed. Refresh and try again.');
       const onceIds = messages.filter(m => m.view_once).map(m => m.id);
       if (onceIds.length) {
         const { data: claims } = await supabase.from('group_media_views').select('message_id').eq('user_id',userId).in('message_id',onceIds);
