@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
 
 test('group unread summary is invoker-scoped and counts only messages after membership read time', () => {
-  const migration = read('supabase/migrations/20261117090000_group_message_unread_summary.sql');
+  const migration = read('supabase/migrations/20261117080355_group_message_unread_summary.sql');
 
   assert.match(migration, /returns table\s*\(\s*group_id uuid,\s*unread_count bigint\s*\)/i);
   assert.match(migration, /language sql\s+stable\s+security invoker\s+set search_path = ''/i);
