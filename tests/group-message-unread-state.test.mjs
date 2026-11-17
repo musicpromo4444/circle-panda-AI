@@ -35,6 +35,9 @@ test('group directory loads real unread counts and marks a group read only throu
   assert.match(app, /groupUnreadCounts\[group\.id\]/);
   assert.match(app, /totalUnreadGroupMessages/);
   assert.match(openChat, /rpc\(['"]mark_conversation_read['"]/);
+  assert.match(openChat, /order\(['"]created_at['"],\s*\{\s*ascending:\s*false\s*\}\)\.limit\(200\)/);
+  assert.match(openChat, /as ChatMessage\[\]\)\.reverse\(\)/);
+  assert.ok(openChat.indexOf('if (messagesError)') < openChat.indexOf("rpc('mark_conversation_read'"), 'read marker must follow successful message loading');
   assert.match(app, /event: 'INSERT', schema: 'public', table: 'messages'/);
   assert.match(app, /event: 'UPDATE', schema: 'public', table: 'conversation_members'/);
   assert.match(app, /document\.visibilityState === 'visible'/);
