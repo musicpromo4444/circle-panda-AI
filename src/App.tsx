@@ -2510,7 +2510,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         const incoming = payload.new as ChatMessage;
         if (incoming.sender_id === userId) return;
         const activeGroupId = openGroupId;
-        if (activeGroupId && openConversationId === incoming.conversation_id && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        if (activeGroupId && openConversationId === incoming.conversation_id && typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus()) {
           void client.rpc('mark_conversation_read', { p_conversation_id: incoming.conversation_id })
             .then(({ data, error }) => {
               if (error || data !== true) {
@@ -2532,7 +2532,30 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         void refreshGroupUnreadCounts();
       })
       .subscribe();
-    return () => { void channel.unsubscribe(); };
+    const markVisibleGroupRead = () => {
+      if (!openGroupId || !openConversationId || typeof document === 'undefined' || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      const activeGroupId = openGroupId;
+      void client.rpc('mark_conversation_read', { p_conversation_id: openConversationId })
+        .then(({ data, error }) => {
+          if (error || data !== true) {
+            setNotice('The open group could not confirm its read status.');
+            void refreshGroupUnreadCounts();
+            return;
+          }
+          setGroupUnreadCounts(previous => {
+            const next = { ...previous };
+            delete next[activeGroupId];
+            return next;
+          });
+        });
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', markVisibleGroupRead);
+    if (typeof window !== 'undefined') window.addEventListener('focus', markVisibleGroupRead);
+    return () => {
+      void channel.unsubscribe();
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', markVisibleGroupRead);
+      if (typeof window !== 'undefined') window.removeEventListener('focus', markVisibleGroupRead);
+    };
   }, [userId, openConversationId, openGroupId]);
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
