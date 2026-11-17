@@ -2509,7 +2509,8 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         const incoming = payload.new as ChatMessage;
         if (incoming.sender_id === userId) return;
-        if (openGroupId && openConversationId === incoming.conversation_id && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const activeGroupId = openGroupId;
+        if (activeGroupId && openConversationId === incoming.conversation_id && typeof document !== 'undefined' && document.visibilityState === 'visible') {
           void client.rpc('mark_conversation_read', { p_conversation_id: incoming.conversation_id })
             .then(({ data, error }) => {
               if (error || data !== true) {
@@ -2519,7 +2520,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
               }
               setGroupUnreadCounts(previous => {
                 const next = { ...previous };
-                delete next[openGroupId];
+                delete next[activeGroupId];
                 return next;
               });
             });
