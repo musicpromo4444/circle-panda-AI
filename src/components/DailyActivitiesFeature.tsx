@@ -82,14 +82,7 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
   },[gameSeconds,gameActive,selected?.activity_key,gameScore,coinDropSessionId,slotsSessionId]);
   useEffect(()=>{
     if(gameStep!==3) return;
-    const timer=window.setTimeout(()=>{
-      if(selected?.activity_key==='wheel_spin') {
-        const wheelSegments=['Panda Power','Lucky Star','Golden Leaf','Mystery'];
-        const segment=wheelSegments[Math.floor(Math.random()*wheelSegments.length)];
-        setGameResult('The wheel stopped on '+segment+'. Complete this activity to claim its configured daily BC reward.');
-      }
-      setGameStep(1);
-    },selected?.activity_key==='coin_drop'?4000:2200);
+    const timer=window.setTimeout(()=>setGameStep(1),selected?.activity_key==='coin_drop'?4000:2200);
     return ()=>window.clearTimeout(timer);
   },[gameStep,selected?.activity_key]);
 
@@ -133,10 +126,11 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
   async function chooseOption(choice:string) {
     if(!supabase || !selected || busy) return;
     setBusy(true);setNotice('');
-    const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:choice});
+    const {data,error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:choice});
     if(error){setNotice(error.message);setBusy(false);return;}
-    const outcome='Choice recorded: '+choice+'. The configured daily BC reward is claimed separately after you complete the activity.';
-    setGameResult(outcome);setGameStep(3);setBusy(false);
+    const result=data as {outcome?:string;correct?:boolean};
+    setGameResult(result.outcome??'Your choice was recorded. Complete the activity to claim its configured daily BC reward.');
+    setGameStep(1);setBusy(false);
   }
   async function startCoinDrop() {
     if(!supabase || busy) return;
@@ -160,8 +154,10 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
   async function playStep() {
     if(!supabase || !selected || busy) return;
     setBusy(true);setNotice('');
-    const {error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:'start_round'});
+    const {data,error}=await supabase.rpc('record_daily_activity_action',{p_activity_key:selected.activity_key,p_action:'start_round'});
     if(error){setNotice(error.message);setBusy(false);return;}
+    const actionResult=data as {outcome?:string};
+    setGameResult(actionResult.outcome??'Your round is ready.');
     setBusy(false);
     if(selected.activity_key==='panda_slots') {
       const {data,error}=await supabase.rpc('start_daily_panda_slots');
@@ -174,7 +170,7 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
       lucky_cards:'Shuffling your lucky cards…',secret_reveal:'Unlocking your secret prompt…',panda_puzzle:'Checking the puzzle…',
       coin_drop:'Your Coin Drop round is complete!',panda_slots:'The slot result is ready!',mystery_box:'Opening your mystery box…',panda_target:'Locking onto the target…'
     };
-    setGameResult(results[selected.activity_key]??'Calculating your result…');setGameStep(3);
+    setGameResult(actionResult.outcome??results[selected.activity_key]??'Calculating your result…');setGameStep(3);
   }
   return <section className="daily-activities-panel">
     <div className="daily-activities-heading"><div><p className="eyebrow">YOUR 7-DAY CHALLENGE</p><h2>Daily Activities</h2><p>Claim your daily login reward, then complete the activity assigned for the day.</p></div><span className="daily-streak-mark">🐼 <b>{completed.length}/7</b><small>days complete</small></span></div>
