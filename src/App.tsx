@@ -80,6 +80,7 @@ export default function App() {
   const [notificationsError, setNotificationsError] = useState('');
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const notificationIds = useRef(new Set<string>());
+  const notificationUnreadSync = useRef(0);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [vipPostIds, setVipPostIds] = useState<Set<string>>(() => new Set());
   const [, setIsVipMember] = useState(false);
@@ -186,8 +187,20 @@ export default function App() {
     setSection('DailyActivities');
   }
 
+  async function refreshNotificationUnreadCount() {
+    if (!supabase || !session) return;
+    const requestId = ++notificationUnreadSync.current;
+    const { count, error } = await supabase.from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id)
+      .is('read_at', null);
+    if (requestId !== notificationUnreadSync.current || error || count == null) return;
+    setNotificationUnreadCount(count);
+  }
+
   async function loadNotifications() {
     if (!supabase || !session) return;
+    const unreadRequestId = ++notificationUnreadSync.current;
     setNotificationsLoading(true);
     setNotificationsError('');
     try {
@@ -206,7 +219,9 @@ export default function App() {
       const rows = (listResult.data ?? []) as NotificationRow[];
       notificationIds.current = new Set(rows.map(row => row.id));
       setNotifications(rows);
-      setNotificationUnreadCount(unreadResult.count ?? rows.filter(row => !row.read_at).length);
+      if (unreadRequestId === notificationUnreadSync.current) {
+        setNotificationUnreadCount(unreadResult.count ?? rows.filter(row => !row.read_at).length);
+      }
     } catch (error) {
       setNotificationsError(error instanceof Error ? error.message : 'Could not load notifications.');
     } finally {
@@ -235,7 +250,7 @@ export default function App() {
     }
     const readAt = new Date().toISOString();
     setNotifications(rows => rows.map(row => row.id === notification.id ? { ...row, read_at: readAt } : row));
-    setNotificationUnreadCount(count => Math.max(0, count - updatedCount));
+    void refreshNotificationUnreadCount();
   }
 
   async function markAllNotificationsRead() {
@@ -259,7 +274,7 @@ export default function App() {
     }
     const readAt = new Date().toISOString();
     setNotifications(rows => rows.map(row => row.read_at ? row : { ...row, read_at: readAt }));
-    setNotificationUnreadCount(count => Math.max(0, count - updatedCount));
+    void refreshNotificationUnreadCount();
   }
 
   async function openNotification(notification: NotificationRow) {
@@ -307,8 +322,26 @@ export default function App() {
         setNotifications(rows => [incoming, ...rows].slice(0, 30));
         if (!incoming.read_at) setNotificationUnreadCount(count => count + 1);
       })
-      .subscribe();
-    return () => { void client.removeChannel(channel); };
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'notifications',
+        filter: 'user_id=eq.' + userId,
+      }, payload => {
+        const updated = payload.new as NotificationRow & { user_id: string };
+        if (updated.user_id !== userId || !updated.id) return;
+        setNotifications(rows => rows.map(row => row.id === updated.id
+          ? { ...row, read_at: updated.read_at }
+          : row));
+        void refreshNotificationUnreadCount();
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') void refreshNotificationUnreadCount();
+      });
+    return () => {
+      notificationUnreadSync.current += 1;
+      void client.removeChannel(channel);
+    };
   }, [session?.user.id]);
 
   useEffect(() => {
