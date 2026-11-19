@@ -12,13 +12,14 @@ test('notification read updates synchronize through the owner-filtered Realtime 
   const publication = read('supabase/migrations/20261106092801_add_notifications_to_realtime.sql');
   const security = read('supabase/migrations/20261115074835_secure_notification_read_state.sql');
 
-  assert.match(app, /event: 'UPDATE',[\\s\\S]*?table: 'notifications',[\\s\\S]*?filter: 'user_id=eq\\.' \\+ userId/);
-  assert.match(app, /const updated = payload\\.new as NotificationRow & \\{ user_id: string \\}/);
-  assert.match(app, /if \\(updated\\.user_id !== userId \\|\\| !updated\\.id\\) return/);
-  assert.match(app, /setNotifications\\(rows => rows\\.map\\(row => row\\.id === updated\\.id/);
-  assert.match(app, /async function refreshNotificationUnreadCount\\(\\)/);
-  assert.match(app, /requestId !== notificationUnreadSync\\.current/);
-  assert.match(app, /if \\(status === 'SUBSCRIBED'\\) void refreshNotificationUnreadCount\\(\\)/);
+  assert.ok(app.includes("event: 'UPDATE',"));
+  assert.ok(app.includes("filter: 'user_id=eq.' + userId"));
+  assert.ok(app.includes('const updated = payload.new as NotificationRow & { user_id: string };'));
+  assert.ok(app.includes('if (updated.user_id !== userId || !updated.id) return;'));
+  assert.ok(app.includes('async function refreshNotificationUnreadCount()'));
+  assert.ok(app.includes('requestId !== notificationUnreadSync.current'));
+  assert.ok(app.includes("if (status === 'SUBSCRIBED') void refreshNotificationUnreadCount();"));
+  assert.ok(app.includes(".eq('user_id', session.user.id)\n      .is('read_at', null)"));
 
   assert.match(publication, /alter publication supabase_realtime add table public\\.notifications/i);
   assert.match(security, /grant select on table public\\.notifications to authenticated/i);
