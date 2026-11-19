@@ -21,9 +21,9 @@ test('notification read updates synchronize through the owner-filtered Realtime 
   assert.ok(app.includes("if (status === 'SUBSCRIBED') void refreshNotificationUnreadCount();"));
   assert.ok(app.includes(".eq('user_id', session.user.id)\n      .is('read_at', null)"));
 
-  assert.match(publication, /alter publication supabase_realtime add table public\\.notifications/i);
-  assert.match(security, /grant select on table public\\.notifications to authenticated/i);
-  assert.match(security, /grant update \\(read_at\\) on table public\\.notifications to authenticated/i);
-  assert.match(security, /security invoker/i);
-  assert.match(security, /grant execute on function public\\.mark_notifications_read\\(uuid\\) to authenticated/i);
+  assert.ok(publication.includes('alter publication supabase_realtime add table public.notifications;'));
+  assert.ok(security.includes('grant select on table public.notifications to authenticated;'));
+  assert.ok(security.includes('grant update (read_at) on table public.notifications to authenticated;'));
+  assert.ok(security.includes('security invoker'));
+  assert.ok(security.includes('grant execute on function public.mark_notifications_read(uuid) to authenticated;'));
 });
