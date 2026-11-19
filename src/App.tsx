@@ -19,7 +19,7 @@ type NotificationRow = { id:string; actor_id:string|null; notification_type:stri
 type MessageRequestRow = { id: string; sender_id: string; recipient_id: string; source_type: string; greeting: string; status: string; created_at: string; conversation_id: string | null };
 type ChatMessage = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; reply_to_message_id?: string | null; media_type?: string | null; media_path?: string | null; view_once?: boolean };
 type GroupMessageReaction = { id: string; message_id: string; user_id: string; reaction: string };
-type ChatConversation = { conversation_id: string; user_id: string; joined_at: string };
+type ChatConversation = { conversation_id: string; user_id: string; joined_at: string; last_read_at: string | null };
 type DatingProfileRow = { id: string; user_id: string; headline: string | null; about: string | null; personality: string[] | null; sexual_experience: string | null; looking_for: string[] | null; is_published: boolean; created_at: string; relationship_goal?: string | null; interests?: string[]; personality_tags?: string[]; occupation?: string | null; children?: string | null; smoking?: string | null; drinking?: string | null; photo_path?: string | null; blurred_photo_path?: string | null; age?: number | null; gender?: string | null; gender_preferences?: string[]; preferred_age_min?: number; preferred_age_max?: number; long_distance_ok?: boolean; communication_style?: string | null; relationship_values?: string[]; ideal_weekend?: string | null; conversation_topic?: string | null; smile_prompt?: string | null; searcher_experience?: string | null };
 type EventRow = { id: string; creator_id: string; title: string; description: string; venue: string | null; country: string | null; state: string | null; city: string | null; area: string | null; starts_at: string; cover_url: string | null; category?: string | null; is_published: boolean };
 type EventBlastPlan = { id: string; name: string; unique_reach: number; duration_minutes: number; price_usd: number; bc_price: number | null };
@@ -80,6 +80,7 @@ export default function App() {
   const [notificationsError, setNotificationsError] = useState('');
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const notificationIds = useRef(new Set<string>());
+  const notificationUnreadSync = useRef(0);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [vipPostIds, setVipPostIds] = useState<Set<string>>(() => new Set());
   const [, setIsVipMember] = useState(false);
@@ -186,8 +187,20 @@ export default function App() {
     setSection('DailyActivities');
   }
 
+  async function refreshNotificationUnreadCount() {
+    if (!supabase || !session) return;
+    const requestId = ++notificationUnreadSync.current;
+    const { count, error } = await supabase.from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id)
+      .is('read_at', null);
+    if (requestId !== notificationUnreadSync.current || error || count == null) return;
+    setNotificationUnreadCount(count);
+  }
+
   async function loadNotifications() {
     if (!supabase || !session) return;
+    const unreadRequestId = ++notificationUnreadSync.current;
     setNotificationsLoading(true);
     setNotificationsError('');
     try {
@@ -206,7 +219,9 @@ export default function App() {
       const rows = (listResult.data ?? []) as NotificationRow[];
       notificationIds.current = new Set(rows.map(row => row.id));
       setNotifications(rows);
-      setNotificationUnreadCount(unreadResult.count ?? rows.filter(row => !row.read_at).length);
+      if (unreadRequestId === notificationUnreadSync.current) {
+        setNotificationUnreadCount(unreadResult.count ?? rows.filter(row => !row.read_at).length);
+      }
     } catch (error) {
       setNotificationsError(error instanceof Error ? error.message : 'Could not load notifications.');
     } finally {
@@ -216,32 +231,50 @@ export default function App() {
 
   async function markNotificationRead(notification: NotificationRow) {
     if (!supabase || !session || notification.read_at) return;
-    const readAt = new Date().toISOString();
-    const { error } = await supabase.from('notifications')
-      .update({ read_at: readAt })
-      .eq('id', notification.id)
-      .eq('user_id', session.user.id);
+    setNotificationsError('');
+    const { data, error } = await supabase.rpc('mark_notifications_read', {
+      p_notification_id: notification.id,
+    });
     if (error) {
       setNotificationsError(error.message);
       return;
     }
+    const updatedCount = Number(data ?? 0);
+    if (!Number.isFinite(updatedCount) || updatedCount < 0) {
+      setNotificationsError('Could not confirm the notification update. Please refresh.');
+      return;
+    }
+    if (updatedCount === 0) {
+      await loadNotifications();
+      return;
+    }
+    const readAt = new Date().toISOString();
     setNotifications(rows => rows.map(row => row.id === notification.id ? { ...row, read_at: readAt } : row));
-    setNotificationUnreadCount(count => Math.max(0, count - 1));
+    void refreshNotificationUnreadCount();
   }
 
   async function markAllNotificationsRead() {
     if (!supabase || !session || notificationUnreadCount === 0) return;
-    const readAt = new Date().toISOString();
-    const { error } = await supabase.from('notifications')
-      .update({ read_at: readAt })
-      .eq('user_id', session.user.id)
-      .is('read_at', null);
+    setNotificationsError('');
+    const { data, error } = await supabase.rpc('mark_notifications_read', {
+      p_notification_id: null,
+    });
     if (error) {
       setNotificationsError(error.message);
       return;
     }
+    const updatedCount = Number(data ?? 0);
+    if (!Number.isFinite(updatedCount) || updatedCount < 0) {
+      setNotificationsError('Could not confirm the notification update. Please refresh.');
+      return;
+    }
+    if (updatedCount === 0) {
+      await loadNotifications();
+      return;
+    }
+    const readAt = new Date().toISOString();
     setNotifications(rows => rows.map(row => row.read_at ? row : { ...row, read_at: readAt }));
-    setNotificationUnreadCount(0);
+    void refreshNotificationUnreadCount();
   }
 
   async function openNotification(notification: NotificationRow) {
@@ -289,8 +322,26 @@ export default function App() {
         setNotifications(rows => [incoming, ...rows].slice(0, 30));
         if (!incoming.read_at) setNotificationUnreadCount(count => count + 1);
       })
-      .subscribe();
-    return () => { void client.removeChannel(channel); };
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'notifications',
+        filter: 'user_id=eq.' + userId,
+      }, payload => {
+        const updated = payload.new as NotificationRow & { user_id: string };
+        if (updated.user_id !== userId || !updated.id) return;
+        setNotifications(rows => rows.map(row => row.id === updated.id
+          ? { ...row, read_at: updated.read_at }
+          : row));
+        void refreshNotificationUnreadCount();
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') void refreshNotificationUnreadCount();
+      });
+    return () => {
+      notificationUnreadSync.current += 1;
+      void client.removeChannel(channel);
+    };
   }, [session?.user.id]);
 
   useEffect(() => {
@@ -933,13 +984,14 @@ function MessagesFeature({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [messageView, setMessageView] = useState<'requests' | 'messages' | 'sent'>('requests');
   const [totalMessages, setTotalMessages] = useState(0);
-  const [lastMessageSender, setLastMessageSender] = useState<Record<string,string>>({});
+  const [unreadMessageSender, setUnreadMessageSender] = useState<Record<string,string>>({});
   const [datingMatches, setDatingMatches] = useState<Array<{id:string;user_a?:string;user_b?:string;thread_id:string|null;free_until:string;status:string;photos_revealed?:boolean;my_confirmed?:boolean;other_confirmed?:boolean}>>([]);
   const [chatClock, setChatClock] = useState(Date.now());
   const [datingFreeHours, setDatingFreeHours] = useState(72);
   const [datingMessageCost, setDatingMessageCost] = useState(1);
   const responseLocks = useRef<Record<string, boolean>>({});
   const sendingLock = useRef(false);
+  const pendingMessageSend = useRef<{ conversationId: string; body: string; key: string } | null>(null);
 
   async function loadRequests() {
     if (!supabase) return;
@@ -974,24 +1026,68 @@ function MessagesFeature({ userId }: { userId: string }) {
       });
       setNames(nextNames); setVipMessageUserIds(activeVipIds);
     }
-    const { data: memberships } = await supabase.from('conversation_members').select('conversation_id,user_id').eq('user_id', userId);
+    const { data: memberships, error: membershipError } = await supabase.from('conversation_members')
+      .select('conversation_id,user_id,joined_at,last_read_at').eq('user_id', userId);
+    if (membershipError) {
+      setMessageNotice(membershipError.message);
+      setLoading(false);
+      return;
+    }
     const memberRows = (memberships ?? []) as ChatConversation[];
     setConversations(memberRows);
     const conversationIds = [...new Set(memberRows.map(item => item.conversation_id))];
     if (conversationIds.length) {
-      const { data: allMessages } = await supabase.from('messages').select('id,conversation_id,sender_id,created_at').in('conversation_id', conversationIds).order('created_at', { ascending: true });
-      const latest: Record<string,string> = {};
-      (allMessages ?? []).forEach((item: {conversation_id:string;sender_id:string}) => { latest[item.conversation_id] = item.sender_id; });
-      setTotalMessages((allMessages ?? []).length);
-      setLastMessageSender(latest);
-    } else { setTotalMessages(0); setLastMessageSender({}); }
+      const { data: allMessages, error: allMessagesError } = await supabase.from('messages')
+        .select('id,conversation_id,sender_id,created_at')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: true });
+      if (allMessagesError) {
+        setMessageNotice(allMessagesError.message);
+        setTotalMessages(0);
+        setUnreadMessageSender({});
+      } else {
+        const readAtByConversation = new Map(memberRows.map(member => [member.conversation_id, member.last_read_at] as const));
+        const unreadByConversation: Record<string, string> = {};
+        (allMessages ?? []).forEach((item: {conversation_id:string;sender_id:string;created_at:string}) => {
+          if (item.sender_id === userId) return;
+          const readAt = readAtByConversation.get(item.conversation_id);
+          const readAtMs = readAt ? Date.parse(readAt) : 0;
+          const messageAtMs = Date.parse(item.created_at);
+          if (Number.isFinite(messageAtMs) && messageAtMs > readAtMs) {
+            unreadByConversation[item.conversation_id] = item.sender_id;
+          }
+        });
+        const attentionByConversation: Record<string,string> = {};
+        memberRows.forEach(member => {
+          attentionByConversation[member.conversation_id] = unreadByConversation[member.conversation_id] ?? userId;
+        });
+        setTotalMessages((allMessages ?? []).length);
+        setUnreadMessageSender(attentionByConversation);
+      }
+    } else {
+      setTotalMessages(0);
+      setUnreadMessageSender({});
+    }
     setLoading(false);
   }
 
   async function loadMessages(conversationId: string) {
     if (!supabase) return;
     setOpenConversation(conversationId);
-    setLastMessageSender(previous => ({ ...previous, [conversationId]: userId }));
+    const { data: markedRead, error: readError } = await supabase.rpc('mark_conversation_read', {
+      p_conversation_id: conversationId,
+    });
+    if (readError) {
+      setMessageNotice(`Chat opened, but its read status could not be saved: ${readError.message}`);
+    } else if (markedRead === true) {
+      const readAt = new Date().toISOString();
+      setConversations(previous => previous.map(member => member.conversation_id === conversationId
+        ? { ...member, last_read_at: readAt }
+        : member));
+      setUnreadMessageSender(previous => ({ ...previous, [conversationId]: userId }));
+    } else {
+      setMessageNotice('Could not confirm your membership in this conversation. Refresh and try again.');
+    }
     const { data, error } = await supabase.from('messages')
       .select('id,conversation_id,sender_id,body,created_at')
       .eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(200);
@@ -1000,6 +1096,65 @@ function MessagesFeature({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void loadRequests(); }, [userId]);
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !userId) return;
+
+    const readStateChannel = client.channel('dm-read-state-' + userId)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversation_members',
+        filter: 'user_id=eq.' + userId,
+      }, payload => {
+        const updated = payload.new as ChatConversation;
+        if (updated.user_id !== userId) return;
+        setConversations(previous => previous.map(member => member.conversation_id === updated.conversation_id
+          ? { ...member, last_read_at: updated.last_read_at }
+          : member));
+        setUnreadMessageSender(previous => ({ ...previous, [updated.conversation_id]: userId }));
+      })
+      .subscribe();
+
+    // RLS on public.messages limits these inbox events to conversations this user can read.
+    const inboxChannel = client.channel('dm-inbox-' + userId)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      }, payload => {
+        const incoming = payload.new as ChatMessage;
+        if (incoming.sender_id === userId) return;
+        const membership = conversations.find(member => member.conversation_id === incoming.conversation_id);
+        if (!membership) return;
+        const readAtMs = membership.last_read_at ? Date.parse(membership.last_read_at) : 0;
+        const messageAtMs = Date.parse(incoming.created_at);
+        if (!Number.isFinite(messageAtMs) || messageAtMs <= readAtMs) return;
+
+        if (openConversation === incoming.conversation_id) {
+          void client.rpc('mark_conversation_read', { p_conversation_id: incoming.conversation_id })
+            .then(({ data, error }) => {
+              if (error || data !== true) {
+                setMessageNotice('A new message arrived, but its read status could not be saved.');
+                return;
+              }
+              const readAt = new Date().toISOString();
+              setConversations(previous => previous.map(member => member.conversation_id === incoming.conversation_id
+                ? { ...member, last_read_at: readAt }
+                : member));
+              setUnreadMessageSender(previous => ({ ...previous, [incoming.conversation_id]: userId }));
+            });
+        } else {
+          setUnreadMessageSender(previous => ({ ...previous, [incoming.conversation_id]: incoming.sender_id }));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(readStateChannel);
+      void client.removeChannel(inboxChannel);
+    };
+  }, [userId, conversations, openConversation]);
   useEffect(() => { const timer = window.setInterval(() => setChatClock(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!supabase || !openConversation) return;
@@ -1049,11 +1204,19 @@ function MessagesFeature({ userId }: { userId: string }) {
     sendingLock.current = true;
     setBusy(true); setMessageNotice('');
     const body = draft.trim();
+    const pending = pendingMessageSend.current;
+    const idempotencyKey = pending && pending.conversationId === openConversation && pending.body === body
+      ? pending.key
+      : crypto.randomUUID();
+    pendingMessageSend.current = { conversationId: openConversation, body, key: idempotencyKey };
     try {
-      const { error } = await supabase.from('messages').insert({
-        conversation_id: openConversation, sender_id: userId, body,
+      const { error } = await supabase.rpc('send_dm_message', {
+        p_thread_id: openConversation,
+        p_body: body,
+        p_idempotency_key: idempotencyKey,
       });
       if (error) throw error;
+      pendingMessageSend.current = null;
       setDraft(''); await loadMessages(openConversation);
     } catch (error) {
       setMessageNotice(error instanceof Error ? error.message : 'Message could not be sent. Please try again.');
@@ -1085,7 +1248,7 @@ function MessagesFeature({ userId }: { userId: string }) {
     <div className="messages-overview">
       <div className="message-counter-strip" aria-label="Message activity counters">
         <button type="button" className={messageView === 'requests' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('requests')}><span className="message-counter-label">Requests</span><strong>{incoming.length}</strong>{incoming.length > 0 && <i className="message-alert-dot" aria-label="Requests need attention" />}<small>Inbox</small></button>
-        <button type="button" className={messageView === 'messages' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('messages')}><span className="message-counter-label">Messages</span><strong>{totalMessages}</strong>{activeConversations.some(id => lastMessageSender[id] && lastMessageSender[id] !== userId) && <i className="message-alert-dot" aria-label="Messages need attention" />}<small>{activeConversations.length} chats</small></button>
+        <button type="button" className={messageView === 'messages' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('messages')}><span className="message-counter-label">Messages</span><strong>{totalMessages}</strong>{activeConversations.some(id => unreadMessageSender[id] && unreadMessageSender[id] !== userId) && <i className="message-alert-dot" aria-label="Messages need attention" />}<small>{activeConversations.length} chats</small></button>
         <button type="button" className={messageView === 'sent' ? 'message-counter active' : 'message-counter'} onClick={() => setMessageView('sent')}><span className="message-counter-label">Sent requests</span><strong>{sent.length}</strong>{sent.some(r => r.status === 'pending') && <i className="message-alert-dot" aria-label="Sent requests awaiting response" />}<small>{sent.filter(r => r.status === 'pending').length} awaiting</small></button>
       </div>
       {messageNotice && <div className="notice inline-notice">{messageNotice}<button onClick={() => setMessageNotice('')}>×</button></div>}
@@ -1096,11 +1259,11 @@ function MessagesFeature({ userId }: { userId: string }) {
         {sent.length ? sent.map(r => <article className={r.status === 'pending' ? 'sent-card request-needs-attention' : 'sent-card'} key={r.id}><div className="sent-card-person"><span className={`request-avatar${vipMessageUserIds.has(r.recipient_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><div><strong>{names[r.recipient_id] || 'Panda'} {vipMessageUserIds.has(r.recipient_id) && <span className="vip-member-label">VIP</span>}</strong><p>Message request · {sourceLabel(r.source_type)}</p></div></div><span className={`status-tag status-${r.status}`}>{r.status}</span>{r.conversation_id && <button className="text-action" onClick={() => void loadMessages(r.conversation_id!)}>Open chat →</button>}</article>) : <div className="empty-state compact"><p>You have not sent a request yet.</p></div>}
       </section>}
       {messageView === 'messages' && <section className="request-section"><div className="section-title-row"><div><h2>Your messages</h2><p>Open a conversation to continue chatting.</p></div><span className="count-pill">{activeConversations.length} CHATS</span></div>
-        {activeConversations.length ? activeConversations.map(id => <button key={id} className={(openConversation === id ? 'chat-list-item selected' : 'chat-list-item') + (lastMessageSender[id] && lastMessageSender[id] !== userId ? ' chat-needs-attention' : '')} onClick={() => void loadMessages(id)}><span className={`request-avatar${vipMessageUserIds.has((requests.find(r => r.conversation_id === id)?.sender_id === userId ? requests.find(r => r.conversation_id === id)?.recipient_id : requests.find(r => r.conversation_id === id)?.sender_id) || '') ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><span><strong>{conversationTitle(id)}</strong><small>Private conversation</small></span><b>→</b></button>) : <div className="empty-state compact"><p>Accept a message request to start your first chat.</p></div>}
+        {activeConversations.length ? activeConversations.map(id => <button key={id} className={(openConversation === id ? 'chat-list-item selected' : 'chat-list-item') + (unreadMessageSender[id] && unreadMessageSender[id] !== userId ? ' chat-needs-attention' : '')} onClick={() => void loadMessages(id)}><span className={`request-avatar${vipMessageUserIds.has((requests.find(r => r.conversation_id === id)?.sender_id === userId ? requests.find(r => r.conversation_id === id)?.recipient_id : requests.find(r => r.conversation_id === id)?.sender_id) || '') ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span><span><strong>{conversationTitle(id)}</strong><small>{unreadMessageSender[id] && unreadMessageSender[id] !== userId ? 'New messages' : 'Private conversation'}</small></span><b>→</b></button>) : <div className="empty-state compact"><p>Accept a message request to start your first chat.</p></div>}
       </section>}
     </div>
     <section className="chat-panel">
-      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p>{datingTimerLabel && <small className={datingFreeRemaining > 0 ? 'dating-chat-timer active' : 'dating-chat-timer expired'}>{datingTimerLabel}</small>}</div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><Suspense fallback={<div className="empty-state">Loading call controls…</div>}><VipCallControls userId={userId} threadId={openConversation} otherName={conversationTitle(openConversation)} otherIsVip={vipMessageUserIds.has((requests.find(r => r.conversation_id === openConversation)?.sender_id === userId ? requests.find(r => r.conversation_id === openConversation)?.recipient_id : requests.find(r => r.conversation_id === openConversation)?.sender_id) || '')} /></Suspense><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={10000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
+      {openConversation ? <><header className="chat-header"><div className="request-avatar">🐼</div><div><strong>{conversationTitle(openConversation)}</strong><p>Only conversation members can read messages.</p>{datingTimerLabel && <small className={datingFreeRemaining > 0 ? 'dating-chat-timer active' : 'dating-chat-timer expired'}>{datingTimerLabel}</small>}</div><button className="text-action" onClick={() => {setOpenConversation(null);setMessages([]);}}>Close ×</button></header><Suspense fallback={<div className="empty-state">Loading call controls…</div>}><VipCallControls userId={userId} threadId={openConversation} otherName={conversationTitle(openConversation)} otherIsVip={vipMessageUserIds.has((requests.find(r => r.conversation_id === openConversation)?.sender_id === userId ? requests.find(r => r.conversation_id === openConversation)?.recipient_id : requests.find(r => r.conversation_id === openConversation)?.sender_id) || '')} /></Suspense><div className="chat-history">{messages.map(m => <div key={m.id} className={m.sender_id === userId ? 'chat-bubble mine' : 'chat-bubble'}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>)}{!messages.length && <div className="empty-state compact"><p>Say hello and start the conversation.</p></div>}</div><form className="chat-compose" onSubmit={sendMessage}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" maxLength={4000} required /><button className="primary-button" disabled={busy || !draft.trim()}>{busy ? 'Sending…' : 'Send ↗'}</button></form></> : <div className="chat-placeholder"><span>↗</span><h3>Your conversations live here.</h3><p>Choose a chat or accept a request to begin messaging.</p></div>}
     </section>
   </section>;
 }
@@ -2278,12 +2441,14 @@ function WalletFeature({ userId }: { userId: string }) {
 
 
 type GroupRow = { id: string; creator_id: string; name: string; description: string; country_restriction: string | null; is_vip: boolean; created_at: string; closed_at?: string | null; activated_at?: string | null };
+type GroupUnreadSummaryRow = { group_id: string; unread_count: number | string };
 type GroupJoinRequestRow = { id: string; group_id: string; user_id: string; status: string; created_at: string };
 function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: number | null }) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string,number>>({});
   const [myGroups, setMyGroups] = useState<Record<string,boolean>>({});
   const [myGroupRoles, setMyGroupRoles] = useState<Record<string,string>>({});
+  const [groupUnreadCounts, setGroupUnreadCounts] = useState<Record<string,number>>({});
   const [pendingJoinRequests, setPendingJoinRequests] = useState<GroupJoinRequestRow[]>([]);
   const [joinRequestNames, setJoinRequestNames] = useState<Record<string,string>>({});
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
@@ -2315,6 +2480,22 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
   const [groupSenderNames, setGroupSenderNames] = useState<Record<string,string>>({});
   const [vipGroupUserIds, setVipGroupUserIds] = useState<Set<string>>(() => new Set());
   const groupActionLocks = useRef<Record<string, boolean>>({});
+  const pendingGroupMessageSend = useRef<{ groupId: string; body: string; file: File | null; replyToId: string | null; viewOnce: boolean; key: string } | null>(null);
+
+  async function refreshGroupUnreadCounts() {
+    if (!supabase) return;
+    const { data, error } = await supabase.rpc('get_group_unread_summary');
+    if (error) {
+      setNotice(`Group unread counts could not be refreshed: ${error.message}`);
+      return;
+    }
+    const counts: Record<string,number> = {};
+    ((data ?? []) as GroupUnreadSummaryRow[]).forEach(row => {
+      const count = Number(row.unread_count);
+      if (Number.isFinite(count) && count > 0) counts[row.group_id] = count;
+    });
+    setGroupUnreadCounts(counts);
+  }
 
   async function load() {
     if (!supabase) return;
@@ -2354,6 +2535,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         } else setJoinRequestNames({});
       } else { setPendingJoinRequests([]); setJoinRequestNames({}); }
     }
+    await refreshGroupUnreadCounts();
     setLoading(false);
   }
 
@@ -2371,6 +2553,61 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
     return () => { void channel.unsubscribe(); };
   }, [openConversationId]);
 
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    const channel = client.channel('group-unread-' + userId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        const incoming = payload.new as ChatMessage;
+        if (incoming.sender_id === userId) return;
+        const activeGroupId = openGroupId;
+        if (activeGroupId && openConversationId === incoming.conversation_id && typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus()) {
+          void client.rpc('mark_conversation_read', { p_conversation_id: incoming.conversation_id })
+            .then(({ data, error }) => {
+              if (error || data !== true) {
+                setNotice('A new group message arrived, but its read status could not be saved.');
+                void refreshGroupUnreadCounts();
+                return;
+              }
+              setGroupUnreadCounts(previous => {
+                const next = { ...previous };
+                delete next[activeGroupId];
+                return next;
+              });
+            });
+          return;
+        }
+        void refreshGroupUnreadCounts();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_members', filter: 'user_id=eq.' + userId }, () => {
+        void refreshGroupUnreadCounts();
+      })
+      .subscribe();
+    const markVisibleGroupRead = () => {
+      if (!openGroupId || !openConversationId || typeof document === 'undefined' || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      const activeGroupId = openGroupId;
+      void client.rpc('mark_conversation_read', { p_conversation_id: openConversationId })
+        .then(({ data, error }) => {
+          if (error || data !== true) {
+            setNotice('The open group could not confirm its read status.');
+            void refreshGroupUnreadCounts();
+            return;
+          }
+          setGroupUnreadCounts(previous => {
+            const next = { ...previous };
+            delete next[activeGroupId];
+            return next;
+          });
+        });
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', markVisibleGroupRead);
+    if (typeof window !== 'undefined') window.addEventListener('focus', markVisibleGroupRead);
+    return () => {
+      void channel.unsubscribe();
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', markVisibleGroupRead);
+      if (typeof window !== 'undefined') window.removeEventListener('focus', markVisibleGroupRead);
+    };
+  }, [userId, openConversationId, openGroupId]);
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2450,11 +2687,22 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
     if (error) { setNotice(error.message);return; }
     setOpenGroupId(group.id);setOpenConversationId(data as string);setNotice('');
     const { data: rows, error: messagesError } = await supabase.from('messages')
-      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once').eq('conversation_id',data as string).order('created_at',{ascending:true}).limit(200);
+      .select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once').eq('conversation_id',data as string).order('created_at',{ascending:false}).limit(200);
     if (messagesError) setNotice(messagesError.message);
     else {
-      const messages = (rows ?? []) as ChatMessage[];
+      const messages = ((rows ?? []) as ChatMessage[]).reverse();
       setChatMessages(messages);
+      const { data: markedRead, error: readError } = await supabase.rpc('mark_conversation_read', {
+        p_conversation_id: data as string,
+      });
+      if (readError) setNotice(`Group opened, but read status could not be saved: ${readError.message}`);
+      else if (markedRead === true) {
+        setGroupUnreadCounts(previous => {
+          const next = { ...previous };
+          delete next[group.id];
+          return next;
+        });
+      } else setNotice('Group opened, but its read status could not be confirmed. Refresh and try again.');
       const onceIds = messages.filter(m => m.view_once).map(m => m.id);
       if (onceIds.length) {
         const { data: claims } = await supabase.from('group_media_views').select('message_id').eq('user_id',userId).in('message_id',onceIds);
@@ -2503,10 +2751,23 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
 
   async function sendGroupMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !openConversationId || (!chatDraft.trim() && !groupMediaFile) || groupActionLocks.current['send-message']) return;
+    if (!supabase || !openGroupId || !openConversationId || (!chatDraft.trim() && !groupMediaFile) || groupActionLocks.current['send-message']) return;
     groupActionLocks.current['send-message'] = true;
     setBusy(true);setNotice('');
     let uploadedPath: string | null = null;
+    const body = chatDraft.trim() || (groupMediaFile ? 'Shared media' : '');
+    const replyToId = replyingTo?.id ?? null;
+    const viewOnce = Boolean(groupMediaFile && groupMediaViewOnce);
+    const pending = pendingGroupMessageSend.current;
+    const idempotencyKey = pending
+      && pending.groupId === openGroupId
+      && pending.body === body
+      && pending.file === groupMediaFile
+      && pending.replyToId === replyToId
+      && pending.viewOnce === viewOnce
+      ? pending.key
+      : crypto.randomUUID();
+    pendingGroupMessageSend.current = { groupId: openGroupId, body, file: groupMediaFile, replyToId, viewOnce, key: idempotencyKey };
     try {
       let mediaType: string | null = null;
       if (groupMediaFile) {
@@ -2518,18 +2779,39 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         const { error: uploadError } = await supabase.storage.from('group-media').upload(uploadedPath,groupMediaFile,{upsert:false,contentType:groupMediaFile.type});
         if (uploadError) throw uploadError;
       }
-      const { error } = await supabase.from('messages').insert({
-        conversation_id:openConversationId, sender_id:userId, body:chatDraft.trim() || (groupMediaFile ? 'Shared media' : ''),
-        reply_to_message_id:replyingTo?.id ?? null, media_type:mediaType, media_path:uploadedPath,
-        view_once:Boolean(groupMediaFile && groupMediaViewOnce),
+      const { data: sentMessageId, error } = await supabase.rpc('send_group_message', {
+        p_group_id: openGroupId,
+        p_body: body,
+        p_media_type: mediaType,
+        p_media_path: uploadedPath,
+        p_reply_to_id: replyToId,
+        p_view_once: viewOnce,
+        p_idempotency_key: idempotencyKey,
       });
       if (error) throw error;
+      if (uploadedPath && sentMessageId) {
+        const { data: savedMessage, error: lookupError } = await supabase.from('messages')
+          .select('media_path').eq('id', sentMessageId).maybeSingle();
+        if (!lookupError && savedMessage?.media_path && savedMessage.media_path !== uploadedPath) {
+          await supabase.storage.from('group-media').remove([uploadedPath]);
+          uploadedPath = null;
+        }
+      }
+      pendingGroupMessageSend.current = null;
       setChatDraft(''); setReplyingTo(null); setGroupMediaFile(null); setGroupMediaViewOnce(true);
       const { data } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at,reply_to_message_id,media_type,media_path,view_once')
         .eq('conversation_id',openConversationId).order('created_at',{ascending:true}).limit(200);
       setChatMessages((data ?? []) as ChatMessage[]);
     } catch (error) {
-      if (uploadedPath) await supabase.storage.from('group-media').remove([uploadedPath]).catch(()=>undefined);
+      if (uploadedPath) {
+        const { data: savedMessage, error: lookupError } = await supabase.from('messages')
+          .select('media_path').eq('sender_id', userId).eq('idempotency_key', idempotencyKey).maybeSingle();
+        // Preserve a file if the RPC committed but its response was lost. If the
+        // lookup itself fails, prefer a possible orphan over a broken sent message.
+        if (!lookupError && savedMessage?.media_path !== uploadedPath) {
+          await supabase.storage.from('group-media').remove([uploadedPath]).catch(()=>undefined);
+        }
+      }
       setNotice(error instanceof Error ? error.message : 'Message could not be sent. Please try again.');
     } finally {
       delete groupActionLocks.current['send-message'];
@@ -2550,6 +2832,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
   }
 
   const openGroup = groups.find(g => g.id === openGroupId);
+  const totalUnreadGroupMessages = Object.values(groupUnreadCounts).reduce((total, count) => total + count, 0);
   const canManageOpenGroup = Boolean(openGroup && (openGroup.creator_id === userId || ['creator','admin'].includes(myGroupRoles[openGroup.id] || '')));
   const canEditOpenGroupInfo = Boolean(openGroup && myGroups[openGroup.id] && (canManageOpenGroup || groupEditInfo === 'admins_members'));
 
@@ -2624,7 +2907,7 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
       </form>
       {notice && <div className="notice">{notice}</div>}
     </section></div>}
-    <section className="group-directory"><div className="section-title-row"><div><p className="eyebrow">YOUR COMMUNITIES</p><h2>All groups</h2><p>Tap a group to join or open its conversation.</p></div><span className="count-pill">{groups.length} GROUPS</span></div>
+    <section className="group-directory"><div className="section-title-row"><div><p className="eyebrow">YOUR COMMUNITIES</p><h2>All groups</h2><p>Tap a group to join or open its conversation.</p></div><span className="count-pill">{groups.length} GROUPS{totalUnreadGroupMessages ? ` · ${totalUnreadGroupMessages} NEW` : ''}</span></div>
       <section className="vip-experience">
         <div className="vip-experience-heading"><div><p className="eyebrow">PRIVATE COMMUNITIES</p><h2>VIP groups</h2><p>Private WhatsApp-style group conversations for verified VIP members.</p></div><span className={myVip ? 'vip-status unlocked' : 'vip-status'}>{myVip ? '✦ VIP UNLOCKED' : '🔒 VIP LOCKED'}</span></div>
         <div className="vip-room-grid">
@@ -2638,11 +2921,11 @@ function GroupsFeature({ userId, coinBalance }: { userId: string; coinBalance: n
         const count = memberCounts[group.id] || 0;
         const member = Boolean(myGroups[group.id]);
         const opened = Boolean(group.activated_at);
-        return <article className="group-card" key={group.id}><div className={`group-card-icon${vipGroupUserIds.has(group.creator_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{vipGroupUserIds.has(group.creator_id) && <span className="vip-member-label">VIP creator</span>}{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span></div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}{member && (group.creator_id===userId || ['creator','admin'].includes(myGroupRoles[group.id] || '')) && <button type="button" className="secondary-button" disabled={busy} onClick={()=>void showGroupSettings(group)}>Manage group</button>}</div></div></article>;
+        return <article className="group-card" key={group.id}><div className={`group-card-icon${vipGroupUserIds.has(group.creator_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</div><div className="group-card-main"><div className="group-card-title"><h3>{group.name}</h3>{vipGroupUserIds.has(group.creator_id) && <span className="vip-member-label">VIP creator</span>}{group.creator_id===userId&&<span className="source-tag">Creator</span>}</div><p>{group.description || 'A Circle Panda community group.'}</p><div className="group-meta"><span>👤 {count} members</span><span>{group.country_restriction ? '⌖ '+group.country_restriction : '🌐 Open community'}</span><span className={opened?'group-open':'group-closed'}>{opened?'● Chat open':'○ Needs '+(3-count)+' more'}</span>{member && (groupUnreadCounts[group.id] ?? 0) > 0 && <span className="count-pill" aria-label={`${groupUnreadCounts[group.id]} unread messages`}>{groupUnreadCounts[group.id]} new</span>}</div><div className="group-actions">{!member ? <button className="primary-button" disabled={busy} onClick={()=>void joinGroup(group)}>Join group ↗</button> : <button className="primary-button" disabled={!opened} onClick={()=>void openChat(group)}>{opened?'Open group chat ↗':'Waiting for 3 members'}</button>}{member && (group.creator_id===userId || ['creator','admin'].includes(myGroupRoles[group.id] || '')) && <button type="button" className="secondary-button" disabled={busy} onClick={()=>void showGroupSettings(group)}>Manage group</button>}</div></div></article>;
       })}</div> : <div className="empty-state"><span>◉</span><h3>Build your first community.</h3><p>Create a group above or invite members to one that already exists.</p></div>}
     </section>
     {pendingJoinRequests.length > 0 && <section className="group-join-requests"><div className="section-title-row"><div><p className="eyebrow">YOUR COMMUNITY</p><h2>Membership requests</h2><p>Approve or decline requests to join the groups you manage.</p></div><span className="count-pill">{pendingJoinRequests.length} PENDING</span></div><div className="group-join-request-list">{pendingJoinRequests.map(request => { const group = groups.find(item => item.id === request.group_id); return <article className="group-join-request-card" key={request.id}><div><strong>{joinRequestNames[request.user_id] || 'Panda'}</strong><p>Requested to join <b>{group?.name || 'your group'}</b></p><small>{new Date(request.created_at).toLocaleString()}</small></div><div className="group-join-request-actions"><button type="button" className="secondary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,false)}>Decline</button><button type="button" className="primary-button" disabled={busy} onClick={()=>void reviewJoinRequest(request.id,true)}>Approve</button></div></article>; })}</div></section>}
-    {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-heading"><strong>{openGroup.name}</strong></div><div className="group-chat-balance" aria-label="Panda coin balance"><span>◉</span><strong>{coinBalance === null ? '—' : Number.isFinite(coinBalance) ? coinBalance.toLocaleString() : '∞'}</strong><small>BC</small></div></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')} {vipGroupUserIds.has(m.sender_id) && <span className="vip-member-label">VIP</span>}</div><div className="group-message-display-avatar-wrap"><span className={`group-message-display-avatar${vipGroupUserIds.has(m.sender_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span></div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p>{m.media_path && <div className="group-media-message">{groupMediaUrls[m.id] ? <>{m.media_type==='image' ? <img src={groupMediaUrls[m.id]} alt="Group shared media" /> : m.media_type==='video' ? <video src={groupMediaUrls[m.id]} controls autoPlay /> : <audio src={groupMediaUrls[m.id]} controls autoPlay />}{m.view_once && <small>View-once media closes automatically.</small>}</> : <button type="button" className="group-media-open" disabled={Boolean(m.view_once && viewedOnceMessageIds[m.id])} onClick={()=>void openGroupMedia(m)}>{m.view_once ? (viewedOnceMessageIds[m.id] ? '✓ Viewed once' : 'Open view-once media ↗') : 'Open shared media ↗'}</button>}</div>}<div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><label className="group-media-picker" title="Attach image, video or audio">＋<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/webm,audio/mpeg,audio/mp4,audio/ogg,audio/wav" onChange={e=>{const file=e.currentTarget.files?.[0]||null;if(file&&(file.size>50*1024*1024)){setNotice('Media must be 50 MB or smaller.');setGroupMediaFile(null);}else{setGroupMediaFile(file);setNotice('');}}}/></label><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={10000} placeholder={groupMediaFile ? groupMediaFile.name : replyingTo?'Write a reply…':'Message the group…'} /><label className="group-view-once-toggle"><input type="checkbox" checked={groupMediaViewOnce} disabled={!groupMediaFile} onChange={e=>setGroupMediaViewOnce(e.target.checked)}/> View once</label><button className="group-send-button" disabled={busy||(!chatDraft.trim()&&!groupMediaFile)} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
+    {openGroup && openConversationId && <div className="group-chat-overlay"><section className="group-chat-panel" role="dialog" aria-label={openGroup.name + ' group chat'}><header className="group-chat-topbar"><button className="group-back-button" aria-label="Back to groups" onClick={()=>{setOpenGroupId(null);setOpenConversationId(null);setChatMessages([]);setReplyingTo(null);}}>‹</button><div className="group-chat-heading"><strong>{openGroup.name}</strong></div><div className="group-chat-balance" aria-label="Panda coin balance"><span>◉</span><strong>{coinBalance === null ? '—' : Number.isFinite(coinBalance) ? coinBalance.toLocaleString() : '∞'}</strong><small>BC</small></div></header><div className="group-chat-history">{chatMessages.map(m=>{const quoted=chatMessages.find(item=>item.id===m.reply_to_message_id);const reactions=groupReactions[m.id] ?? [];return <article key={m.id} className={m.sender_id===userId?'group-message mine':'group-message'}><div className="group-message-author">{m.sender_id===userId?'You':(groupSenderNames[m.sender_id] || 'Panda')} {vipGroupUserIds.has(m.sender_id) && <span className="vip-member-label">VIP</span>}</div><div className="group-message-display-avatar-wrap"><span className={`group-message-display-avatar${vipGroupUserIds.has(m.sender_id) ? ` vip-avatar-frame ${getWeeklyVipAuraClass()}` : ''}`}>🐼</span></div>{quoted&&<div className="group-quoted-message"><strong>{quoted.sender_id===userId?'You':(groupSenderNames[quoted.sender_id] || 'Panda')}</strong><span>{quoted.body}</span></div>}<p>{m.body}</p>{m.media_path && <div className="group-media-message">{groupMediaUrls[m.id] ? <>{m.media_type==='image' ? <img src={groupMediaUrls[m.id]} alt="Group shared media" /> : m.media_type==='video' ? <video src={groupMediaUrls[m.id]} controls autoPlay /> : <audio src={groupMediaUrls[m.id]} controls autoPlay />}{m.view_once && <small>View-once media closes automatically.</small>}</> : <button type="button" className="group-media-open" disabled={Boolean(m.view_once && viewedOnceMessageIds[m.id])} onClick={()=>void openGroupMedia(m)}>{m.view_once ? (viewedOnceMessageIds[m.id] ? '✓ Viewed once' : 'Open view-once media ↗') : 'Open shared media ↗'}</button>}</div>}<div className="group-message-meta"><button className="group-reply-action" title="Reply to message" onClick={()=>setReplyingTo(m)}>↩ Reply</button><button className="group-react-action" title="React to message" onClick={()=>setGroupReactionPicker(groupReactionPicker===m.id?null:m.id)}>☺ React</button><small>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</small></div>{reactions.length>0&&<div className="group-reaction-summary">{['👍','❤️','😂','😮','🐼'].map((emoji,i)=>{const key=['like','heart','laugh','wow','panda'][i];const count=reactions.filter(r=>r.reaction===key).length;return count>0?<button key={key} className={reactions.some(r=>r.user_id===userId&&r.reaction===key)?'selected':''} onClick={()=>void toggleGroupReaction(m.id,key)}>{emoji} {count}</button>:null;})}</div>}{groupReactionPicker===m.id&&<div className="group-reaction-picker">{[{key:'like',emoji:'👍'},{key:'heart',emoji:'❤️'},{key:'laugh',emoji:'😂'},{key:'wow',emoji:'😮'},{key:'sad',emoji:'😢'},{key:'panda',emoji:'🐼'}].map(item=><button type="button" key={item.key} title={item.key} onClick={()=>void toggleGroupReaction(m.id,item.key)}>{item.emoji}</button>)}</div>}</article>;})}{!chatMessages.length&&<div className="group-chat-welcome"><span>◉</span><strong>Welcome to {openGroup.name}</strong><p>Say hello and start the conversation.</p></div>}</div>{replyingTo&&<div className="group-reply-preview"><div><strong>Replying to {replyingTo.sender_id===userId?'yourself':(groupSenderNames[replyingTo.sender_id]||'Panda')}</strong><span>{replyingTo.body}</span></div><button type="button" aria-label="Cancel reply" onClick={()=>setReplyingTo(null)}>×</button></div>}<form className="group-chat-composer" onSubmit={sendGroupMessage}><button type="button" className="group-composer-icon" title="Emoji reactions" onClick={()=>setNotice('Use the reaction button under any group message to react.')}>☺</button><label className="group-media-picker" title="Attach image, video or audio">＋<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/webm,audio/mpeg,audio/mp4,audio/ogg,audio/wav" onChange={e=>{const file=e.currentTarget.files?.[0]||null;if(file&&(file.size>50*1024*1024)){setNotice('Media must be 50 MB or smaller.');setGroupMediaFile(null);}else{setGroupMediaFile(file);setNotice('');}}}/></label><input value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={4000} placeholder={groupMediaFile ? groupMediaFile.name : replyingTo?'Write a reply…':'Message the group…'} /><label className="group-view-once-toggle"><input type="checkbox" checked={groupMediaViewOnce} disabled={!groupMediaFile} onChange={e=>setGroupMediaViewOnce(e.target.checked)}/> View once</label><button className="group-send-button" disabled={busy||(!chatDraft.trim()&&!groupMediaFile)} aria-label="Send message">{busy?'…':'➤'}</button></form></section></div>}
     {groupSettingsOpen && openGroup && <div className="create-modal-backdrop" role="dialog" aria-modal="true" aria-label="Group settings"><section className="create-modal-card group-create-panel"><header className="create-modal-header"><div><p className="eyebrow">GROUP CONTROLS</p><h2>{openGroup.name} settings</h2></div><button type="button" className="create-modal-close" aria-label="Close group settings" onClick={()=>setGroupSettingsOpen(false)}>×</button></header><p className="feature-copy">Choose who can update group details, whether members can send messages, and whether new members need approval.</p>{canEditOpenGroupInfo && <form className="feature-form group-details-form" onSubmit={saveGroupDetails}><label>Group name<input value={groupNameDraft} onChange={e=>setGroupNameDraft(e.target.value)} minLength={2} maxLength={100} required /></label><label>Group description<textarea value={groupDescriptionDraft} onChange={e=>setGroupDescriptionDraft(e.target.value)} maxLength={2000} rows={3} /></label><button className="primary-button" disabled={busy}>{busy?'Saving…':'Save group details'}</button></form>}{canManageOpenGroup ? <form className="feature-form" onSubmit={saveGroupSettings}><label>Who can edit group information<select value={groupEditInfo} onChange={e=>setGroupEditInfo(e.target.value)}><option value="admins">Admins only</option><option value="admins_members">Admins and members</option></select></label><label className="group-setting-toggle"><input type="checkbox" checked={groupSendMessages} onChange={e=>setGroupSendMessages(e.target.checked)}/> Allow members to send messages</label><label className="group-setting-toggle"><input type="checkbox" checked={groupApproveMembers} onChange={e=>setGroupApproveMembers(e.target.checked)}/> Approve new members before they join</label><div className="form-submit-row"><button type="button" className="secondary-button" onClick={()=>setGroupSettingsOpen(false)}>Cancel</button><button className="primary-button" disabled={busy}>{busy?'Saving…':'Save settings'}</button></div></form> : <p className="feature-copy">Only group creators and admins can change group settings.</p>}{openGroup.creator_id===userId ? <button type="button" className="danger-button" disabled={busy} onClick={()=>void closeOpenGroup()}>{busy?'Working…':'Close this group'}</button> : <button type="button" className="secondary-button" disabled={busy} onClick={()=>void leaveOpenGroup()}>{busy?'Working…':'Leave group'}</button>}</section></div>}
   </div>;
 }
