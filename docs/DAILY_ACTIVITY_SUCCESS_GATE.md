@@ -9,7 +9,7 @@ The three skill-check activities — Panda Cup Shuffle, Panda Target, and Panda 
 - A wrong answer leaves the attempt unsuccessful. The UI shows the server result and offers another choice; it does not show the reward-claim action.
 - `complete_daily_activity` independently checks the persisted success flag before writing the completion, wallet transaction, or XP award. A modified client cannot bypass this check.
 - Existing in-flight attempts are grandfathered as successful during the additive migration. New attempts default to unsuccessful. This avoids stranding sessions created before rollout while ensuring all new rounds are checked.
-- The existing 20-action attempt limit and 30-minute attempt recovery remain in force.
+- The existing 20-action attempt limit and 30-minute attempt recovery remain in force. When an expired attempt is restarted, the server resets both `action_count` and `successful=false`, so a correct answer from an old round cannot carry into a fresh attempt. The frontend offers a restart action only after the server reports expiration.
 
 The change does not alter Coin Drop, Panda Slots, sponsor playback verification, the daily schedule, reward amounts, or the BC wallet ledger.
 
