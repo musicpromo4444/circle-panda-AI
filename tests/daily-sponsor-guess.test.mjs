@@ -20,6 +20,18 @@ test('sponsor answer key is stored in a private, RLS-enabled table with no clien
   assert.match(migration, /target_sponsor_name text not null/i);
 });
 
+test('legacy unfinished Guess Sponsor attempts cannot inherit the earlier grandfathered success flag', () => {
+  assert.match(migration, /update public\.user_daily_activity_attempts[\s\S]*?set successful = false,[\s\S]*?action_count = 0[\s\S]*?where activity_key = 'guess_sponsor'[\s\S]*?completed_at is null/i);
+});
+
+test('an expired Guess Sponsor retry clears its old private answer snapshot', () => {
+  const reset = functionBody('reset_daily_sponsor_question_after_attempt_restart');
+  assert.ok(reset, 'restart cleanup trigger function must exist');
+  assert.match(migration, /after update of started_at on public\.user_daily_activity_attempts/i);
+  assert.match(reset, /new\.started_at is distinct from old\.started_at/i);
+  assert.match(reset, /delete from private\.daily_activity_sponsor_questions/i);
+});
+
 test('a new attempt requires a live Sponsor Reveal campaign and two distinct active sponsors', () => {
   const guard = functionBody('require_active_sponsor_reveal_for_daily_attempt');
   assert.ok(guard, 'attempt insert guard must exist');

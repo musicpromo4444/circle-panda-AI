@@ -21,6 +21,7 @@ Guess Sponsor now uses real sponsor-campaign records rather than placeholder cho
 - `get_daily_sponsor_guess()` is an authenticated `SECURITY DEFINER` RPC with an empty search path. It returns the question and choices, never the target campaign or correct sponsor.
 - `submit_daily_sponsor_guess(text)` accepts one choice per attempt. It verifies that the choice belongs to the returned options and that the target Sponsor Reveal campaign is still active. The server persists `successful=true` only for the correct sponsor.
 - A wrong guess consumes the one guess and earns no BC. Reopening an answered attempt restores the correct state: a successful answer can still be claimed; an incorrect answer cannot be retried.
+- The migration resets unfinished pre-existing Guess Sponsor attempts to unsuccessful because they had no verified answer signal. If the 30-minute attempt expires, the existing start RPC resets the attempt and an update trigger deletes its previous private question so a fresh target/options snapshot is issued.
 - A trigger on `user_daily_activity_completions` independently blocks Guess Sponsor completion unless the current attempt has `successful=true`. The wallet transaction and BC credit remain in the existing `complete_daily_activity` workflow.
 - The attempt-insert guard prevents starting Guess Sponsor when there is no active Sponsor Reveal campaign or fewer than two distinct active sponsors. It does not interfere with an already-existing attempt.
 

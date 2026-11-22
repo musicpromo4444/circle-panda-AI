@@ -22,6 +22,42 @@ revoke all on table private.daily_activity_sponsor_questions from public, anon, 
 comment on table private.daily_activity_sponsor_questions is
   'Private server-side answer key and option snapshot for Guess Sponsor daily activity. Never exposed to client roles.';
 
+-- The previous skill-check migration grandfathered in-flight attempts. Guess
+-- Sponsor had no trustworthy answer signal before this migration, so unfinished
+-- attempts must not inherit that compatibility flag or old action count.
+update public.user_daily_activity_attempts
+set successful = false,
+    action_count = 0
+where activity_key = 'guess_sponsor'
+  and completed_at is null;
+
+create or replace function public.reset_daily_sponsor_question_after_attempt_restart()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $function$
+begin
+  if new.activity_key = 'guess_sponsor'
+     and new.started_at is distinct from old.started_at then
+    delete from private.daily_activity_sponsor_questions q
+    where q.attempt_id = new.id
+      and q.user_id = new.user_id;
+  end if;
+  return new;
+end
+$function$;
+
+drop trigger if exists reset_daily_sponsor_question_after_attempt_restart
+  on public.user_daily_activity_attempts;
+create trigger reset_daily_sponsor_question_after_attempt_restart
+after update of started_at on public.user_daily_activity_attempts
+for each row
+when (old.started_at is distinct from new.started_at)
+execute function public.reset_daily_sponsor_question_after_attempt_restart();
+
+revoke all on function public.reset_daily_sponsor_question_after_attempt_restart() from public, anon, authenticated;
+
 create or replace function public.require_active_sponsor_reveal_for_daily_attempt()
 returns trigger
 language plpgsql
