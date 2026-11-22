@@ -15,7 +15,7 @@ function functionBody(name) {
 test('sponsor answer key is stored in a private, RLS-enabled table with no client grants', () => {
   assert.match(migration, /create table if not exists private\.daily_activity_sponsor_questions/i);
   assert.match(migration, /alter table private\.daily_activity_sponsor_questions enable row level security/i);
-  assert.match(migration, /revoke all on table private\.daily_activity_sponsor_questions from public, anon, authenticated/i);
+  assert.match(migration, /revoke all on table private\.daily_activity_sponsor_questions from public, anon, authenticated, service_role/i);
   assert.match(migration, /target_campaign_id uuid references public\.sponsor_campaigns/i);
   assert.match(migration, /target_sponsor_name text not null/i);
 });
@@ -75,9 +75,9 @@ test('the completion trigger blocks BC completion after a wrong or missing spons
 });
 
 test('public RPC execution is limited to authenticated users', () => {
-  assert.match(migration, /revoke all on function public\.get_daily_sponsor_guess\(\) from public, anon, authenticated/i);
+  assert.match(migration, /revoke all on function public\.get_daily_sponsor_guess\(\) from public, anon, authenticated, service_role/i);
   assert.match(migration, /grant execute on function public\.get_daily_sponsor_guess\(\) to authenticated/i);
-  assert.match(migration, /revoke all on function public\.submit_daily_sponsor_guess\(text\) from public, anon, authenticated/i);
+  assert.match(migration, /revoke all on function public\.submit_daily_sponsor_guess\(text\) from public, anon, authenticated, service_role/i);
   assert.match(migration, /grant execute on function public\.submit_daily_sponsor_guess\(text\) to authenticated/i);
 });
 

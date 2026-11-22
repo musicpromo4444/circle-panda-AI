@@ -18,7 +18,7 @@ create table if not exists private.daily_activity_sponsor_questions (
 );
 
 alter table private.daily_activity_sponsor_questions enable row level security;
-revoke all on table private.daily_activity_sponsor_questions from public, anon, authenticated;
+revoke all on table private.daily_activity_sponsor_questions from public, anon, authenticated, service_role;
 comment on table private.daily_activity_sponsor_questions is
   'Private server-side answer key and option snapshot for Guess Sponsor daily activity. Never exposed to client roles.';
 
@@ -56,7 +56,7 @@ for each row
 when (old.started_at is distinct from new.started_at)
 execute function public.reset_daily_sponsor_question_after_attempt_restart();
 
-revoke all on function public.reset_daily_sponsor_question_after_attempt_restart() from public, anon, authenticated;
+revoke all on function public.reset_daily_sponsor_question_after_attempt_restart() from public, anon, authenticated, service_role;
 
 create or replace function public.require_active_sponsor_reveal_for_daily_attempt()
 returns trigger
@@ -103,7 +103,7 @@ create trigger require_active_sponsor_reveal_for_daily_attempt
 before insert on public.user_daily_activity_attempts
 for each row execute function public.require_active_sponsor_reveal_for_daily_attempt();
 
-revoke all on function public.require_active_sponsor_reveal_for_daily_attempt() from public, anon, authenticated;
+revoke all on function public.require_active_sponsor_reveal_for_daily_attempt() from public, anon, authenticated, service_role;
 
 create or replace function public.get_daily_sponsor_guess()
 returns jsonb
@@ -250,7 +250,7 @@ begin
 end
 $function$;
 
-revoke all on function public.get_daily_sponsor_guess() from public, anon, authenticated;
+revoke all on function public.get_daily_sponsor_guess() from public, anon, authenticated, service_role;
 grant execute on function public.get_daily_sponsor_guess() to authenticated;
 
 create or replace function public.submit_daily_sponsor_guess(p_sponsor_name text)
@@ -362,7 +362,7 @@ begin
 end
 $function$;
 
-revoke all on function public.submit_daily_sponsor_guess(text) from public, anon, authenticated;
+revoke all on function public.submit_daily_sponsor_guess(text) from public, anon, authenticated, service_role;
 grant execute on function public.submit_daily_sponsor_guess(text) to authenticated;
 
 create or replace function public.enforce_daily_sponsor_guess_success()
@@ -399,7 +399,7 @@ create trigger enforce_daily_sponsor_guess_success
 before insert on public.user_daily_activity_completions
 for each row execute function public.enforce_daily_sponsor_guess_success();
 
-revoke all on function public.enforce_daily_sponsor_guess_success() from public, anon, authenticated;
+revoke all on function public.enforce_daily_sponsor_guess_success() from public, anon, authenticated, service_role;
 
 comment on function public.get_daily_sponsor_guess() is
   'Returns active sponsor choices for the authenticated user without exposing the private answer key.';
