@@ -16,7 +16,7 @@ Panda Cup Shuffle, Panda Target, and Panda Puzzle require a correct answer befor
 Guess Sponsor now uses real sponsor-campaign records rather than placeholder choices.
 
 - An eligible answer is selected from an active `sponsor_campaigns` row whose format is `sponsor_reveal`, whose status is `active`, and whose start/end window contains the current time.
-- The answer options are distinct sponsor names from active sponsor campaigns. At least two distinct active sponsor names and one active Sponsor Reveal campaign are required.
+- The answer options are distinct sponsor names from active sponsor campaigns. At least two distinct active Sponsor Reveal sponsors are required so the public active-campaign list cannot reveal a single unique answer.
 - The answer key and option snapshot are stored in `private.daily_activity_sponsor_questions`. Client roles have no table privileges; RLS is enabled with no client policies.
 - `get_daily_sponsor_guess()` is an authenticated `SECURITY DEFINER` RPC with an empty search path. It returns the question and choices, never the target campaign or correct sponsor.
 - `submit_daily_sponsor_guess(text)` accepts one choice per attempt. It verifies that the choice belongs to the returned options and that the target Sponsor Reveal campaign is still active. The server persists `successful=true` only for the correct sponsor.
@@ -38,7 +38,7 @@ The private answer table has RLS enabled and no client policies, with all table 
 1. Review and deploy the matching frontend from the feature branch.
 2. Apply `20261120080500_daily_activity_success_gate` first.
 3. Apply `20261122082300_secure_guess_sponsor_daily_activity` second.
-4. Publish one active Sponsor Reveal campaign and at least one other distinct active sponsor campaign.
+4. Publish at least two distinct active Sponsor Reveal campaigns.
 5. Verify the options RPC does not reveal the answer key, a wrong guess cannot claim BC, a correct guess can claim once, and wallet/XP ledger writes occur only after the existing completion RPC succeeds.
 
 Both migrations are committed to the feature branch and intentionally remain unapplied to the live project until the matching frontend rollout is reviewed.

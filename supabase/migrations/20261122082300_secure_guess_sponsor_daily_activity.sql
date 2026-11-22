@@ -65,8 +65,7 @@ security invoker
 set search_path = ''
 as $function$
 declare
-  v_distinct_sponsors integer;
-  v_has_reveal boolean;
+  v_reveal_sponsors integer;
 begin
   if new.activity_key <> 'guess_sponsor' then
     return new;
@@ -83,23 +82,15 @@ begin
   end if;
 
   select count(distinct lower(trim(c.sponsor_name)))
-  into v_distinct_sponsors
+  into v_reveal_sponsors
   from public.sponsor_campaigns c
   where c.status = 'active'
+    and c.format = 'sponsor_reveal'
     and c.starts_at <= now()
     and c.ends_at > now();
 
-  select exists (
-    select 1
-    from public.sponsor_campaigns c
-    where c.status = 'active'
-      and c.format = 'sponsor_reveal'
-      and c.starts_at <= now()
-      and c.ends_at > now()
-  ) into v_has_reveal;
-
-  if coalesce(v_distinct_sponsors, 0) < 2 or not v_has_reveal then
-    raise exception 'Guess Sponsor is temporarily unavailable. An administrator must publish one active Sponsor Reveal campaign and at least one other active sponsor.';
+  if coalesce(v_reveal_sponsors, 0) < 2 then
+    raise exception 'Guess Sponsor is temporarily unavailable. An administrator must publish at least two distinct active Sponsor Reveal sponsors.';
   end if;
 
   return new;
@@ -130,6 +121,7 @@ declare
   v_options text[];
   v_target_sponsor_name text;
   v_target_is_active boolean;
+  v_reveal_sponsors integer;
   v_has_question boolean := false;
 begin
   if v_uid is null then raise exception 'Sign in is required'; end if;
@@ -155,6 +147,18 @@ begin
   end if;
   if v_attempt.completed_at is not null then raise exception 'This activity is already completed'; end if;
   if now() - v_attempt.started_at > interval '30 minutes' then raise exception 'This activity attempt expired'; end if;
+
+  select count(distinct lower(trim(c.sponsor_name)))
+  into v_reveal_sponsors
+  from public.sponsor_campaigns c
+  where c.status = 'active'
+    and c.format = 'sponsor_reveal'
+    and c.starts_at <= now()
+    and c.ends_at > now();
+
+  if coalesce(v_reveal_sponsors, 0) < 2 then
+    raise exception 'At least two distinct active Sponsor Reveal sponsors are required for Guess Sponsor';
+  end if;
 
   select q.* into v_question
   from private.daily_activity_sponsor_questions q
@@ -262,6 +266,7 @@ declare
   v_attempt public.user_daily_activity_attempts;
   v_question private.daily_activity_sponsor_questions;
   v_target_is_active boolean;
+  v_reveal_sponsors integer;
   v_correct boolean;
 begin
   if v_uid is null then raise exception 'Sign in is required'; end if;
@@ -291,6 +296,18 @@ begin
   if v_attempt.completed_at is not null then raise exception 'This activity is already completed'; end if;
   if now() - v_attempt.started_at > interval '30 minutes' then raise exception 'This activity attempt expired'; end if;
   if v_attempt.action_count >= 20 then raise exception 'Activity action limit reached'; end if;
+
+  select count(distinct lower(trim(c.sponsor_name)))
+  into v_reveal_sponsors
+  from public.sponsor_campaigns c
+  where c.status = 'active'
+    and c.format = 'sponsor_reveal'
+    and c.starts_at <= now()
+    and c.ends_at > now();
+
+  if coalesce(v_reveal_sponsors, 0) < 2 then
+    raise exception 'At least two distinct active Sponsor Reveal sponsors are required for Guess Sponsor';
+  end if;
 
   select q.* into v_question
   from private.daily_activity_sponsor_questions q

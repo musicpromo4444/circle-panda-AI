@@ -116,7 +116,7 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
     const {error}=await supabase.rpc('start_daily_activity',{p_activity_key:item.activity_key});
     if(error) {
       setNotice(item.activity_key==='guess_sponsor'
-        ? 'Guess Sponsor is temporarily unavailable. An admin must publish one active Sponsor Reveal campaign and at least one other active sponsor.'
+        ? 'Guess Sponsor is temporarily unavailable. An admin must publish at least two distinct active Sponsor Reveal sponsors.'
         : error.message);
       setBusy(false);return;
     }

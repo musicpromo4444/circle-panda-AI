@@ -32,13 +32,14 @@ test('an expired Guess Sponsor retry clears its old private answer snapshot', ()
   assert.match(reset, /delete from private\.daily_activity_sponsor_questions/i);
 });
 
-test('a new attempt requires a live Sponsor Reveal campaign and two distinct active sponsors', () => {
+test('a new attempt requires at least two distinct active Sponsor Reveal sponsors', () => {
   const guard = functionBody('require_active_sponsor_reveal_for_daily_attempt');
   assert.ok(guard, 'attempt insert guard must exist');
   assert.match(guard, /c\.status = 'active'[\s\S]*?c\.starts_at <= now\(\)[\s\S]*?c\.ends_at > now\(\)/i);
   assert.match(guard, /c\.format = 'sponsor_reveal'/i);
   assert.match(guard, /count\(distinct lower\(trim\(c\.sponsor_name\)\)\)/i);
-  assert.match(guard, /at least one other active sponsor/i);
+  assert.match(guard, /v_reveal_sponsors, 0\) < 2/i);
+  assert.match(guard, /two distinct active Sponsor Reveal sponsors/i);
 });
 
 test('the choices RPC returns options and answer state but never the target key', () => {
@@ -48,6 +49,7 @@ test('the choices RPC returns options and answer state but never the target key'
   assert.match(getGuess, /auth\.uid\(\)/i);
   assert.match(getGuess, /'options', to_jsonb\(v_question\.option_sponsor_names\)/i);
   assert.match(getGuess, /'answered', v_question\.answered_at is not null/i);
+  assert.match(getGuess, /v_reveal_sponsors, 0\) < 2/i);
   assert.doesNotMatch(getGuess, /'target_campaign_id'\s*,|'target_sponsor_name'\s*,/i);
 });
 
@@ -60,6 +62,7 @@ test('one submitted choice is checked against the private target and persisted s
   assert.match(submit, /set answered_at = now\(\)/i);
   assert.match(submit, /successful = v_correct/i);
   assert.match(submit, /'correct', v_correct/i);
+  assert.match(submit, /v_reveal_sponsors, 0\) < 2/i);
 });
 
 test('the completion trigger blocks BC completion after a wrong or missing sponsor answer', () => {
