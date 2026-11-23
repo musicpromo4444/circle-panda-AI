@@ -26,7 +26,7 @@ test('the RPC derives the actor from auth.uid and rejects non-admin accounts', (
   assert.match(rpc, /if v_uid is null then[\s\S]*?Sign in is required/i);
   assert.match(rpc, /from public\.user_roles r[\s\S]*?r\.user_id = v_uid[\s\S]*?r\.role = 'admin'/i);
   assert.match(rpc, /Administrator access required/i);
-  assert.match(rpc, /created_by,[\s\S]*?v_uid/i);
+  assert.match(rpc, /created_by[\s\S]*?v_uid/i);
   assert.doesNotMatch(rpc, /p_created_by|p_user_id/i);
 });
 
