@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(new URL('../supabase/migrations/20261120080500_daily_activity_success_gate.sql', import.meta.url), 'utf8');
+const answerLockMigration = readFileSync(new URL('../supabase/migrations/20261124082300_lock_daily_skill_challenge_answers.sql', import.meta.url), 'utf8');
 const component = readFileSync(new URL('../src/components/DailyActivitiesFeature.tsx', import.meta.url), 'utf8');
 
 test('expired attempts clear the persisted success bit before a fresh round', () => {
@@ -19,10 +20,13 @@ test('expired skill-check submissions show a restart action instead of a stale c
   assert.match(component, /Start a fresh round/);
 });
 
-test('restart uses the authenticated activity-start RPC and resets local round state', () => {
+test('restart uses the authenticated activity-start RPC and restores the server answer state', () => {
   assert.match(component, /async function restartExpiredActivity\(\)/);
   assert.match(component, /rpc\('start_daily_activity',\{p_activity_key:selected\.activity_key\}\)/);
-  assert.match(component, /setAttemptExpired\(false\);\s*setGameStep\(0\);\s*setGameResult\(''\)/);
+  assert.match(component, /startState\.challenge_answered===true/);
+  assert.match(component, /startState\.challenge_successful===true/);
+  assert.match(component, /skillAnswered \? \(skillSuccessful \? 1 : 5\) : 0/);
+  assert.match(answerLockMigration, /answered_at is not null then[\s\S]*?set started_at = now\(\)/);
 });
 
 test('BC completion remains independently gated by the persisted success flag', () => {
