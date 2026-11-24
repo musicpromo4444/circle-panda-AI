@@ -113,11 +113,18 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
     if(item.is_ad_only){setNotice('Sponsored activity is listed, but rewards stay locked until verified ad playback is integrated.');return;}
     if(!supabase || busy) return;
     setBusy(true);setNotice('');
-    const {error}=await supabase.rpc('start_daily_activity',{p_activity_key:item.activity_key});
+    const {data:startData,error}=await supabase.rpc('start_daily_activity',{p_activity_key:item.activity_key});
     if(error) {
       setNotice(item.activity_key==='guess_sponsor'
         ? 'Guess Sponsor is temporarily unavailable. An admin must publish at least two distinct active Sponsor Reveal sponsors.'
         : error.message);
+      setBusy(false);return;
+    }
+    const startState=(startData??{}) as {challenge_answered?:boolean;challenge_successful?:boolean};
+    const skillKeys=['panda_cup_shuffle','panda_target','panda_puzzle'];
+    const isSkill=skillKeys.includes(item.activity_key);
+    if(isSkill && (typeof startState.challenge_answered!=='boolean' || typeof startState.challenge_successful!=='boolean')) {
+      setNotice('Daily skill challenges are temporarily unavailable while secure answer verification is being activated. Please try again shortly.');
       setBusy(false);return;
     }
     let sponsorData:SponsorGuessPayload|null=null;
@@ -129,15 +136,20 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
       }
       sponsorData=data as SponsorGuessPayload;
     }
+    const skillAnswered=isSkill && startState.challenge_answered===true;
+    const skillSuccessful=isSkill && startState.challenge_successful===true;
     setSponsorOptions(sponsorData?.options??[]);
     setSelected(item);
-    setGameStep(sponsorData?.answered ? (sponsorData.successful ? 1 : 5) : 0);
+    setGameStep(sponsorData?.answered ? (sponsorData.successful ? 1 : 5) : skillAnswered ? (skillSuccessful ? 1 : 5) : 0);
     setGameResult(sponsorData?.answered
       ? (sponsorData.successful ? 'You already identified today’s featured sponsor. Claim your reward.' : 'A sponsor guess has already been submitted for this round.')
-      : '');
+      : skillAnswered
+        ? (skillSuccessful ? 'You solved today’s challenge. Claim your reward.' : 'That answer was not correct. Today’s challenge is complete for this cycle.')
+        : '');
     setAttemptExpired(false);setGameSeconds(60);setGameScore(0);setGameActive(false);
     setBusy(false);
   }
+
   async function finishActivity() {
     if(!supabase || !selected || busy) return;
     setBusy(true);setNotice('');
@@ -173,39 +185,59 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
       setNotice(error.message);setBusy(false);return;
     }
     setAttemptExpired(false);
-    const result=data as {outcome?:string;correct?:boolean};
+    const result=data as {outcome?:string;correct?:boolean;answered?:boolean};
     const requiresCorrectAnswer=['panda_cup_shuffle','panda_target','panda_puzzle'].includes(selected.activity_key);
+    if(requiresCorrectAnswer && result.answered!==true) {
+      setNotice('Secure challenge verification is not available yet. No reward can be claimed until the server confirms the answer.');
+      setBusy(false);return;
+    }
     if(requiresCorrectAnswer && result.correct!==true) {
-      setGameResult(result.outcome??'That answer was not correct. Try another choice.');
-      setGameStep(4);setBusy(false);return;
+      setGameResult(result.outcome??'That answer was not correct. Your one answer for today has been used.');
+      setGameStep(5);setBusy(false);return;
     }
     setGameResult(result.outcome??'Your choice was recorded. Complete the activity to claim its configured daily BC reward.');
     setGameStep(1);setBusy(false);
   }
+
   async function restartExpiredActivity() {
     if(!supabase || !selected || busy || !attemptExpired) return;
     setBusy(true);setNotice('');
-    const {error}=await supabase.rpc('start_daily_activity',{p_activity_key:selected.activity_key});
-    if(error) setNotice(error.message);
-    else {
-      if(selected.activity_key==='guess_sponsor') {
-        const {data,error:sponsorError}=await supabase.rpc('get_daily_sponsor_guess');
-        if(sponsorError) {
-          setNotice(sponsorError.message);
-          setBusy(false);return;
-        }
-        const sponsorData=data as SponsorGuessPayload;
-        setSponsorOptions(sponsorData.options??[]);
-      }
-      setAttemptExpired(false);
-      setGameStep(0);
-      setGameResult('');
-      setGameSeconds(60);
-      setGameScore(0);
-      setNotice('A fresh activity round has started. Solve it correctly before claiming BC.');
+    const {data:startData,error}=await supabase.rpc('start_daily_activity',{p_activity_key:selected.activity_key});
+    if(error) {setNotice(error.message);setBusy(false);return;}
+    const startState=(startData??{}) as {challenge_answered?:boolean;challenge_successful?:boolean};
+    const skillKeys=['panda_cup_shuffle','panda_target','panda_puzzle'];
+    const isSkill=skillKeys.includes(selected.activity_key);
+    if(isSkill && (typeof startState.challenge_answered!=='boolean' || typeof startState.challenge_successful!=='boolean')) {
+      setNotice('Secure challenge verification is not available yet. The round was not restarted.');
+      setBusy(false);return;
     }
+    let sponsorData:SponsorGuessPayload|null=null;
+    if(selected.activity_key==='guess_sponsor') {
+      const {data,error:sponsorError}=await supabase.rpc('get_daily_sponsor_guess');
+      if(sponsorError) {
+        setNotice(sponsorError.message);
+        setBusy(false);return;
+      }
+      sponsorData=data as SponsorGuessPayload;
+      setSponsorOptions(sponsorData.options??[]);
+    }
+    const skillAnswered=isSkill && startState.challenge_answered===true;
+    const skillSuccessful=isSkill && startState.challenge_successful===true;
+    setAttemptExpired(false);
+    setGameStep(sponsorData?.answered ? (sponsorData.successful ? 1 : 5) : skillAnswered ? (skillSuccessful ? 1 : 5) : 0);
+    setGameResult(sponsorData?.answered
+      ? (sponsorData.successful ? 'You already identified today’s featured sponsor. Claim your reward.' : 'A sponsor guess has already been submitted for this round.')
+      : skillAnswered
+        ? (skillSuccessful ? 'Your correct answer is saved. Claim your reward.' : 'Your one answer for today has already been used. Come back for the next daily challenge.')
+        : '');
+    setGameSeconds(60);
+    setGameScore(0);
+    setNotice(skillAnswered
+      ? 'Your submitted answer was preserved.'
+      : 'A fresh activity round has started. Solve it correctly before claiming BC.');
     setBusy(false);
   }
+
   async function startCoinDrop() {
     if(!supabase || busy) return;
     setBusy(true);setNotice('');
@@ -257,7 +289,7 @@ export default function DailyActivitiesFeature({ userId, onReward, adminOnly = f
       {adminOnly && isAdmin && <div className="daily-activity-library"><div className="section-title-row"><div><h3>Activity library</h3><p>One activity is assigned each day by the Circle Panda admin.</p></div></div><div className="daily-library-grid">{catalog.map(item=><article key={item.activity_key} className={'daily-library-card '+(today?.activity_key===item.activity_key?'assigned':'')}><span>{item.icon}</span><strong>{item.title}</strong><small>{item.is_ad_only?'Sponsored · no BC until ad verification':item.enabled?'Available in the activity rotation':'Currently disabled'}</small>{today?.activity_key===item.activity_key&&<em>Assigned today</em>}</article>)}</div></div>}
       {adminOnly && isAdmin && <div className="daily-admin-schedule"><div className="section-title-row"><div><h3>Admin · 7-day schedule</h3><p>Assign one library activity and set its BC reward for each day.</p></div></div>{schedule.map(row=>{const d=drafts[row.day_number]??{activity_key:row.activity_key,reward_bc:String(row.reward_bc),enabled:row.enabled};return <div className="daily-admin-row" key={row.day_number}><strong>Day {row.day_number}</strong><select value={d.activity_key} onChange={e=>setDrafts(old=>({...old,[row.day_number]:{...d,activity_key:e.target.value}}))}>{catalog.map(c=><option key={c.activity_key} value={c.activity_key}>{c.title}</option>)}</select><label><span>BC reward</span><input type="number" min="0" value={d.reward_bc} onChange={e=>setDrafts(old=>({...old,[row.day_number]:{...d,reward_bc:e.target.value}}))}/></label><label className="daily-enabled-toggle"><input type="checkbox" checked={d.enabled} onChange={e=>setDrafts(old=>({...old,[row.day_number]:{...d,enabled:e.target.checked}}))}/> Enabled</label><button type="button" className="secondary-button" disabled={busy} onClick={()=>void saveDay(row.day_number)}>Save</button></div>})}</div>}
     </>}
-    {selected&&<div className="daily-game-backdrop"><section className="daily-game-modal" role="dialog" aria-modal="true" aria-label={selected.title}><button type="button" className="daily-game-close" onClick={()=>{setSelected(null);setGameStep(0);setGameResult('');setAttemptExpired(false);setSponsorOptions([]);}}>×</button><div className="daily-game-big-icon">{selected.icon}</div><p className="eyebrow">CIRCLE PANDA · DAILY CHALLENGE</p><h2>{selected.title}</h2>{attemptExpired?<><h3>Round expired</h3><p>The 30-minute attempt window ended. The previous success flag was cleared, and no BC was awarded.</p><button type="button" className="primary-button full" disabled={busy} onClick={()=>void restartExpiredActivity()}>{busy?'Restarting…':'Start a fresh round →'}</button></>:gameStep===0?<><p>{selected.description}</p><p className="daily-game-note">Play the activity round below. Today’s assigned activity can be completed only once.</p>{selected.activity_key==='panda_cup_shuffle'?<div className="daily-game-choices">{['Left cup','Middle cup','Right cup'].map(choice=><button type="button" key={choice} onClick={()=>chooseOption(choice)}>🥤<small>{choice}</small></button>)}</div>:selected.activity_key==='lucky_cards'||selected.activity_key==='mystery_box'?<div className="daily-game-choices">{['Choice 1','Choice 2','Choice 3'].map(choice=><button type="button" key={choice} onClick={()=>chooseOption(choice)}>{selected.activity_key==='lucky_cards'?'🃏':'🎁'}<small>{choice}</small></button>)}</div>:selected.activity_key==='coin_drop'&&gameActive?<div className="daily-live-game"><strong>{gameSeconds}s remaining</strong><div className="daily-score-meter">Round score <b>{gameScore}</b></div><div className="daily-game-choices"><button type="button" disabled={busy} onClick={()=>void recordCoinDrop('coin')}>🪙<small>Catch coin +1 BC</small></button><button type="button" disabled={busy} onClick={()=>void recordCoinDrop('rare_coin')}>✨<small>Rare coin +2 BC</small></button><button type="button" disabled={busy} onClick={()=>void recordCoinDrop('stone')}>🪨<small>Stone −3 BC</small></button></div><p className="daily-game-note">Tap falling items during the 60-second round. The configured daily activity reward is credited separately.</p></div>:selected.activity_key==='panda_slots'&&gameActive?<div className="daily-live-game"><strong>{gameSeconds}s remaining</strong><div className="daily-slot-reels"><span>🐼</span><span>🪙</span><span>🎋</span></div><p>Slots are running. The result is calculated when the timer ends.</p></div>:selected.activity_key==='panda_target'?<div className="daily-game-choices">{['Target left','Bullseye','Target right'].map(choice=><button type="button" key={choice} onClick={()=>chooseOption(choice)}>🎯<small>{choice}</small></button>)}</div>:selected.activity_key==='panda_puzzle'?<div className="daily-game-choices">{['Panda face','Golden coin','Green bamboo'].map(choice=><button type="button" key={choice} onClick={()=>chooseOption(choice)}>🧩<small>{choice}</small></button>)}</div>:selected.activity_key==='guess_sponsor'?<div className="daily-game-choices">{sponsorOptions.map(choice=><button type="button" key={choice} disabled={busy} onClick={()=>void chooseOption(choice)}>🔎<small>{choice}</small></button>)}</div>:<button type="button" className="primary-button full" onClick={selected.activity_key==='coin_drop'?()=>void startCoinDrop():playStep}>{selected.activity_key==='wheel_spin'?'Spin the wheel →':selected.activity_key==='coin_drop'?'Start Coin Drop →':selected.activity_key==='panda_slots'?'Play slots →':'Reveal the secret →'}</button>}</>:gameStep===1?<><h3>{gameResult}</h3><p>Your activity round is ready to submit.</p><button type="button" className="primary-button full" disabled={busy} onClick={()=>void finishActivity()}>{busy?'Saving…':'Complete activity & claim reward'}</button></>:gameStep===4?<><h3>{gameResult}</h3><p>That choice was checked by Circle Panda. No BC has been awarded. Choose again to solve the challenge before claiming your reward.</p><button type="button" className="primary-button full" disabled={busy} onClick={()=>setGameStep(0)}>Try another choice →</button></>:gameStep===5?<><h3>{gameResult}</h3><p>Each round allows one sponsor guess. No BC was awarded, and the reward remains locked for this round.</p><button type="button" className="secondary-button full" onClick={()=>{setSelected(null);setGameStep(0);setGameResult('');setSponsorOptions([]);}}>Back to daily activities</button></>:gameStep===3?<><div className="daily-reveal-spinner" aria-label="Calculating results">✦</div><h3>{gameResult}</h3><p>{selected.activity_key==='coin_drop'?'Revealing your score and BC summary…':'Calculating your slots result…'}</p></>:<><h3>{gameResult}</h3><p>Your progress is saved for this 7-day cycle.</p><button type="button" className="primary-button full" onClick={()=>{setSelected(null);setGameStep(0);setGameResult('');setSponsorOptions([]);}}>Back to daily activities</button></>}</section></div>}
+    {selected&&<div className="daily-game-backdrop"><section className="daily-game-modal" role="dialog" aria-modal="true" aria-label={selected.title}><button type="button" className="daily-game-close" onClick={()=>{setSelected(null);setGameStep(0);setGameResult('');setAttemptExpired(false);setSponsorOptions([]);}}>×</button><div className="daily-game-big-icon">{selected.icon}</div><p className="eyebrow">CIRCLE PANDA · DAILY CHALLENGE</p><h2>{selected.title}</h2>{attemptExpired?<><h3>Round expired</h3><p>The 30-minute activity window ended. Reopen the challenge to refresh it; an answer already submitted is preserved.</p><button type="button" className="primary-button full" disabled={busy} onClick={()=>void restartExpiredActivity()}>{busy?'Restarting…':'Start a fresh round →'}</button></>:gameStep===0?<><p>{selected.description}</p><p className="daily-game-note">Play the activity round below. Today’s assigned activity can be completed only once.</p>{selected.activity_key==='panda_cup_shuffle'?<div className="daily-game-choices">{['Left cup','Middle cup','Right cup'].map(choice=><button type="button" key={choice} disabled={busy} onClick={()=>void chooseOption(choice)}>🥤<small>{choice}</small></button>)}</div>:selected.activity_key==='lucky_cards'||selected.activity_key==='mystery_box'?<div className="daily-game-choices">{['Choice 1','Choice 2','Choice 3'].map(choice=><button type="button" key={choice} disabled={busy} onClick={()=>void chooseOption(choice)}>{selected.activity_key==='lucky_cards'?'🃏':'🎁'}<small>{choice}</small></button>)}</div>:selected.activity_key==='coin_drop'&&gameActive?<div className="daily-live-game"><strong>{gameSeconds}s remaining</strong><div className="daily-score-meter">Round score <b>{gameScore}</b></div><div className="daily-game-choices"><button type="button" disabled={busy} onClick={()=>void recordCoinDrop('coin')}>🪙<small>Catch coin +1 BC</small></button><button type="button" disabled={busy} onClick={()=>void recordCoinDrop('rare_coin')}>✨<small>Rare coin +2 BC</small></button><button type="button" disabled={busy} onClick={()=>void recordCoinDrop('stone')}>🪨<small>Stone −3 BC</small></button></div><p className="daily-game-note">Tap falling items during the 60-second round. The configured daily activity reward is credited separately.</p></div>:selected.activity_key==='panda_slots'&&gameActive?<div className="daily-live-game"><strong>{gameSeconds}s remaining</strong><div className="daily-slot-reels"><span>🐼</span><span>🪙</span><span>🎋</span></div><p>Slots are running. The result is calculated when the timer ends.</p></div>:selected.activity_key==='panda_target'?<div className="daily-game-choices">{['Target left','Bullseye','Target right'].map(choice=><button type="button" key={choice} disabled={busy} onClick={()=>void chooseOption(choice)}>🎯<small>{choice}</small></button>)}</div>:selected.activity_key==='panda_puzzle'?<div className="daily-game-choices">{['Panda face','Golden coin','Green bamboo'].map(choice=><button type="button" key={choice} disabled={busy} onClick={()=>void chooseOption(choice)}>🧩<small>{choice}</small></button>)}</div>:selected.activity_key==='guess_sponsor'?<div className="daily-game-choices">{sponsorOptions.map(choice=><button type="button" key={choice} disabled={busy} onClick={()=>void chooseOption(choice)}>🔎<small>{choice}</small></button>)}</div>:<button type="button" className="primary-button full" onClick={selected.activity_key==='coin_drop'?()=>void startCoinDrop():playStep}>{selected.activity_key==='wheel_spin'?'Spin the wheel →':selected.activity_key==='coin_drop'?'Start Coin Drop →':selected.activity_key==='panda_slots'?'Play slots →':'Reveal the secret →'}</button>}</>:gameStep===1?<><h3>{gameResult}</h3><p>Your activity round is ready to submit.</p><button type="button" className="primary-button full" disabled={busy} onClick={()=>void finishActivity()}>{busy?'Saving…':'Complete activity & claim reward'}</button></>:gameStep===5?<><h3>{gameResult}</h3><p>{selected.activity_key==='guess_sponsor'?'Each round allows one sponsor guess. No BC was awarded, and the reward remains locked for this round.':'This daily challenge allows one answer per cycle. No BC was awarded. You can try again when your next daily activity cycle begins.'}</p><button type="button" className="secondary-button full" onClick={()=>{setSelected(null);setGameStep(0);setGameResult('');setSponsorOptions([]);}}>Back to daily activities</button></>:gameStep===3?<><div className="daily-reveal-spinner" aria-label="Calculating results">✦</div><h3>{gameResult}</h3><p>{selected.activity_key==='coin_drop'?'Revealing your score and BC summary…':'Calculating your slots result…'}</p></>:<><h3>{gameResult}</h3><p>Your progress is saved for this 7-day cycle.</p><button type="button" className="primary-button full" onClick={()=>{setSelected(null);setGameStep(0);setGameResult('');setSponsorOptions([]);}}>Back to daily activities</button></>}</section></div>}
     <p className="daily-cycle-footnote">Cycle started {cycleStart||'today'}. Each day has one assigned activity. Sponsored-ad rewards remain locked until playback is verified.</p>
   </section>;
 }
