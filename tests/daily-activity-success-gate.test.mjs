@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(new URL('../supabase/migrations/20261120080500_daily_activity_success_gate.sql', import.meta.url), 'utf8');
+const answerLockMigration = readFileSync(new URL('../supabase/migrations/20261124082300_lock_daily_skill_challenge_answers.sql', import.meta.url), 'utf8');
 const component = readFileSync(new URL('../src/components/DailyActivitiesFeature.tsx', import.meta.url), 'utf8');
 
 test('existing attempts are preserved while new attempts begin unsuccessful', () => {
@@ -30,11 +31,14 @@ test('attempt rows remain readable by authenticated owners but not directly writ
   assert.match(migration, /user_daily_activity_attempts[\s\S]*?security definer[\s\S]*?set search_path = ''/i);
 });
 
-test('frontend offers retry, not reward claim, after an incorrect answer', () => {
-  assert.match(component, /requiresCorrectAnswer=\['panda_cup_shuffle','panda_target','panda_puzzle'\]/);
+test('frontend fails closed until the secure one-answer backend is available', () => {
+  assert.match(component, /typeof startState\.challenge_answered!=='boolean' \|\| typeof startState\.challenge_successful!=='boolean'/);
+  assert.match(component, /requiresCorrectAnswer && result\.answered!==true/);
   assert.match(component, /requiresCorrectAnswer && result\.correct!==true/);
-  assert.match(component, /setGameStep\(4\);setBusy\(false\);return;/);
-  assert.match(component, /gameStep===4\?<>/);
-  assert.match(component, /Try another choice/);
+  assert.match(component, /setGameStep\(5\);setBusy\(false\);return;/);
+  assert.doesNotMatch(component, /setGameStep\(4\)/);
+  assert.doesNotMatch(component, /Try another choice/);
+  assert.match(answerLockMigration, /v_question\.answered_at is not null or coalesce\(v_attempt\.action_count, 0\) >= 1/);
+  assert.match(answerLockMigration, /q\.is_correct = true/);
   assert.match(component, /complete_daily_activity/);
 });
