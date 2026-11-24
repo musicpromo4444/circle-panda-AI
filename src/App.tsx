@@ -2778,7 +2778,7 @@ function AdminFeature({userId}:{userId:string}) {
   const [sponsorCampaigns, setSponsorCampaigns] = useState<SponsorCampaignRow[]>([]);
   const [sponsorLoading, setSponsorLoading] = useState(false);
   const [sponsorBusy, setSponsorBusy] = useState('');
-  const [sponsorDraft, setSponsorDraft] = useState({ sponsor_name:'', campaign_name:'', description:'', format:'feed_card', target_url:'', countries:'Nigeria', starts_at:new Date().toISOString().slice(0,16), ends_at:new Date(Date.now()+7*86400000).toISOString().slice(0,16), budget_naira:'', cpm_naira:'', target_impressions:'' });
+  const [sponsorDraft, setSponsorDraft] = useState({ sponsor_name:'', campaign_name:'', description:'', format:'native', target_url:'', countries:'Nigeria', starts_at:new Date().toISOString().slice(0,16), ends_at:new Date(Date.now()+7*86400000).toISOString().slice(0,16), budget_naira:'', cpm_naira:'', target_impressions:'' });
   const [settings, setSettings] = useState<EconomySettingRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string,string>>({});
   const [blastPlans, setBlastPlans] = useState<EventBlastAdminPlan[]>([]);
@@ -2853,38 +2853,56 @@ function AdminFeature({userId}:{userId:string}) {
 
   async function createSponsorCampaign() {
     const client = supabase;
-    if (!client) return;
-    const { data:userData, error:userError } = await client.auth.getUser();
-    if (userError || !userData.user) { setNotice('Sign in again before creating a campaign.'); return; }
+    if (!client || sponsorBusy) return;
     const budget = Number(sponsorDraft.budget_naira), cpm = Number(sponsorDraft.cpm_naira), impressions = Number(sponsorDraft.target_impressions);
     const starts = new Date(sponsorDraft.starts_at), ends = new Date(sponsorDraft.ends_at);
-    const countries = sponsorDraft.countries.split(',').map(x=>x.trim()).filter(Boolean);
-    if (!sponsorDraft.sponsor_name.trim() || !sponsorDraft.campaign_name.trim() || !sponsorDraft.description.trim() || !countries.length || !Number.isFinite(budget) || budget<=0 || !Number.isFinite(cpm) || cpm<=0 || !Number.isSafeInteger(impressions) || impressions<1 || !Number.isFinite(starts.getTime()) || !Number.isFinite(ends.getTime()) || ends<=starts) {
-      setNotice('Complete all required campaign fields. Budget and CPM must be positive, impressions must be a positive whole number, and end time must follow start time.'); return;
+    const countries = [...new Set(sponsorDraft.countries.split(',').map(x=>x.trim()).filter(Boolean))];
+    const sponsorName = sponsorDraft.sponsor_name.trim(), campaignName = sponsorDraft.campaign_name.trim();
+    const description = sponsorDraft.description.trim(), targetUrl = sponsorDraft.target_url.trim();
+    if (!sponsorName || sponsorName.length>160 || !campaignName || campaignName.length>160 || description.length>2000 || !countries.length || countries.length>20 || countries.some(country=>country.length>80) || !Number.isFinite(budget) || budget<=0 || !Number.isFinite(cpm) || cpm<=0 || !Number.isSafeInteger(impressions) || impressions<1 || !Number.isFinite(starts.getTime()) || !Number.isFinite(ends.getTime()) || ends<=starts) {
+      setNotice('Check the required campaign fields. Names must be 1–160 characters, description up to 2,000 characters, countries 1–20 entries, budget and CPM positive, impressions a positive whole number, and end time after start time.'); return;
+    }
+    if (targetUrl) {
+      try { if (new URL(targetUrl).protocol !== 'https:') throw new Error('HTTPS required'); }
+      catch { setNotice('Target URL must be a valid HTTPS address.'); return; }
     }
     setSponsorBusy('create'); setNotice('');
-    const { error } = await client.from('sponsor_campaigns').insert({
-      sponsor_name:sponsorDraft.sponsor_name.trim(), campaign_name:sponsorDraft.campaign_name.trim(), description:sponsorDraft.description.trim(),
-      format:sponsorDraft.format, target_url:sponsorDraft.target_url.trim() || null, countries, status:'draft',
-      starts_at:starts.toISOString(), ends_at:ends.toISOString(), budget_naira:budget, cpm_naira:cpm,
-      target_impressions:impressions, created_by:userData.user.id
+    const { error } = await client.rpc('admin_manage_sponsor_campaign',{
+      p_action:'create',
+      p_sponsor_name:sponsorName,
+      p_campaign_name:campaignName,
+      p_description:description,
+      p_format:sponsorDraft.format,
+      p_target_url:targetUrl || null,
+      p_countries:countries,
+      p_starts_at:starts.toISOString(),
+      p_ends_at:ends.toISOString(),
+      p_budget_naira:budget,
+      p_cpm_naira:cpm,
+      p_target_impressions:impressions
     });
     if (error) setNotice(error.message);
     else {
-      setNotice('Campaign saved as draft. It will not serve until an administrator activates it and its schedule is current.');
+      setNotice('Draft saved. Activate it only when its schedule and creative are ready. Guess Sponsor requires two distinct active Sponsor Reveal sponsors.');
       setSponsorDraft(prev=>({...prev,sponsor_name:'',campaign_name:'',description:'',target_url:'',budget_naira:'',cpm_naira:'',target_impressions:''}));
       await loadSponsors(); await loadOverview();
     }
     setSponsorBusy('');
   }
 
-  async function updateSponsorStatus(id:string,status:string) {
+  async function updateSponsorStatus(id:string,status:'active'|'paused'|'completed') {
     const client = supabase;
-    if (!client) return;
+    if (!client || sponsorBusy) return;
+    if (status==='completed' && !window.confirm('Mark this campaign completed? Completed campaigns cannot be reactivated.')) return;
     setSponsorBusy(id); setNotice('');
-    const { error } = await client.from('sponsor_campaigns').update({status}).eq('id',id);
+    const { error } = await client.rpc('admin_manage_sponsor_campaign',{
+      p_action:'set_status',p_campaign_id:id,p_status:status
+    });
     if (error) setNotice(error.message);
-    else { setNotice('Campaign status updated.'); await loadSponsors(); await loadOverview(); }
+    else {
+      setNotice(status==='active'?'Campaign activated. It serves only inside its configured schedule.':status==='paused'?'Campaign paused.':'Campaign marked completed.');
+      await loadSponsors(); await loadOverview();
+    }
     setSponsorBusy('');
   }
 
@@ -3042,13 +3060,13 @@ function AdminFeature({userId}:{userId:string}) {
     <section id="admin-blast" className="admin-blast-plans admin-dashboard-section"><div><p className="eyebrow">EVENT PROMOTION</p><h3>Event Blast plans</h3><p className="feature-copy">Set paid reach, duration and BC pricing here. Changes apply to new Event Blasts.</p></div>{blastPlans.length ? blastPlans.map(plan=>{const draft=planDrafts[plan.id] || {name:plan.name,unique_reach:String(plan.unique_reach),duration_minutes:String(plan.duration_minutes),price_usd:String(plan.price_usd),bc_price:plan.bc_price == null?'':String(plan.bc_price),enabled:plan.enabled};return <article className="admin-blast-plan-row" key={plan.id}><div className="admin-blast-plan-id"><strong>{plan.id}</strong><label><input type="checkbox" checked={draft.enabled} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,enabled:e.target.checked}}))}/> Enabled</label></div><label>Plan name<input value={draft.name} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,name:e.target.value}}))}/></label><div className="admin-blast-plan-fields"><label>Unique reach<input type="number" min="1" step="1" value={draft.unique_reach} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,unique_reach:e.target.value}}))}/></label><label>Duration (minutes)<input type="number" min="1" step="1" value={draft.duration_minutes} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,duration_minutes:e.target.value}}))}/></label><label>Price (USD)<input type="number" min="0" step="0.01" value={draft.price_usd} onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,price_usd:e.target.value}}))}/></label><label>Price (BC)<input type="number" min="0" step="1" value={draft.bc_price} placeholder="Unavailable" onChange={e=>setPlanDrafts(prev=>({...prev,[plan.id]:{...draft,bc_price:e.target.value}}))}/></label></div><button className="primary-button" disabled={busyKey==='blast:'+plan.id} onClick={()=>void saveBlastPlan(plan.id)}>{busyKey==='blast:'+plan.id?'Saving…':'Save plan'}</button></article>}) : <div className="empty-state">No Event Blast plans are configured.</div>}</section>
     <section id="admin-sponsors" className="admin-dashboard-section">
       <p className="eyebrow">REVENUE OPERATIONS</p><h3>Sponsor campaigns</h3>
-      <p className="feature-copy">Campaign records use the database's admin-only row policies. New campaigns start as drafts and are not delivered automatically; ad network integration remains separate work.</p>
+      <p className="feature-copy">Create and manage sponsor campaigns through an authenticated administrator RPC with server-side validation and audit history. New campaigns start as drafts. Guess Sponsor requires at least two distinct active Sponsor Reveal sponsors within their schedules.</p>
       <div className="admin-sponsor-form">
-        <label>Sponsor / brand name<input value={sponsorDraft.sponsor_name} onChange={e=>setSponsorDraft(p=>({...p,sponsor_name:e.target.value}))} placeholder="Sponsor name"/></label>
-        <label>Campaign name<input value={sponsorDraft.campaign_name} onChange={e=>setSponsorDraft(p=>({...p,campaign_name:e.target.value}))} placeholder="Campaign title"/></label>
-        <label>Ad format<select value={sponsorDraft.format} onChange={e=>setSponsorDraft(p=>({...p,format:e.target.value}))}><option value="feed_card">Feed card</option><option value="banner">Banner</option><option value="interstitial">Interstitial</option><option value="rewarded_video">Rewarded video</option><option value="event_sponsor">Event sponsor</option></select></label>
+        <label>Sponsor / brand name<input value={sponsorDraft.sponsor_name} maxLength={160} onChange={e=>setSponsorDraft(p=>({...p,sponsor_name:e.target.value}))} placeholder="Sponsor name"/></label>
+        <label>Campaign name<input value={sponsorDraft.campaign_name} maxLength={160} onChange={e=>setSponsorDraft(p=>({...p,campaign_name:e.target.value}))} placeholder="Campaign title"/></label>
+        <label>Ad format<select value={sponsorDraft.format} onChange={e=>setSponsorDraft(p=>({...p,format:e.target.value}))}><option value="native">Native placement</option><option value="direct_sponsor">Direct sponsor</option><option value="sponsor_reveal">Sponsor Reveal (Guess Sponsor)</option><option value="banner">Banner</option><option value="interstitial">Interstitial</option><option value="playable">Playable</option><option value="rewarded">Rewarded</option></select></label>
         <label>Target URL (optional)<input type="url" value={sponsorDraft.target_url} onChange={e=>setSponsorDraft(p=>({...p,target_url:e.target.value}))} placeholder="https://…"/></label>
-        <label className="admin-sponsor-wide">Description<textarea value={sponsorDraft.description} onChange={e=>setSponsorDraft(p=>({...p,description:e.target.value}))} rows={3} placeholder="What should users know about this campaign?"/></label>
+        <label className="admin-sponsor-wide">Description<textarea value={sponsorDraft.description} maxLength={2000} onChange={e=>setSponsorDraft(p=>({...p,description:e.target.value}))} rows={3} placeholder="What should users know about this campaign?"/></label>
         <label>Countries (comma-separated)<input value={sponsorDraft.countries} onChange={e=>setSponsorDraft(p=>({...p,countries:e.target.value}))} placeholder="Nigeria, Ghana"/></label>
         <label>Budget (NGN)<input type="number" min="1" value={sponsorDraft.budget_naira} onChange={e=>setSponsorDraft(p=>({...p,budget_naira:e.target.value}))}/></label>
         <label>CPM (NGN per 1,000 impressions)<input type="number" min="1" value={sponsorDraft.cpm_naira} onChange={e=>setSponsorDraft(p=>({...p,cpm_naira:e.target.value}))}/></label>
@@ -3062,7 +3080,7 @@ function AdminFeature({userId}:{userId:string}) {
         <div className="admin-sponsor-campaign-top"><div><strong>{campaign.campaign_name}</strong><small>{campaign.sponsor_name} · {campaign.format.replaceAll('_',' ')}</small></div><span className={'admin-status-pill status-'+campaign.status}>{campaign.status}</span></div>
         <p>{campaign.description}</p><div className="admin-sponsor-stats"><span>Budget <strong>₦{Number(campaign.budget_naira).toLocaleString()}</strong></span><span>CPM <strong>₦{Number(campaign.cpm_naira).toLocaleString()}</strong></span><span>Impressions <strong>{Number(campaign.impressions).toLocaleString()} / {Number(campaign.target_impressions).toLocaleString()}</strong></span><span>Clicks <strong>{Number(campaign.clicks).toLocaleString()}</strong></span></div>
         <small>{campaign.countries.join(', ')} · {new Date(campaign.starts_at).toLocaleString()} – {new Date(campaign.ends_at).toLocaleString()}</small>
-        <div className="admin-sponsor-actions"><label>Delivery status<select value={campaign.status} disabled={sponsorBusy===campaign.id} onChange={e=>void updateSponsorStatus(campaign.id,e.target.value)}><option value="draft">Draft</option><option value="paused">Paused</option><option value="active">Active</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>{campaign.target_url && <a href={campaign.target_url} target="_blank" rel="noreferrer">Open target ↗</a>}</div>
+        <div className="admin-sponsor-actions">{campaign.status!=='completed' && <label>Delivery status<select value={campaign.status} disabled={sponsorBusy===campaign.id} onChange={e=>{const next=e.target.value;if(next==='active'||next==='paused'||next==='completed')void updateSponsorStatus(campaign.id,next);}}><option value={campaign.status}>{campaign.status}</option>{campaign.status==='draft' && <option value="active">Activate</option>}{campaign.status==='active' && <><option value="paused">Pause</option><option value="completed">Complete</option></>}{campaign.status==='paused' && <><option value="active">Reactivate</option><option value="completed">Complete</option></>}</select></label>}{campaign.target_url && <a href={campaign.target_url} target="_blank" rel="noreferrer">Open target ↗</a>}</div>
       </article>)}</div> : <div className="empty-state">No sponsor campaigns yet. Create a draft above.</div>}
     </section>
     <section id="admin-moderation" className="admin-dashboard-section admin-moderation-section">
