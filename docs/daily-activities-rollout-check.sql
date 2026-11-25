@@ -26,16 +26,21 @@ select
   has_table_privilege('authenticated','public.user_daily_activity_attempts','INSERT') as attempts_insert,
   has_table_privilege('authenticated','public.user_daily_activity_attempts','UPDATE') as attempts_update,
   has_table_privilege('authenticated','public.user_daily_activity_attempts','DELETE') as attempts_delete,
-  has_table_privilege('authenticated','private.daily_activity_skill_questions','SELECT') as skill_answer_select,
-  has_table_privilege('authenticated','private.daily_activity_sponsor_questions','SELECT') as sponsor_answer_select;
+  has_table_privilege('anon','private.daily_activity_skill_questions','SELECT') as skill_anon_select,
+  has_table_privilege('authenticated','private.daily_activity_skill_questions','SELECT') as skill_auth_select,
+  has_table_privilege('anon','private.daily_activity_sponsor_questions','SELECT') as sponsor_anon_select,
+  has_table_privilege('authenticated','private.daily_activity_sponsor_questions','SELECT') as sponsor_auth_select;
 
--- 4) Required RPCs: security mode and per-role execution ACL.
+-- 4) Required RPCs: security mode, per-role execute and PUBLIC ACL (grantee 0).
 select
   p.proname,
   p.prosecdef as security_definer,
   has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute,
   has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
-  has_function_privilege('public', p.oid, 'EXECUTE') as public_execute,
+  exists (
+    select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+    where acl.grantee = 0 and acl.privilege_type = 'EXECUTE'
+  ) as public_execute,
   p.proconfig as function_settings
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
