@@ -7,8 +7,9 @@ const guide = readFileSync(new URL('../docs/DAILY_ACTIVITIES_ROLLOUT.md', import
 
 test('rollout SQL is read-only and contains no data/schema mutations', () => {
   assert.ok(sql.toLowerCase().includes('read-only'));
-  const executable = sql.split('\\n').filter(line => !line.trim().startsWith('--')).join('\\n');
-  assert.equal(/\\b(insert|update|delete|alter|drop|create|grant|revoke|truncate)\\s+/i.test(executable), false);
+  const executable = sql.split(String.fromCharCode(10)).filter(line => !line.trim().startsWith('--')).join(' ');
+  const forbidden = ['insert ', 'update ', 'delete ', 'alter ', 'drop ', 'create ', 'grant ', 'revoke ', 'truncate '];
+  for (const token of forbidden) assert.equal(executable.toLowerCase().includes(token), false, 'unexpected SQL mutation: ' + token);
   assert.ok(sql.includes('select version, name'));
   assert.ok(sql.includes('schema_migrations'));
 });
