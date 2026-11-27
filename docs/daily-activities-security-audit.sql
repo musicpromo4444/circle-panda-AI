@@ -33,6 +33,7 @@ with expected(function_name) as (
 )
 select e.function_name, p.oid is not null as exists,
   coalesce(p.prosecdef, false) as security_definer,
+  coalesce(p.proconfig @> array['search_path=""'], false) as empty_search_path,
   coalesce(has_function_privilege('authenticated', p.oid, 'EXECUTE'), false) as authenticated_execute,
   coalesce(has_function_privilege('anon', p.oid, 'EXECUTE'), false) as anon_execute,
   coalesce(exists (
