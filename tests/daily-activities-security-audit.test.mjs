@@ -7,7 +7,7 @@ const sql = readFileSync(new URL('../docs/daily-activities-security-audit.sql', 
 test('security audit is read-only', () => {
   assert.match(sql, /READ-ONLY/i);
   const executable = sql.split(String.fromCharCode(10)).filter(line => !line.trim().startsWith('--')).join(String.fromCharCode(10));
-  const mutationStatement = /^\\s*(insert\\s+into|update\\s+[\\w.]+\\s+set|delete\\s+from|alter\\s+(table|function)|drop\\s+|create\\s+|grant\\s+|revoke\\s+|truncate\\s+[\\w.]+)\\b/im;
+  const mutationStatement = /^\s*(insert\s+into|update\s+[\w.]+\s+set|delete\s+from|alter\s+(table|function)|drop\s+|create\s+|grant\s+|revoke\s+|truncate\s+[\w.]+)\b/im;
   assert.equal(mutationStatement.test(executable), false, 'SQL contains a mutation statement');
 });
 
