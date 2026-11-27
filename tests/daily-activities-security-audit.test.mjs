@@ -34,6 +34,8 @@ test('RPC audit exposes missing functions, anon/public execute, and search path 
   assert.ok(sql.includes('anon_execute'));
   assert.ok(sql.includes('public_execute'));
   assert.ok(sql.includes('function_settings'));
+  assert.ok(sql.includes('empty_search_path'));
+  assert.ok(sql.includes("p.proconfig @> array['search_path=\"\"']"));
 });
 
 test('sponsor readiness requires two distinct sponsors and two active campaigns', () => {
