@@ -26,6 +26,13 @@ test('private answer-key audit covers both tables and both browser roles', () =>
   for (const privilege of ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) assert.ok(sql.includes(privilege));
 });
 
+test('private answer table checks remain safe before migrations create the tables', () => {
+  assert.ok(sql.includes('left join pg_class c'));
+  assert.ok(sql.includes('table_exists'));
+  assert.ok(sql.includes('coalesce(has_table_privilege(role_name, c.oid'));
+  assert.ok(sql.includes('c.oid is null'));
+});
+
 test('RPC audit exposes missing functions, anon/public execute, and search path settings', () => {
   for (const fn of ['start_daily_activity','record_daily_activity_action','complete_daily_activity','get_daily_sponsor_guess','submit_daily_sponsor_guess','admin_manage_sponsor_campaign']) assert.ok(sql.includes(fn));
   assert.ok(sql.includes('p.oid is null'));
