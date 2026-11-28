@@ -14,14 +14,20 @@ select
   has_table_privilege('authenticated','public.user_daily_activity_attempts','TRUNCATE') as auth_truncate;
 
 -- B. Browser roles must have no privilege of any kind on private answer tables.
-select table_name, role_name,
-  has_table_privilege(role_name, format('private.%I', table_name), 'SELECT') as can_select,
-  has_table_privilege(role_name, format('private.%I', table_name), 'INSERT') as can_insert,
-  has_table_privilege(role_name, format('private.%I', table_name), 'UPDATE') as can_update,
-  has_table_privilege(role_name, format('private.%I', table_name), 'DELETE') as can_delete,
-  has_table_privilege(role_name, format('private.%I', table_name), 'TRUNCATE') as can_truncate
+-- LEFT JOIN lets this audit run both before and after the answer-key migration;
+-- absent tables are reported as table_exists=false instead of raising an error.
+select table_name, role_name, coalesce(c.oid is not null, false) as table_exists,
+  coalesce(has_table_privilege(role_name, c.oid, 'SELECT'), false) as can_select,
+  coalesce(has_table_privilege(role_name, c.oid, 'INSERT'), false) as can_insert,
+  coalesce(has_table_privilege(role_name, c.oid, 'UPDATE'), false) as can_update,
+  coalesce(has_table_privilege(role_name, c.oid, 'DELETE'), false) as can_delete,
+  coalesce(has_table_privilege(role_name, c.oid, 'TRUNCATE'), false) as can_truncate
 from (values ('daily_activity_skill_questions'), ('daily_activity_sponsor_questions')) t(table_name)
 cross join (values ('anon'), ('authenticated')) r(role_name)
+left join pg_class c on c.relname = t.table_name
+left join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'private'
+  and c.relkind in ('r','p')
+where c.oid is null or n.oid is not null
 order by table_name, role_name;
 
 -- C. Function contracts. Missing RPCs are explicitly shown; SECURITY DEFINER
@@ -51,8 +57,7 @@ order by e.function_name;
 select has_schema_privilege('anon','private','USAGE') as anon_private_usage,
        has_schema_privilege('authenticated','private','USAGE') as authenticated_private_usage;
 
--- E. Sponsor Reveal eligibility (requires >= 2 distinct sponsor names AND >= 2
--- active campaigns; avoid a single sponsor appearing twice as fake variety).
+-- E. Sponsor Reveal eligibility requires >= 2 active campaigns AND distinct sponsors.
 select count(*) as active_campaigns,
        count(distinct lower(trim(sponsor_name))) as distinct_sponsors,
        (count(*) >= 2 and count(distinct lower(trim(sponsor_name))) >= 2) as ready
