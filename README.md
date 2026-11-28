@@ -17,7 +17,7 @@ A rebuild of Circle Panda using React, TypeScript, Vite, and Supabase.
 
 ## Current status
 
-The rebuilt database is online and healthy. All 78 public base tables have RLS enabled. The live migration ledger and committed repository migrations reconcile exactly at **153/153**. Storage has four buckets and 14 policies; 22 tables are published to Realtime, including notifications.
+The rebuilt database is online and healthy. Read-only inspection on 2026-11-28 confirmed **158 applied migrations** (latest `20261117080355`). The current `main` migration directory contains 155 files; three already-applied migration sources are missing from `main` and must be restored before considering the migration inventory reconciled: `20261115074835_secure_notification_read_state`, `20261116080451_persist_direct_message_read_state`, and `20261117080355_group_message_unread_summary`. The four Daily Activities security migrations in the separate rollout work are not live. Storage has four buckets and 14 policies; 22 tables are published to Realtime, including notifications.
 
 The owner account `circlepandaapp@gmail.com` remains an administrator and permanent VIP (`profiles.is_vip=true`, `profiles.vip_expires_at=NULL`). The three registered Supabase Edge Functions are `create-panda-account`, `initialize-coin-purchase`, and `paystack-webhook`.
 
